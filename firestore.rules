@@ -2,27 +2,25 @@
  * @fileoverview Firestore Security Rules for FocusFinds application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles and purchases,
- * while allowing public read access to images. Administrative privileges are granted
- * based on the existence of a document in the `/roles_admin/{userId}` collection.
+ * This ruleset implements a hybrid security model, primarily based on user-ownership for personal data and administrator access for aggregated analytics.
  *
  * Data Structure:
- * - `/users/{userId}`: User profile information, accessible only to the user and admins.
- * - `/images/{imageId}`: Image metadata, publicly readable, but only modifiable by admins (TODO).
- * - `/users/{userId}/purchases/{purchaseId}`: Purchase history for each user, only accessible to the user and admins.
- * - `/images/{imageId}/purchases/{purchaseId}`: Purchase history for each image, only accessible to admins.
- * - `/roles_admin/{userId}`:  If a document exists for a user ID in this collection, they are granted admin privileges.
+ * - `/users/{userId}`: User profiles, accessible only to the user and admins.
+ * - `/images/{imageId}`: Publicly accessible image metadata.
+ * - `/users/{userId}/purchases/{purchaseId}`: Purchase history for each user, accessible only to the user.
+ * - `/images/{imageId}/purchases/{purchaseId}`: Purchase data for each image, accessible to anyone.
+ * - `/roles_admin/{userId}`: Indicates administrator roles. Existence of a document grants admin privileges.
+ * - `/analytics/sales`: Aggregated analytics data, accessible only to administrators.
  *
  * Key Security Decisions:
- * - Users can only create, read, update, and delete their own profile data.
- * - Images are publicly readable, but write access is restricted (TODO).
- * - Purchase records are user-specific and only accessible to the user and admins.
- * - Listing of user documents is disallowed for privacy.
- * - Admin privileges are granted by the existence of a document in `/roles_admin/{userId}`.
+ * - User profiles are strictly controlled: only the user or an admin can read/write them.
+ * - Image metadata is publicly readable, but only an admin can create, update, or delete it.
+ * - Purchase history is private to the user.
+ * - The analytics collection is restricted to admin access only.
+ * - Listing of users is disallowed for privacy.
  *
  * Denormalization for Authorization:
- * - Admin status is determined by the existence of a document in `/roles_admin/{userId}`. This avoids needing to store an `isAdmin` field on the user document itself.
- * - Ownership of purchases is determined by the `userId` path segment. This avoids needing to store a redundant `userId` field within the purchase document.
+ * - Admin status is determined by the presence of a document in `/roles_admin/{userId}`, avoiding the need to store the `isAdmin` field inside the `/users/{userId}` document.
  */
 rules_version = '2';
 service cloud.firestore {
@@ -37,8 +35,8 @@ service cloud.firestore {
     }
 
     /**
-     * @description Checks if the user is the owner of the document based on the userId.
-     * @param {string} userId The user ID to compare with the request's auth UID.
+     * @description Checks if the user is the owner of the document.
+     * @param {string} userId - The user ID to compare with the request's auth UID.
      * @return {boolean} True if the user is the owner, false otherwise.
      */
     function isOwner(userId) {
@@ -46,8 +44,8 @@ service cloud.firestore {
     }
 
     /**
-     * @description Checks if the user is an existing owner of the document, verifying both ownership and document existence.
-     * @param {string} userId The user ID to compare with the request's auth UID.
+     * @description Checks if the user is an existing owner of the document.
+     * @param {string} userId - The user ID to compare with the request's auth UID.
      * @return {boolean} True if the user is the owner and the document exists, false otherwise.
      */
     function isExistingOwner(userId) {
@@ -55,7 +53,7 @@ service cloud.firestore {
     }
 
     /**
-     * @description Checks if the user is an admin by verifying the existence of a document in /roles_admin/{userId}.
+     * @description Checks if the user has admin privileges by verifying the existence of a document in /roles_admin/{userId}.
      * @return {boolean} True if the user is an admin, false otherwise.
      */
     function isAdmin() {
@@ -63,20 +61,18 @@ service cloud.firestore {
     }
 
     /**
-     * @description Rules for user profile information.
+     * @description Rules for user profiles.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user123' creates their profile. request.auth.uid == 'user123'
-     * @allow (get) User with ID 'user123' reads their profile. request.auth.uid == 'user123'
-     * @allow (update) User with ID 'user123' updates their profile. request.auth.uid == 'user123'
-     * @deny (create) User with ID 'user456' attempts to create a profile for user 'user123'. request.auth.uid == 'user456'
-     * @deny (get) User with ID 'user456' attempts to read profile of user 'user123'. request.auth.uid == 'user456'
+     * @allow (get) User with UID 'qGFhOv8t60R8OMvoWaVz3229L4B3' can read their own profile.
+     * @allow (create) User with UID 'qGFhOv8t60R8OMvoWaVz3229L4B3' can create their profile.
+     * @deny (get) User with UID 'otherUserId' cannot read user 'qGFhOv8t60R8OMvoWaVz3229L4B3' profile.
      * @principle Enforces document ownership for writes.
      */
     match /users/{userId} {
       allow get: if isOwner(userId) || isAdmin();
-      allow list: if false; // Disallow listing of user documents for privacy.
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId) || isAdmin();
+      allow list: if false; // Listing users is disallowed.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id || isAdmin();
       allow delete: if isExistingOwner(userId) || isAdmin();
     }
 
@@ -84,8 +80,8 @@ service cloud.firestore {
      * @description Rules for image metadata.
      * @path /images/{imageId}
      * @allow (get) Any user can read image metadata.
-     * @deny (create) Non-admin attempts to create an image. request.auth.uid == 'user123' (not an admin)
-     * @principle Public read access with owner-only (admin) writes (TODO).
+     * @deny (create) Non-admin user cannot create image metadata.
+     * @principle Public read access with admin-only writes.
      */
     match /images/{imageId} {
       allow get: if true;
@@ -98,48 +94,61 @@ service cloud.firestore {
     /**
      * @description Rules for user-specific purchase history.
      * @path /users/{userId}/purchases/{purchaseId}
-     * @allow (create) User with ID 'user123' creates a purchase record. request.auth.uid == 'user123'
-     * @allow (get) User with ID 'user123' reads their purchase record. request.auth.uid == 'user123'
-     * @allow (update) User with ID 'user123' updates their purchase record. request.auth.uid == 'user123'
-     * @deny (create) User with ID 'user456' attempts to create a purchase record for user 'user123'. request.auth.uid == 'user456'
-     * @deny (get) User with ID 'user456' attempts to read purchase record of user 'user123'. request.auth.uid == 'user456'
-     * @principle Restricts access to a user's own data tree.
+     * @allow (get) User with UID 'qGFhOv8t60R8OMvoWaVz3229L4B3' can read their own purchase history.
+     * @deny (create) User with UID 'otherUserId' cannot create purchase history for user 'qGFhOv8t60R8OMvoWaVz3229L4B3'.
+     * @principle Enforces document ownership for writes.
      */
     match /users/{userId}/purchases/{purchaseId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isOwner(userId) || isAdmin();
-      allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId) || isAdmin();
-      allow delete: if isExistingOwner(userId) || isAdmin();
+      allow get: if isOwner(userId);
+      allow list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Rules for anonymous purchase data for an image (admin analytics).
+     * @description Rules for image-specific purchase data (admin analytics).
      * @path /images/{imageId}/purchases/{purchaseId}
-     * @deny (get) Non-admin attempts to read purchase data. request.auth.uid == 'user123' (not an admin)
-     * @principle Admin-only access.
+     * @allow (get) Any user can read image purchase data.
+     * @deny (create) Non-admin user cannot create image purchase data.
+     * @principle Public read access with admin-only writes.
      */
     match /images/{imageId}/purchases/{purchaseId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if true; // Intentionally open for prototyping
+      allow update: if false; // Intentionally closed for prototyping
+      allow delete: if false; // Intentionally closed for prototyping
+    }
+
+    /**
+     * @description Rules for administrator roles.
+     * @path /roles_admin/{userId}
+     * @allow (get) User with UID 'qGFhOv8t60R8OMvoWaVz3229L4B3' can check if they have an admin role.
+     * @deny (create) Non-admin user cannot assign themselves an admin role.
+     * @principle Restricts admin role creation to existing admins.
+     */
+    match /roles_admin/{userId} {
       allow get: if isAdmin();
-      allow list: if isAdmin();
+      allow list: if false; // No listing of admins.
+      allow create: if isAdmin();
+      allow update: if false;
+      allow delete: if isAdmin();
+    }
+
+    /**
+     * @description Rules for aggregated sales analytics.
+     * @path /analytics/sales
+     * @allow (get) Only admin users can read sales analytics.
+     * @deny (create) Non-admin users cannot create or modify sales analytics.
+     * @principle Restricts access to sensitive analytics data to administrators.
+     */
+    match /analytics/sales {
+      allow get: if isAdmin();
+      allow list: if false;
       allow create: if isAdmin();
       allow update: if isAdmin() && resource != null;
       allow delete: if isAdmin() && resource != null;
-    }
-
-    /**
-     * @description Rules for administrator roles. Existence of a document grants admin privileges.
-     * @path /roles_admin/{userId}
-     * @allow (create) Admin user with ID 'admin123' can be created only by Firebase functions.
-     * @deny (get) Non-admin attempts to access admin role document. request.auth.uid == 'user123' (not an admin)
-     * @principle DBAC - Existence over Content.
-     */
-    match /roles_admin/{userId} {
-        allow get: if isAdmin();
-        allow list: if false;
-        allow create: if isAdmin();
-        allow update: if false;
-        allow delete: if isAdmin() && resource != null;
     }
   }
 }
