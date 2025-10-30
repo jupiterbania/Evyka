@@ -72,6 +72,10 @@
         "dominantColor": {
           "type": "string",
           "description": "The dominant color of the image as a hex code, used for UI backgrounds."
+        },
+        "isAdGated": {
+          "type": "boolean",
+          "description": "If true, the user must watch an ad to view the full image."
         }
       },
       "required": [

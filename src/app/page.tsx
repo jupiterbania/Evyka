@@ -27,6 +27,7 @@ import { Upload } from 'lucide-react';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadImage } from '@/ai/flows/upload-image-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
+import { Switch } from '@/components/ui/switch';
 
 
 export default function Home() {
@@ -58,6 +59,15 @@ export default function Home() {
   const [newPhoto, setNewPhoto] = useState({ title: '', description: '' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
+  const [isAdGated, setIsAdGated] = useState(false);
+  
+  const resetUploadForm = () => {
+    setNewPhoto({ title: '', description: '' });
+    setImageFile(null);
+    setImageUrl('');
+    setIsAdGated(false);
+    setUploadDialogOpen(false);
+  };
   
   const handleUpload = async () => {
     if (!firestore) return;
@@ -109,14 +119,12 @@ export default function Home() {
           imageUrl: finalImageUrl,
           blurredImageUrl: finalImageUrl,
           uploadDate: serverTimestamp(),
-          dominantColor: dominantColor
+          dominantColor: dominantColor,
+          isAdGated: isAdGated,
         }
       );
 
-      setUploadDialogOpen(false);
-      setNewPhoto({ title: '', description: '' });
-      setImageFile(null);
-      setImageUrl('');
+      resetUploadForm();
       toast({
         title: 'Image Added!',
         description: 'The new image is now live in the gallery.',
@@ -216,10 +224,14 @@ export default function Home() {
                           <Label htmlFor="description">Description</Label>
                           <Textarea id="description" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
                         </div>
+                        <div className="flex items-center space-x-2 mt-2">
+                            <Switch id="ad-gated-switch" checked={isAdGated} onCheckedChange={setIsAdGated} />
+                            <Label htmlFor="ad-gated-switch">Ad-Gated</Label>
+                        </div>
                       </div>
                       <DialogFooter className="flex-col-reverse sm:flex-row">
                           <DialogClose asChild>
-                              <Button type="button" variant="secondary">Cancel</Button>
+                              <Button type="button" variant="secondary" onClick={resetUploadForm}>Cancel</Button>
                           </DialogClose>
                           <Button type="submit" onClick={handleUpload} disabled={isUploading}>
                               {isUploading ? 'Uploading...' : 'Upload'}

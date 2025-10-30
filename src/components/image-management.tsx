@@ -30,7 +30,6 @@ import {
     AlertDialogDescription,
     AlertDialogHeader,
     AlertDialogTitle,
-    AlertDialogTrigger,
     AlertDialogFooter,
   } from "@/components/ui/alert-dialog"
 import {
@@ -53,6 +52,8 @@ import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlo
 import { Textarea } from './ui/textarea';
 import { uploadImage } from '@/ai/flows/upload-image-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
+import { Switch } from './ui/switch';
+import { Badge } from './ui/badge';
 
 export function ImageManagement() {
   const firestore = useFirestore();
@@ -66,6 +67,8 @@ export function ImageManagement() {
   const [newPhoto, setNewPhoto] = useState({ title: '', description: '' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
+  const [isAdGated, setIsAdGated] = useState(false);
+  
   const [selectedPhoto, setSelectedPhoto] = useState<ImageType | null>(null);
   const [photoToDelete, setPhotoToDelete] = useState<ImageType | null>(null);
 
@@ -83,6 +86,7 @@ export function ImageManagement() {
     updateDocumentNonBlocking(docRef, {
         title: selectedPhoto.title,
         description: selectedPhoto.description,
+        isAdGated: selectedPhoto.isAdGated,
     });
     
     toast({
@@ -110,6 +114,14 @@ export function ImageManagement() {
     setPhotoToDelete(null);
   }
   
+  const resetUploadForm = () => {
+    setNewPhoto({ title: '', description: '' });
+    setImageFile(null);
+    setImageUrl('');
+    setIsAdGated(false);
+    setUploadDialogOpen(false);
+  };
+
   const handleUpload = async () => {
     if (!firestore) return;
     if (!imageFile && !imageUrl) {
@@ -165,13 +177,11 @@ export function ImageManagement() {
           blurredImageUrl: finalImageUrl,
           dominantColor: dominantColor,
           uploadDate: serverTimestamp(),
+          isAdGated: isAdGated,
         }
       );
   
-      setUploadDialogOpen(false);
-      setNewPhoto({ title: '', description: '' });
-      setImageFile(null);
-      setImageUrl('');
+      resetUploadForm();
       toast({
         title: 'Image Uploaded!',
         description: 'The new image is now live in the gallery.',
@@ -244,10 +254,14 @@ export function ImageManagement() {
                 <Label htmlFor="description-admin">Description</Label>
                 <Textarea id="description-admin" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
               </div>
+              <div className="flex items-center space-x-2 mt-2">
+                  <Switch id="ad-gated-switch-upload" checked={isAdGated} onCheckedChange={setIsAdGated} />
+                  <Label htmlFor="ad-gated-switch-upload">Ad-Gated</Label>
+              </div>
             </div>
             <DialogFooter className="flex-col-reverse sm:flex-row">
                 <DialogClose asChild>
-                    <Button type="button" variant="secondary">Cancel</Button>
+                    <Button type="button" variant="secondary" onClick={resetUploadForm}>Cancel</Button>
                 </DialogClose>
                 <Button type="submit" onClick={handleUpload} disabled={isUploading}>
                     {isUploading ? 'Uploading...' : 'Upload'}
@@ -263,13 +277,14 @@ export function ImageManagement() {
             <TableRow>
               <TableHead className="w-[80px] px-4">Image</TableHead>
               <TableHead>Name</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead className="w-[120px] text-center px-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={3} className="text-center h-24">Loading images...</TableCell>
+                <TableCell colSpan={4} className="text-center h-24">Loading images...</TableCell>
               </TableRow>
             )}
             {!isLoading && photos?.map((photo) => (
@@ -288,6 +303,13 @@ export function ImageManagement() {
                   </div>
                 </TableCell>
                 <TableCell className="font-medium truncate max-w-xs">{photo.title}</TableCell>
+                <TableCell>
+                  {photo.isAdGated ? (
+                    <Badge variant="destructive">Ad-Gated</Badge>
+                  ) : (
+                    <Badge variant="secondary">Free</Badge>
+                  )}
+                </TableCell>
                 <TableCell className="text-center px-4">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -350,6 +372,10 @@ export function ImageManagement() {
                     <div className="grid w-full items-center gap-1.5">
                         <Label htmlFor="edit-description">Description</Label>
                         <Textarea id="edit-description" value={selectedPhoto.description} onChange={(e) => setSelectedPhoto(p => p ? {...p, description: e.target.value} : null)} />
+                    </div>
+                    <div className="flex items-center space-x-2 mt-2">
+                        <Switch id="ad-gated-switch-edit" checked={selectedPhoto.isAdGated} onCheckedChange={(checked) => setSelectedPhoto(p => p ? {...p, isAdGated: checked} : null)} />
+                        <Label htmlFor="ad-gated-switch-edit">Ad-Gated</Label>
                     </div>
                 </div>}
                 <DialogFooter className="flex-col-reverse sm:flex-row">

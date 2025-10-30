@@ -8,6 +8,7 @@ export type Image = {
   blurredImageUrl: string;
   uploadDate: Timestamp;
   dominantColor?: string;
+  isAdGated?: boolean;
 };
 
 export type SiteSettings = {
