@@ -4,12 +4,12 @@ import { Footer } from '@/components/footer';
 import { ImageCard } from '@/components/image-card';
 import Image from 'next/image';
 import type { Image as ImageType } from '@/lib/types';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection } from 'firebase/firestore';
 
 export default function Home() {
   const firestore = useFirestore();
-  const imagesCollection = collection(firestore, 'images');
+  const imagesCollection = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
   const { data: photos, isLoading } = useCollection<ImageType>(imagesCollection);
 
   return (
