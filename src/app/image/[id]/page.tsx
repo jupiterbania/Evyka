@@ -3,21 +3,21 @@
 
 import { useParams } from 'next/navigation';
 import { useDoc, useFirestore, useUser, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, collection, query, where, serverTimestamp } from 'firebase/firestore';
-import type { Image as ImageType, Purchase, User } from '@/lib/types';
+import { doc, collection, query, where, serverTimestamp, updateDoc } from 'firebase/firestore';
+import type { Image as ImageType, Purchase, User, SiteSettings } from '@/lib/types';
 import Image from 'next/image';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Lock, ShoppingCart } from 'lucide-react';
+import { Lock, ShoppingCart, Crown } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
-import { createOrder, verifyPayment } from '@/lib/razorpay';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { Card } from '@/components/ui/card';
+import { createOrder, verifyPayment, createSubscription, verifySubscription } from '@/lib/razorpay';
+import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Card, CardFooter, CardHeader, CardContent } from '@/components/ui/card';
 
 export default function ImagePage() {
   const { id } = useParams();
@@ -37,6 +37,9 @@ export default function ImagePage() {
   const userDocRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
   const { data: userData } = useDoc<User>(userDocRef);
   const isSubscribed = userData?.subscriptionStatus === 'active';
+
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'main'), [firestore]);
+  const { data: settings } = useDoc<SiteSettings>(settingsDocRef);
 
   const purchasesCollection = useMemoFirebase(
     () =>
@@ -140,6 +143,86 @@ export default function ImagePage() {
     }
   };
 
+  const handleSubscription = async () => {
+    if (!firestore || !user) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Error',
+        description: 'You must be logged in to subscribe.',
+      });
+      return;
+    }
+  
+    setIsProcessing(true);
+  
+    try {
+      if (!process.env.NEXT_PUBLIC_RAZORPAY_PLAN_ID) {
+        throw new Error('Subscription plan is not configured.');
+      }
+
+      const subscription = await createSubscription();
+  
+      if (!subscription) {
+        throw new Error('Could not create a subscription plan.');
+      }
+  
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        subscription_id: subscription.id,
+        name: 'EVYKA Pro',
+        description: 'Monthly Subscription',
+        handler: async function (response: any) {
+          const verificationResult = await verifySubscription({
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_subscription_id: response.razorpay_subscription_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+  
+          if (verificationResult.isSignatureValid) {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + 1);
+  
+            updateDocumentNonBlocking(userDocRef, {
+              subscriptionStatus: 'active',
+              subscriptionId: response.razorpay_subscription_id,
+              subscriptionEndDate: endDate,
+            });
+  
+            toast({
+              title: 'Subscription Successful!',
+              description: 'Welcome to Pro! All images are now unlocked.',
+            });
+          } else {
+            toast({
+              variant: 'destructive',
+              title: 'Payment Failed',
+              description: 'Your payment could not be verified. Please contact support.',
+            });
+          }
+        },
+        prefill: {
+          name: user.displayName,
+          email: user.email,
+        },
+        theme: {
+          color: '#3399cc',
+        },
+      };
+  
+      const rzp = new (window as any).Razorpay(options);
+      rzp.open();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Subscription Error',
+        description: error.message || 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
 
   const renderContent = () => {
     if (isLoading) {
@@ -194,12 +277,25 @@ export default function ImagePage() {
             </div>
             {!hasAccess && (
               <Card className="p-4 sm:min-w-[200px] text-center">
-                <p className="text-2xl font-bold text-primary mb-2">₹{photo.price}</p>
-                <Button onClick={handlePurchase} disabled={isProcessing} className="w-full">
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  {isProcessing ? 'Processing...' : 'Purchase'}
-                </Button>
-                 <p className="text-xs text-muted-foreground mt-3">to unlock the high-resolution image.</p>
+                  <p className="text-2xl font-bold text-primary mb-2">₹{photo.price}</p>
+                  {user ? (
+                    <div className="flex w-full flex-col items-stretch gap-2">
+                        <Button onClick={handlePurchase} disabled={isProcessing} size="sm">
+                            <ShoppingCart className="mr-2 h-4 w-4" />
+                            {isProcessing ? 'Processing...' : 'Purchase'}
+                        </Button>
+                        <Button onClick={handleSubscription} disabled={isProcessing} variant="outline" size="sm">
+                            <Crown className="mr-2 h-4 w-4 text-amber-400" />
+                            {isProcessing ? 'Processing...' : 'Subscribe'}
+                        </Button>
+                    </div>
+                  ) : (
+                    <Button onClick={handlePurchase} disabled={isProcessing} className="w-full">
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        {isProcessing ? 'Processing...' : 'Purchase'}
+                    </Button>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-3">to unlock the high-resolution image.</p>
               </Card>
             )}
           </div>
