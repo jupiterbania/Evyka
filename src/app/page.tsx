@@ -78,44 +78,39 @@ export default function Home() {
       });
       return;
     }
-
+  
     setIsProcessing(true);
-
+  
     try {
-      const price = settings?.subscriptionPrice;
-      if (price === undefined || price <= 0) {
-        throw new Error('Subscription price is not set correctly.');
-      }
-      
-      const subscription = await createSubscription({ price });
-
+      const subscription = await createSubscription();
+  
       if (!subscription) {
         throw new Error('Could not create a subscription plan.');
       }
-
+  
       const options = {
         key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         subscription_id: subscription.id,
         name: 'EVYKA Pro',
-        description: `Monthly Subscription`,
+        description: 'Monthly Subscription',
         handler: async function (response: any) {
           const verificationResult = await verifySubscription({
             razorpay_payment_id: response.razorpay_payment_id,
             razorpay_subscription_id: response.razorpay_subscription_id,
             razorpay_signature: response.razorpay_signature,
           });
-
+  
           if (verificationResult.isSignatureValid) {
             const userDocRef = doc(firestore, 'users', user.uid);
             const endDate = new Date();
             endDate.setMonth(endDate.getMonth() + 1);
-
+  
             updateDocumentNonBlocking(userDocRef, {
               subscriptionStatus: 'active',
               subscriptionId: response.razorpay_subscription_id,
               subscriptionEndDate: endDate,
             });
-
+  
             toast({
               title: 'Subscription Successful!',
               description: 'Welcome to Pro! All images are now unlocked.',
@@ -136,7 +131,7 @@ export default function Home() {
           color: '#3399cc',
         },
       };
-
+  
       const rzp = new (window as any).Razorpay(options);
       rzp.open();
     } catch (error: any) {

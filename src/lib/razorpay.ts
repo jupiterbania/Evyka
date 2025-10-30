@@ -18,10 +18,6 @@ const VerifyPaymentInputSchema = z.object({
     razorpay_signature: z.string(),
 });
 
-const CreateSubscriptionInputSchema = z.object({
-    price: z.number().min(1, { message: 'Price must be at least 1' }),
-});
-
 const VerifySubscriptionInputSchema = z.object({
     razorpay_payment_id: z.string(),
     razorpay_subscription_id: z.string(),
@@ -90,26 +86,14 @@ export async function verifyPayment(input: z.infer<typeof VerifyPaymentInputSche
     }
 }
 
-export async function createSubscription(input: z.infer<typeof CreateSubscriptionInputSchema>): Promise<Subscription | null> {
+export async function createSubscription(): Promise<Subscription | null> {
     try {
-        const validation = CreateSubscriptionInputSchema.safeParse(input);
-        if (!validation.success) {
-            throw new Error(validation.error.issues.map(i => i.message).join(', '));
+        if (!process.env.RAZORPAY_PLAN_ID) {
+            throw new Error('Razorpay Plan ID is not configured in environment variables.');
         }
 
-        const planResponse = await razorpay.plans.create({
-            period: 'monthly',
-            interval: 1,
-            item: {
-                name: 'EVYKA Pro Monthly Subscription',
-                amount: validation.data.price * 100,
-                currency: 'INR',
-                description: 'Monthly access to all exclusive content.'
-            }
-        });
-        
         const subscription = await razorpay.subscriptions.create({
-            plan_id: planResponse.id,
+            plan_id: process.env.RAZORPAY_PLAN_ID,
             customer_notify: 1,
             total_count: 120, // For 10 years
             notes: {
