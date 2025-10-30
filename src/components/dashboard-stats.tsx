@@ -1,31 +1,31 @@
 "use client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { DollarSign, ShoppingCart, ImageIcon } from "lucide-react";
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Image } from "@/lib/types";
+import { useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection, doc } from "firebase/firestore";
+import type { Image, Analytics } from "@/lib/types";
 
 export function DashboardStats() {
     const firestore = useFirestore();
     
     const imagesQuery = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
-    const { data: images, isLoading: imagesLoading, error: imagesError } = useCollection<Image>(imagesQuery);
+    const { data: images, isLoading: imagesLoading } = useCollection<Image>(imagesQuery);
 
-    const totalRevenue = images?.reduce((acc, image) => acc + (image.sales || 0) * image.price, 0) ?? 0;
-    const totalSales = images?.reduce((acc, image) => acc + (image.sales || 0), 0) ?? 0;
+    const analyticsDocRef = useMemoFirebase(() => doc(firestore, 'analytics', 'sales'), [firestore]);
+    const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useDoc<Analytics>(analyticsDocRef);
 
-    const statsError = imagesError ? "You don't have permission to view all image statistics." : null;
+    const statsError = analyticsError ? "You don't have permission to view statistics." : null;
 
     const stats = [
         {
             title: "Total Revenue",
-            value: statsError ? 'Error' : `$${totalRevenue.toLocaleString()}`,
+            value: analyticsLoading ? '...' : (statsError ? 'Error' : `$${(analytics?.totalRevenue ?? 0).toLocaleString()}`),
             icon: DollarSign,
             description: statsError || "Total revenue from all image sales."
         },
         {
             title: "Total Sales",
-            value: statsError ? 'Error' : totalSales.toLocaleString(),
+            value: analyticsLoading ? '...' : (statsError ? 'Error' : (analytics?.totalSales ?? 0).toLocaleString()),
             icon: ShoppingCart,
             description: statsError || "Total number of images sold."
         },

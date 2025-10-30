@@ -18,3 +18,12 @@ export type Purchase = {
     purchaseDate: Timestamp;
     price: number;
 }
+
+export type Analytics = {
+    id?: string;
+    totalRevenue: number;
+    totalSales: number;
+    monthlySales: {
+        [key: string]: number;
+    };
+}

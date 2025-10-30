@@ -122,6 +122,28 @@
         "purchaseDate",
         "price"
       ]
+    },
+    "Analytics": {
+      "title": "Analytics",
+      "description": "Aggregated analytics data for the application.",
+      "type": "object",
+      "properties": {
+        "totalRevenue": {
+          "type": "number",
+          "description": "The total revenue generated from all sales."
+        },
+        "totalSales": {
+          "type": "number",
+          "description": "The total number of sales."
+        },
+        "monthlySales": {
+          "type": "object",
+          "description": "An object tracking sales counts per month, e.g., { '2024-01': 10, '2024-02': 15 }.",
+          "additionalProperties": {
+            "type": "number"
+          }
+        }
+      }
     }
   },
   "auth": {
@@ -217,6 +239,17 @@
               "description": "The unique identifier of the user."
             }
           ]
+        }
+      },
+      {
+        "path": "/analytics/sales",
+        "definition": {
+          "entityName": "Analytics",
+          "schema": {
+            "$ref": "#/backend/entities/Analytics"
+          },
+          "description": "A single document for aggregating sales and revenue data.",
+          "params": []
         }
       }
     ]

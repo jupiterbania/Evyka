@@ -20,8 +20,9 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, where, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, query, where, serverTimestamp, increment } from 'firebase/firestore';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { format } from 'date-fns';
 
 type ImageCardProps = {
   photo: ImageType;
@@ -67,8 +68,18 @@ export function ImageCard({ photo }: ImageCardProps) {
     // Increment sales count on the image document
     const imageDocRef = doc(firestore, 'images', photo.id);
     updateDocumentNonBlocking(imageDocRef, {
-        sales: (photo.sales || 0) + 1
+        sales: increment(1)
     });
+
+    // Increment aggregated analytics
+    const analyticsRef = doc(firestore, 'analytics', 'sales');
+    const monthKey = format(new Date(), 'yyyy-MM');
+    updateDocumentNonBlocking(analyticsRef, {
+        totalRevenue: increment(photo.price),
+        totalSales: increment(1),
+        [`monthlySales.${monthKey}`]: increment(1),
+    });
+
 
     toast({
       title: 'Purchase Successful!',

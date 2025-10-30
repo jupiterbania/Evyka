@@ -3,10 +3,10 @@
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { useEffect, useState } from "react"
-import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, getDocs, query, Timestamp } from "firebase/firestore";
-import type { Purchase } from "@/lib/types";
-import { format } from "date-fns";
+import { useDoc, useFirestore, useMemoFirebase } from "@/firebase";
+import { doc } from "firebase/firestore";
+import type { Analytics } from "@/lib/types";
+import { format, subMonths, getYear } from "date-fns";
 
 const chartConfig = {
   sales: {
@@ -16,68 +16,49 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export function SalesChart() {
-  const [salesData, setSalesData] = useState<any[]>([]);
+  const [chartData, setChartData] = useState<any[]>([]);
   const firestore = useFirestore();
 
-  const imagesQuery = useMemoFirebase(() => query(collection(firestore, 'images')), [firestore]);
-  const { data: images, isLoading: imagesLoading, error: imagesError } = useCollection<any>(imagesQuery);
+  const analyticsDocRef = useMemoFirebase(() => doc(firestore, 'analytics', 'sales'), [firestore]);
+  const { data: analytics, isLoading, error } = useDoc<Analytics>(analyticsDocRef);
 
   useEffect(() => {
-    const processSalesData = async () => {
-        if (!firestore || !images) return;
+    if (analytics && analytics.monthlySales) {
+      const monthOrder: { key: string, name: string }[] = [];
+      const today = new Date();
+      for (let i = 5; i >= 0; i--) {
+        const date = subMonths(today, i);
+        monthOrder.push({
+          key: format(date, 'yyyy-MM'),
+          name: format(date, 'MMM')
+        });
+      }
+      
+      const data = monthOrder.map(month => ({
+          name: month.name,
+          sales: analytics.monthlySales[month.key] || 0
+      }));
 
-        const monthlySales: { [key: string]: number } = {};
-
-        try {
-            for (const imageDoc of images) {
-                const purchasesCollectionRef = collection(firestore, 'images', imageDoc.id, 'purchases');
-                const purchasesSnapshot = await getDocs(purchasesCollectionRef);
-                
-                purchasesSnapshot.forEach(purchaseDoc => {
-                    const purchase = purchaseDoc.data() as Purchase;
-                    // Check for Timestamp and convert to Date
-                    if (purchase.purchaseDate && 'toDate' in purchase.purchaseDate) {
-                        const purchaseDate = (purchase.purchaseDate as Timestamp).toDate();
-                        const month = format(purchaseDate, 'MMM');
-                        monthlySales[month] = (monthlySales[month] || 0) + 1;
-                    }
-                });
-            }
-            
-            const monthOrder = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            
-            const chartData = monthOrder.map(month => ({
-                name: month,
-                sales: monthlySales[month] || 0
-            })).slice(0, new Date().getMonth() + 1); // Only show up to the current month
-
-            setSalesData(chartData);
-        } catch (err: any) {
-            console.error("Error processing sales data:", err);
-            // This error is now less likely to be a permissions error on the top-level collection
-            // but could still occur on subcollections if rules are misconfigured.
-        }
-    };
-
-    processSalesData();
-  }, [firestore, images]);
+      setChartData(data);
+    }
+  }, [analytics]);
   
-  if (imagesError) {
+  if (error) {
     return <div className="h-[300px] flex items-center justify-center text-destructive">You don't have permission to view sales data.</div>
   }
 
-  if (imagesLoading) {
+  if (isLoading) {
     return <div className="h-[300px] flex items-center justify-center text-muted-foreground">Loading chart data...</div>
   }
 
-  if (!salesData.length) {
-    return <div className="h-[300px] flex items-center justify-center text-muted-foreground">Not enough data to display chart.</div>
+  if (!chartData.length) {
+    return <div className="h-[300px] flex items-center justify-center text-muted-foreground">No sales data available for the last 6 months.</div>
   }
 
   return (
     <div className="h-[300px]">
     <ChartContainer config={chartConfig} className="w-full h-full">
-      <BarChart accessibilityLayer data={salesData}>
+      <BarChart accessibilityLayer data={chartData}>
         <XAxis
           dataKey="name"
           stroke="#888888"
