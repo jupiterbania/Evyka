@@ -2,24 +2,34 @@
 
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
-import { getFirestore } from 'firebase/firestore'
+import { getAuth, Auth } from 'firebase/auth';
+import { getFirestore, Firestore } from 'firebase/firestore';
+
+// A private, module-level cache for Firebase services.
+let services: { firebaseApp: FirebaseApp; auth: Auth; firestore: Firestore } | null = null;
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
 export function initializeFirebase() {
-  if (getApps().length) {
-    // If already initialized, return the SDKs with the existing App
-    return getSdks(getApp());
+  // If the services are already cached, return them.
+  if (services) {
+    return services;
   }
 
-  // If not initialized, initialize with the provided config.
-  // This works for both local development (using .env.local) and Vercel (using environment variables).
+  // If there are already initialized apps, use the default app.
+  if (getApps().length) {
+    const app = getApp();
+    services = getSdks(app);
+    return services;
+  }
+
+  // If no apps are initialized, create a new one.
   if (!firebaseConfig.apiKey) {
     throw new Error("Missing Firebase API key. Make sure NEXT_PUBLIC_FIREBASE_API_KEY is set in your environment.");
   }
   const firebaseApp = initializeApp(firebaseConfig);
+  services = getSdks(firebaseApp);
   
-  return getSdks(firebaseApp);
+  return services;
 }
 
 export function getSdks(firebaseApp: FirebaseApp) {
