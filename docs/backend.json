@@ -144,6 +144,22 @@
           }
         }
       }
+    },
+    "SiteSettings": {
+      "title": "SiteSettings",
+      "description": "A singleton document to store site-wide settings.",
+      "type": "object",
+      "properties": {
+        "heroImageUrl": {
+          "type": "string",
+          "description": "The URL for the homepage hero image background.",
+          "format": "uri"
+        },
+         "heroImageHint": {
+          "type": "string",
+          "description": "The AI hint for the hero image."
+        }
+      }
     }
   },
   "auth": {
@@ -249,6 +265,17 @@
             "$ref": "#/backend/entities/Analytics"
           },
           "description": "A single document for aggregating sales and revenue data.",
+          "params": []
+        }
+      },
+       {
+        "path": "/settings/main",
+        "definition": {
+          "entityName": "SiteSettings",
+          "schema": {
+            "$ref": "#/backend/entities/SiteSettings"
+          },
+          "description": "A singleton document for global site settings like the hero image.",
           "params": []
         }
       }

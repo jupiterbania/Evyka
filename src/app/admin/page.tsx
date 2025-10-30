@@ -1,5 +1,6 @@
 import { DashboardStats } from '@/components/dashboard-stats';
 import { SalesChart } from '@/components/sales-chart';
+import { SiteSettings } from '@/components/site-settings';
 import {
   Card,
   CardContent,
@@ -18,7 +19,7 @@ export default function AdminDashboardPage() {
       
       <DashboardStats />
       
-      <div className="mt-8">
+      <div className="grid gap-8 mt-8">
         <Card>
           <CardHeader>
             <CardTitle>Sales Overview</CardTitle>
@@ -30,6 +31,9 @@ export default function AdminDashboardPage() {
             <SalesChart />
           </CardContent>
         </Card>
+
+        <SiteSettings />
+
       </div>
     </div>
   );

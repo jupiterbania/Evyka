@@ -27,3 +27,9 @@ export type Analytics = {
         [key: string]: number;
     };
 }
+
+export type SiteSettings = {
+    id?: string;
+    heroImageUrl?: string;
+    heroImageHint?: string;
+}

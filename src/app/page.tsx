@@ -3,14 +3,22 @@ import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { ImageCard } from '@/components/image-card';
 import Image from 'next/image';
-import type { Image as ImageType } from '@/lib/types';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import type { Image as ImageType, SiteSettings } from '@/lib/types';
+import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
+import { placeholderImages } from '@/lib/placeholder-images';
 
 export default function Home() {
   const firestore = useFirestore();
   const imagesCollection = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
   const { data: photos, isLoading } = useCollection<ImageType>(imagesCollection);
+
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'main'), [firestore]);
+  const { data: settings } = useDoc<SiteSettings>(settingsDocRef);
+  
+  const defaultHero = placeholderImages[0];
+  const heroImageUrl = settings?.heroImageUrl || defaultHero.imageUrl;
+  const heroImageHint = settings?.heroImageHint || defaultHero.imageHint;
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -18,11 +26,11 @@ export default function Home() {
       <main className="flex-grow">
         <section className="relative w-full h-[50vh] sm:h-[40vh] flex items-center justify-center text-center text-white overflow-hidden">
           <Image
-            src="https://images.unsplash.com/photo-1629471197009-c50487351414?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWlzdHklMjBtb3VudGFpbnN8ZW58MHx8fHwxNzYxNzkyMDg2fDA&ixlib=rb-4.1.0&q=80&w=1080"
+            src={heroImageUrl}
             alt="Misty mountains"
             fill
             className="object-cover"
-            data-ai-hint="misty mountains"
+            data-ai-hint={heroImageHint}
           />
           <div className="absolute inset-0 bg-black/50" />
           <div className="relative z-10 p-4">
