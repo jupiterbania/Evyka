@@ -87,7 +87,6 @@ export function Header() {
             </SheetContent>
           </Sheet>
           <nav className="hidden sm:flex items-center gap-6 text-sm font-medium">
-             <Logo />
              <Link href="/" className="text-foreground/60 transition-colors hover:text-foreground/80">Home</Link>
              <Link href="/#gallery" className="text-foreground/60 transition-colors hover:text-foreground/80">Gallery</Link>
              {user && user.email === designatedAdminEmail && (
@@ -96,6 +95,10 @@ export function Header() {
           </nav>
         </div>
         
+        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
+            <Logo />
+        </div>
+
         <div className="flex flex-1 items-center justify-end space-x-2">
           {isUserLoading ? (
             <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
