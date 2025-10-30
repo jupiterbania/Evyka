@@ -46,21 +46,21 @@ export default function ImagePage() {
     }
 
     return (
-      <div className="w-full flex-grow flex flex-col items-center justify-center p-4">
-        <div className="relative w-full h-full">
+        <div className="relative w-full h-screen">
           <Image
             src={photo.imageUrl}
             alt={photo.title}
             fill
-            className="object-contain"
+            className="object-cover"
             sizes="100vw"
           />
+          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center p-4">
+            <div className="relative z-10 text-white">
+                <h1 className="text-4xl md:text-6xl font-bold font-headline drop-shadow-lg">{photo.title}</h1>
+                <p className="text-lg md:text-xl text-white/90 mt-4 max-w-prose drop-shadow-md">{photo.description}</p>
+            </div>
+          </div>
         </div>
-        <div className="mt-6 text-center">
-          <h1 className="text-3xl font-bold font-headline">{photo.title}</h1>
-          <p className="text-muted-foreground mt-2 max-w-prose">{photo.description}</p>
-        </div>
-      </div>
     );
   };
 
