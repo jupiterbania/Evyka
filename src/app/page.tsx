@@ -24,10 +24,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Upload, Crown } from 'lucide-react';
-import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadImage } from '@/ai/flows/upload-image-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
-import { createSubscription, verifySubscription } from '@/lib/razorpay';
+import { createSubscription } from '@/lib/razorpay';
 
 
 export default function Home() {
