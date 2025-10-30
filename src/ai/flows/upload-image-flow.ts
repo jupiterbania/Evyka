@@ -25,7 +25,6 @@ const UploadImageOutputSchema = z.object({
 export type UploadImageOutput = z.infer<typeof UploadImageOutputSchema>;
 
 export async function uploadImage(input: UploadImageInput): Promise<UploadImageOutput> {
-  // Hardcode the API key to ensure it is always available.
   const imageHostingApiKey = '6d207e02198a847aa98d0a2a901485a5';
   return uploadImageFlow({ ...input, apiKey: imageHostingApiKey });
 }
@@ -46,9 +45,10 @@ const uploadImageFlow = ai.defineFlow(
     
     const formData = new FormData();
     formData.append('key', input.apiKey);
-    formData.append('image', base64Image);
+    formData.append('source', base64Image);
+    formData.append('action', 'upload');
 
-    const response = await fetch('https://api.imgbb.com/1/upload', {
+    const response = await fetch('https://freeimage.host/api/1/upload', {
       method: 'POST',
       body: formData,
     });
@@ -60,13 +60,15 @@ const uploadImageFlow = ai.defineFlow(
 
     const result = await response.json();
     
-    if (result.status !== 200 || !result.data || !result.data.url) {
+    if (result.status_code !== 200 || !result.image || !result.image.url) {
       const errorMessage = result?.error?.message || 'Failed to upload image. The hosting service returned an unexpected response.';
       throw new Error(errorMessage);
     }
+    
+    const secureUrl = result.image.url.replace(/^http:/, 'https:');
 
     return {
-      imageUrl: result.data.url,
+      imageUrl: secureUrl,
     };
   }
 );
