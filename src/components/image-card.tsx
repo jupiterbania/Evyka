@@ -118,7 +118,7 @@ export function ImageCard({ photo }: ImageCardProps) {
       </CardContent>
       <CardFooter className="p-4 pt-0 flex justify-between items-center">
         <p className="text-lg font-bold text-primary">
-            {isFree ? 'Free' : `$${photo.price}`}
+            {isFree ? 'Free' : `₹${photo.price}`}
         </p>
         {isPurchaseLoading ? (
             <Button disabled>Loading...</Button>
@@ -138,7 +138,7 @@ export function ImageCard({ photo }: ImageCardProps) {
               <AlertDialogHeader>
                 <AlertDialogTitle>Confirm Purchase</AlertDialogTitle>
                 <AlertDialogDescription>
-                  You are about to purchase "{photo.title}" for ${photo.price}.
+                  You are about to purchase "{photo.title}" for ₹{photo.price}.
                   This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>

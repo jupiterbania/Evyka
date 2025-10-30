@@ -1,6 +1,7 @@
+
 "use client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { DollarSign, ShoppingCart, ImageIcon } from "lucide-react";
+import { IndianRupee, ShoppingCart, ImageIcon } from "lucide-react";
 import { useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, doc } from "firebase/firestore";
 import type { Image, Analytics } from "@/lib/types";
@@ -27,8 +28,8 @@ export function DashboardStats() {
     const stats = [
         {
             title: "Total Revenue",
-            value: analyticsLoading ? '...' : (statsError ? 'Error' : `$${(analytics?.totalRevenue ?? 0).toLocaleString()}`),
-            icon: DollarSign,
+            value: analyticsLoading ? '...' : (statsError ? 'Error' : `₹${(analytics?.totalRevenue ?? 0).toLocaleString()}`),
+            icon: IndianRupee,
             description: statsError || "Total revenue from all image sales."
         },
         {

@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -182,7 +183,7 @@ export function ImageManagement() {
                 <Textarea id="description" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
               </div>
               <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="price">Price ($)</Label>
+                <Label htmlFor="price">Price (₹)</Label>
                 <Input id="price" type="number" placeholder="50" value={newPhoto.price} onChange={(e) => setNewPhoto({...newPhoto, price: Number(e.target.value)})} />
               </div>
             </div>
@@ -228,7 +229,7 @@ export function ImageManagement() {
                   />
                 </TableCell>
                 <TableCell className="font-medium">{photo.title}</TableCell>
-                <TableCell className="text-right">${photo.price.toFixed(2)}</TableCell>
+                <TableCell className="text-right">₹{photo.price.toFixed(2)}</TableCell>
                 <TableCell className="text-right">{photo.sales}</TableCell>
                 <TableCell className="text-center">
                     <div className="flex justify-center gap-2">
@@ -282,7 +283,7 @@ export function ImageManagement() {
                         <Textarea id="edit-description" value={selectedPhoto.description} onChange={(e) => setSelectedPhoto(p => p ? {...p, description: e.target.value} : null)} />
                     </div>
                     <div className="grid w-full items-center gap-1.5">
-                        <Label htmlFor="edit-price">Price ($)</Label>
+                        <Label htmlFor="edit-price">Price (₹)</Label>
                         <Input id="edit-price" type="number" value={selectedPhoto.price} onChange={(e) => setSelectedPhoto(p => p ? {...p, price: Number(e.target.value)} : null)} />
                     </div>
                 </div>}
