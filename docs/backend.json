@@ -103,7 +103,7 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Purchase)"
+          "description": "Reference to User. (Relationship: User 1:N Purchase). Optional for guest purchases."
         },
         "imageId": {
           "type": "string",

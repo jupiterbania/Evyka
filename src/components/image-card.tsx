@@ -98,21 +98,6 @@ export function ImageCard({ photo }: ImageCardProps) {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    if (!auth) return;
-    const provider = new GoogleAuthProvider();
-    try {
-      await signInWithPopup(auth, provider);
-    } catch (error) {
-      console.error('Error signing in with Google', error);
-      toast({
-        variant: "destructive",
-        title: "Sign-In Failed",
-        description: "Could not sign in with Google. Please try again.",
-      });
-    }
-  };
-
   const handlePurchase = async () => {
     if (!firestore) {
       toast({
@@ -123,30 +108,6 @@ export function ImageCard({ photo }: ImageCardProps) {
       return;
     }
     
-    if (!user) {
-        return (
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button>
-                  <LogIn className="mr-2 h-4 w-4" /> Sign in to Purchase
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Sign In Required</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    You need to sign in to purchase an image. This allows you to access your purchased content later.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleGoogleSignIn}>Sign In with Google</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          );
-    }
-
     setIsProcessing(true);
 
     try {
@@ -237,30 +198,6 @@ export function ImageCard({ photo }: ImageCardProps) {
     if (isFree) {
         return <Badge variant="secondary">Free</Badge>;
     }
-
-    if (!user) {
-        return (
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button>
-                <LogIn className="mr-2 h-4 w-4" /> Sign in to Purchase
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Sign In Required</AlertDialogTitle>
-                <AlertDialogDescription>
-                  You need to sign in to purchase an image. This allows you to access your purchased content later.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handleGoogleSignIn}>Sign In with Google</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        );
-      }
 
     return (
       <Button onClick={handlePurchase} disabled={isProcessing}>
