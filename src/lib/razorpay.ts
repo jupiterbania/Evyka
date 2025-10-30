@@ -96,17 +96,22 @@ export async function createSubscription(input: z.infer<typeof CreateSubscriptio
         if (!validation.success) {
             throw new Error(validation.error.issues.map(i => i.message).join(', '));
         }
-        
-        const planId = process.env.RAZORPAY_PLAN_ID;
-        
-        if (!planId) {
-            throw new Error('RAZORPAY_PLAN_ID is not set in environment variables. A plan must be created in the Razorpay dashboard first.');
-        }
+
+        const planResponse = await razorpay.plans.create({
+            period: 'monthly',
+            interval: 1,
+            item: {
+                name: 'EVYKA Pro Monthly Subscription',
+                amount: validation.data.price * 100,
+                currency: 'INR',
+                description: 'Monthly access to all exclusive content.'
+            }
+        });
         
         const subscription = await razorpay.subscriptions.create({
-            plan_id: planId,
+            plan_id: planResponse.id,
             customer_notify: 1,
-            total_count: 120, // e.g., for 10 years
+            total_count: 120, // For 10 years
             notes: {
                 source: 'evyka-webapp'
             }
