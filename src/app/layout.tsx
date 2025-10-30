@@ -3,7 +3,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 
 export const metadata: Metadata = {
-  title: 'FocusFinds',
+  title: 'EVYKA',
   description: 'Discover and purchase unique, high-quality images from talented photographers around the world.',
 };
 

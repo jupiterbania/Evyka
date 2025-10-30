@@ -16,7 +16,7 @@ export function Footer() {
           <Link href="#" className="text-sm font-medium hover:text-primary">Privacy Policy</Link>
         </div>
         <p className="text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} FocusFinds Inc. All rights reserved.
+          © {new Date().getFullYear()} EVYKA Inc. All rights reserved.
         </p>
       </div>
     </footer>
