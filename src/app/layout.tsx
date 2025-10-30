@@ -4,6 +4,7 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import { AgeGate } from '@/components/age-gate';
+import Script from 'next/script';
 
 export const metadata: Metadata = {
   title: 'EVYKA',
@@ -24,6 +25,12 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
         <link rel="manifest" href="/manifest.json" />
         <meta name="theme-color" content="#000000" />
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6434494026178547"
+          crossOrigin="anonymous"
+          strategy="lazyOnload"
+        />
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
