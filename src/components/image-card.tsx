@@ -22,11 +22,18 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useCollection, useFirestore, useUser, useMemoFirebase, useAuth } from '@/firebase';
-import { collection, doc, query, where, serverTimestamp, increment } from 'firebase/firestore';
-import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, query, where, serverTimestamp, increment } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { Badge } from './ui/badge';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
+import { createOrder, verifyPayment } from '@/lib/razorpay';
+import type { Order } from 'razorpay/dist/types/orders';
+
+declare global {
+    interface Window {
+        Razorpay: any;
+    }
+}
 
 type ImageCardProps = {
   photo: ImageType;
@@ -50,6 +57,8 @@ export function ImageCard({ photo }: ImageCardProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const imageRef = useRef<HTMLImageElement>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
+
 
   const handleDoubleClick = () => {
     if (isLocked) return;
@@ -104,35 +113,102 @@ export function ImageCard({ photo }: ImageCardProps) {
     }
   };
 
-  const handlePurchase = () => {
+  const handlePurchase = async () => {
     if (!user || !firestore) {
       toast({
-        variant: "destructive",
-        title: "Authentication Required",
-        description: "You must be signed in to purchase an image.",
+        variant: 'destructive',
+        title: 'Authentication Required',
+        description: 'You must be signed in to purchase an image.',
       });
       return;
     }
     
+    setIsProcessing(true);
+
+    try {
+      const order = await createOrder({
+        amount: photo.price,
+        imageTitle: photo.title,
+      });
+
+      if (!order) {
+        throw new Error('Could not create a payment order.');
+      }
+      
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount: order.amount,
+        currency: order.currency,
+        name: 'EVYKA',
+        description: `Purchase: ${photo.title}`,
+        order_id: order.id,
+        handler: async function (response: any) {
+            const verificationResult = await verifyPayment({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+            });
+
+            if (verificationResult.isSignatureValid) {
+                await finalizePurchase(user.uid, photo.id, photo.price);
+                toast({
+                    title: 'Purchase Successful!',
+                    description: `You can now view "${photo.title}" without blur.`,
+                });
+            } else {
+                toast({
+                    variant: "destructive",
+                    title: 'Payment Failed',
+                    description: 'Your payment could not be verified. Please contact support.',
+                });
+            }
+        },
+        prefill: {
+            name: user.displayName,
+            email: user.email,
+        },
+        theme: {
+            color: '#3399cc'
+        }
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+
+    } catch (error: any) {
+        toast({
+            variant: "destructive",
+            title: 'Payment Error',
+            description: error.message || 'Something went wrong. Please try again.',
+        });
+    } finally {
+        setIsProcessing(false);
+    }
+  };
+
+  const finalizePurchase = async (userId: string, imageId: string, price: number) => {
+    if (!firestore) return;
+    const { addDocumentNonBlocking, updateDocumentNonBlocking } = await import('@/firebase/non-blocking-updates');
+
     // Add to user's personal purchase history
-    const userPurchaseCollectionRef = collection(firestore, 'users', user.uid, 'purchases');
+    const userPurchaseCollectionRef = collection(firestore, 'users', userId, 'purchases');
     addDocumentNonBlocking(userPurchaseCollectionRef, {
-        imageId: photo.id,
-        price: photo.price,
+        imageId: imageId,
+        price: price,
         purchaseDate: serverTimestamp(),
-        userId: user.uid,
+        userId: userId,
     });
 
     // Add a record to the image's purchase subcollection for admin tracking
-    const imagePurchaseCollectionRef = collection(firestore, 'images', photo.id, 'purchases');
+    const imagePurchaseCollectionRef = collection(firestore, 'images', imageId, 'purchases');
      addDocumentNonBlocking(imagePurchaseCollectionRef, {
-        userId: user.uid,
-        price: photo.price,
+        userId: userId,
+        price: price,
         purchaseDate: serverTimestamp()
     });
 
     // Increment sales count on the image document
-    const imageDocRef = doc(firestore, 'images', photo.id);
+    const imageDocRef = doc(firestore, 'images', imageId);
     updateDocumentNonBlocking(imageDocRef, {
         sales: increment(1)
     });
@@ -141,17 +217,11 @@ export function ImageCard({ photo }: ImageCardProps) {
     const analyticsRef = doc(firestore, 'analytics', 'sales');
     const monthKey = format(new Date(), 'yyyy-MM');
     updateDocumentNonBlocking(analyticsRef, {
-        totalRevenue: increment(photo.price),
+        totalRevenue: increment(price),
         totalSales: increment(1),
         [`monthlySales.${monthKey}`]: increment(1),
     });
-
-
-    toast({
-      title: 'Purchase Successful!',
-      description: `You can now view "${photo.title}" without blur.`,
-    });
-  };
+  }
   
   const renderPurchaseButton = () => {
     if (isUserLoading || isPurchaseLoading) {
@@ -176,27 +246,9 @@ export function ImageCard({ photo }: ImageCardProps) {
     }
 
     return (
-      <AlertDialog>
-        <AlertDialogTrigger asChild>
-          <Button>
-            <ShoppingCart className="mr-2 h-4 w-4" />
-            Purchase
-          </Button>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Confirm Purchase</AlertDialogTitle>
-            <AlertDialogDescription>
-              You are about to purchase "{photo.title}" for ₹{photo.price}.
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handlePurchase}>Continue</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <Button onClick={handlePurchase} disabled={isProcessing}>
+        {isProcessing ? 'Processing...' : <><ShoppingCart className="mr-2 h-4 w-4" /> Purchase</>}
+      </Button>
     );
   };
 

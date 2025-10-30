@@ -1,0 +1,78 @@
+'use server';
+
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
+import { z } from 'zod';
+import type { Order } from 'razorpay/dist/types/orders';
+
+const CreateOrderInputSchema = z.object({
+  amount: z.number().min(1, { message: 'Amount must be at least 1' }),
+  imageTitle: z.string(),
+});
+
+const VerifyPaymentInputSchema = z.object({
+    razorpay_order_id: z.string(),
+    razorpay_payment_id: z.string(),
+    razorpay_signature: z.string(),
+});
+
+if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
+  throw new Error('Razorpay API keys are not configured in environment variables.');
+}
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
+});
+
+export async function createOrder(
+  input: z.infer<typeof CreateOrderInputSchema>
+): Promise<Order | null> {
+  try {
+    const validation = CreateOrderInputSchema.safeParse(input);
+    if (!validation.success) {
+      throw new Error(validation.error.issues.map(i => i.message).join(', '));
+    }
+
+    const options = {
+      amount: validation.data.amount * 100, // Amount in paise
+      currency: 'INR',
+      receipt: `receipt_image_${Date.now()}`,
+      notes: {
+        purchaseType: 'image',
+        imageTitle: validation.data.imageTitle,
+      },
+    };
+
+    const order = await razorpay.orders.create(options);
+    return order;
+  } catch (error) {
+    console.error('Failed to create Razorpay order:', error);
+    return null;
+  }
+}
+
+export async function verifyPayment(input: z.infer<typeof VerifyPaymentInputSchema>): Promise<{ isSignatureValid: boolean }> {
+    try {
+        const validation = VerifyPaymentInputSchema.safeParse(input);
+        if (!validation.success) {
+            throw new Error('Invalid payment verification data.');
+        }
+
+        const { razorpay_order_id, razorpay_payment_id, razorpay_signature } = validation.data;
+        const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    
+        const expectedSignature = crypto
+            .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET!)
+            .update(body.toString())
+            .digest('hex');
+    
+        const isSignatureValid = expectedSignature === razorpay_signature;
+
+        return { isSignatureValid };
+
+    } catch (error) {
+        console.error('Failed to verify Razorpay payment:', error);
+        return { isSignatureValid: false };
+    }
+}
