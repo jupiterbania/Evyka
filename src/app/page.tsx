@@ -2,45 +2,58 @@ import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { ImageCard } from '@/components/image-card';
 import { allPhotos } from '@/lib/placeholder-data';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import Image from 'next/image';
 
 export default function Home() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-grow">
-        <section className="w-full py-24 bg-card">
-          <div className="container px-4">
-            <div className="flex flex-col items-center space-y-4 text-center">
-              <div className="space-y-2">
-                <h1 className="text-4xl font-bold tracking-tighter font-headline">
-                  WELCOME TO MY EXCLUSIVE CONTENT
-                </h1>
-              </div>
-            </div>
+        <section className="relative w-full h-[40vh] flex items-center justify-center text-center text-white overflow-hidden">
+          <Image
+            src="https://images.unsplash.com/photo-1629471197009-c50487351414?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWlzdHklMjBtb3VudGFpbnN8ZW58MHx8fHwxNzYxNzkyMDg2fDA&ixlib=rb-4.1.0&q=80&w=1080"
+            alt="Misty mountains"
+            fill
+            className="object-cover"
+            data-ai-hint="misty mountains"
+          />
+          <div className="absolute inset-0 bg-black/50" />
+          <div className="relative z-10 p-4">
+            <h1 className="text-3xl font-bold tracking-tight text-white drop-shadow-md sm:text-4xl md:text-5xl font-headline">
+              WELCOME TO MY EXCLUSIVE CONTENT
+            </h1>
           </div>
         </section>
         <section id="gallery" className="py-12">
-          <div className="container">
-            <div className="flex flex-col items-center justify-between mb-8 gap-4">
-              <h2 className="text-3xl font-bold tracking-tight font-headline">Explore Gallery</h2>
-               <div className="flex items-center gap-4">
-                 <Select defaultValue="all">
-                    <SelectTrigger className="w-[180px]">
-                      <SelectValue placeholder="Category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Categories</SelectItem>
-                      <SelectItem value="nature">Nature</SelectItem>
-                      <SelectItem value="architecture">Architecture</SelectItem>
-                      <SelectItem value="people">People</SelectItem>
-                      <SelectItem value="abstract">Abstract</SelectItem>
-                    </SelectContent>
-                  </Select>
-               </div>
+          <div className="container px-4 sm:px-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between mb-8 gap-4">
+              <h2 className="text-3xl font-bold tracking-tight font-headline">
+                Explore Gallery
+              </h2>
+              <div className="flex items-center gap-4">
+                <Select defaultValue="all">
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Categories</SelectItem>
+                    <SelectItem value="nature">Nature</SelectItem>
+                    <SelectItem value="architecture">Architecture</SelectItem>
+                    <SelectItem value="people">People</SelectItem>
+                    <SelectItem value="abstract">Abstract</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="grid grid-cols-1 gap-4">
-              {allPhotos.map((photo) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {allPhotos.map(photo => (
                 <ImageCard key={photo.id} photo={photo} />
               ))}
             </div>
