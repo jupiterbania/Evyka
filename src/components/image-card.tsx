@@ -20,7 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useCollection, useFirestore, useUser, useMemoFirebase, useAuth } from '@/firebase';
 import { collection, doc, query, where, serverTimestamp, increment } from 'firebase/firestore';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -225,6 +225,7 @@ export function ImageCard({ photo }: ImageCardProps) {
             </div>
           </DialogTrigger>
           <DialogContent className="max-w-5xl h-auto bg-transparent border-none shadow-none p-0">
+            <DialogTitle className="sr-only">{photo.title}</DialogTitle>
             <div 
               className="relative aspect-[3/4] max-h-[90vh] w-full overflow-hidden rounded-lg"
               onDoubleClick={handleDoubleClick}
