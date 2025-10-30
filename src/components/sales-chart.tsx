@@ -7,6 +7,8 @@ import { useFirestore, useUser } from "@/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import type { Purchase } from "@/lib/types";
 import { format } from "date-fns";
+import { errorEmitter } from "@/firebase/error-emitter";
+import { FirestorePermissionError } from "@/firebase/errors";
 
 const chartConfig = {
   sales: {
@@ -17,6 +19,7 @@ const chartConfig = {
 
 export function SalesChart() {
   const [salesData, setSalesData] = useState<any[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const firestore = useFirestore();
   const { user } = useUser();
 
@@ -26,14 +29,12 @@ export function SalesChart() {
         const monthlySales: { [key: string]: number } = {};
 
         try {
-            // Fetch all images
-            const imagesCollection = collection(firestore, 'images');
-            const imagesSnapshot = await getDocs(imagesCollection);
+            const imagesCollectionRef = collection(firestore, 'images');
+            const imagesSnapshot = await getDocs(imagesCollectionRef);
 
-            // For each image, fetch its purchases subcollection
             for (const imageDoc of imagesSnapshot.docs) {
-                const purchasesCollection = collection(firestore, 'images', imageDoc.id, 'purchases');
-                const purchasesSnapshot = await getDocs(purchasesCollection);
+                const purchasesCollectionRef = collection(firestore, 'images', imageDoc.id, 'purchases');
+                const purchasesSnapshot = await getDocs(purchasesCollectionRef);
                 
                 purchasesSnapshot.forEach(purchaseDoc => {
                     const purchase = purchaseDoc.data() as Purchase;
@@ -49,17 +50,31 @@ export function SalesChart() {
             const chartData = monthOrder.map(month => ({
                 name: month,
                 sales: monthlySales[month] || 0
-            })).filter(d => d.sales > 0); // Optionally filter out months with no sales
+            })).filter(d => d.sales > 0); 
 
             setSalesData(chartData);
-        } catch (error) {
-            console.error("Error fetching sales data:", error);
-            // Here you could set an error state to display in the UI
+        } catch (err: any) {
+            console.log("Caught error in sales chart, creating contextual error.");
+            
+            // For this component, the error is likely happening on either `getDocs(imagesCollectionRef)`
+            // or `getDocs(purchasesCollectionRef)`. We will report the more likely restrictive one, which
+            // is iterating through all images. A more robust solution might check permissions individually.
+            const permissionError = new FirestorePermissionError({
+                path: 'images',
+                operation: 'list',
+            });
+            
+            errorEmitter.emit('permission-error', permissionError);
+            setError("You don't have permission to view sales data.");
         }
     };
 
     fetchSalesData();
   }, [firestore, user]);
+
+  if (error) {
+    return <div className="h-[300px] flex items-center justify-center text-destructive">{error}</div>
+  }
 
   if (!salesData.length) {
     return <div className="h-[300px] flex items-center justify-center text-muted-foreground">Not enough data to display chart.</div>
