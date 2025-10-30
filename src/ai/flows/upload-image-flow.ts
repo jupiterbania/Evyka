@@ -47,11 +47,9 @@ const uploadImageFlow = ai.defineFlow(
 
     const formData = new FormData();
     formData.append('key', imageHostingApiKey);
-    formData.append('action', 'upload');
-    formData.append('source', base64Image);
-    formData.append('format', 'json');
+    formData.append('image', base64Image);
 
-    const response = await fetch('https://freeimage.host/api/1/upload', {
+    const response = await fetch('https://api.imgbb.com/1/upload', {
       method: 'POST',
       body: formData,
     });
@@ -62,13 +60,13 @@ const uploadImageFlow = ai.defineFlow(
     }
 
     const result = await response.json();
-
-    if (result.status_code !== 200 || !result.image || !result.image.url) {
-      throw new Error(result.status_txt || 'Failed to upload image. The hosting service returned an error.');
+    
+    if (!result.success || !result.data || !result.data.url) {
+      throw new Error(result.error?.message || 'Failed to upload image. The hosting service returned an error.');
     }
 
     return {
-      imageUrl: result.image.url,
+      imageUrl: result.data.url,
     };
   }
 );
