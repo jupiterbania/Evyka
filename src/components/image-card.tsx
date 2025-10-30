@@ -101,7 +101,7 @@ export function ImageCard({ photo }: ImageCardProps) {
             width={600}
             height={800}
             className={cn(
-              "object-cover w-full h-full transition-all duration-300 ease-in-out group-hover:scale-105",
+              "object-cover transition-all duration-300 ease-in-out group-hover:scale-105",
               isLocked && "blur-lg group-hover:blur-md"
             )}
             data-ai-hint="photo"
