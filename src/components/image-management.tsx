@@ -50,8 +50,10 @@ export function ImageManagement() {
 
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   
-  const [newPhoto, setNewPhoto] = useState({ title: '', description: '', price: 0, imageUrl: '' });
+  const [newPhoto, setNewPhoto] = useState({ title: '', description: '', price: 0 });
+  const [imageFile, setImageFile] = useState<File | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<ImageType | null>(null);
 
   const { toast } = useToast();
@@ -91,19 +93,73 @@ export function ImageManagement() {
       });
   }
   
-  const handleUpload = () => {
-    if (!firestore) return;
+  const handleUpload = async () => {
+    if (!firestore || !imageFile) {
+        toast({
+            variant: "destructive",
+            title: "Upload Error",
+            description: "Please select an image file to upload.",
+        });
+        return;
+    }
     
-    addDocumentNonBlocking(imagesCollection, {
-        ...newPhoto,
-        blurredImageUrl: newPhoto.imageUrl, // Using same for now
-        uploadDate: serverTimestamp(),
-        sales: 0,
-    });
+    setIsUploading(true);
 
-    setUploadDialogOpen(false);
-    setNewPhoto({ title: '', description: '', price: 0, imageUrl: '' });
-    toast({title: "Image Uploaded!", description: "The new image is now live in the gallery."});
+    const reader = new FileReader();
+    reader.readAsDataURL(imageFile);
+    reader.onload = async () => {
+        const base64Image = (reader.result as string).split(',')[1];
+        
+        const formData = new FormData();
+        formData.append('key', '6d207e02198a847aa98d0a2a901485a5');
+        formData.append('action', 'upload');
+        formData.append('source', base64Image);
+        formData.append('format', 'json');
+
+        try {
+            const response = await fetch('https://freeimage.host/api/1/upload', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (result.status_code !== 200) {
+                throw new Error(result.status_txt || 'Failed to upload image.');
+            }
+
+            const imageUrl = result.image.url;
+
+            addDocumentNonBlocking(imagesCollection, {
+                ...newPhoto,
+                imageUrl: imageUrl,
+                blurredImageUrl: imageUrl, // Using same for now
+                uploadDate: serverTimestamp(),
+                sales: 0,
+            });
+
+            setUploadDialogOpen(false);
+            setNewPhoto({ title: '', description: '', price: 0 });
+            setImageFile(null);
+            toast({title: "Image Uploaded!", description: "The new image is now live in the gallery."});
+        } catch (error: any) {
+            toast({
+                variant: "destructive",
+                title: "Upload Failed",
+                description: error.message || "An unknown error occurred during image upload.",
+            });
+        } finally {
+            setIsUploading(false);
+        }
+    };
+    reader.onerror = (error) => {
+        toast({
+            variant: "destructive",
+            title: "File Read Error",
+            description: "Could not read the selected file.",
+        });
+        setIsUploading(false);
+    };
   }
 
   return (
@@ -126,8 +182,8 @@ export function ImageManagement() {
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="imageUrl">Image URL</Label>
-                <Input id="imageUrl" type="text" placeholder="https://example.com/image.png" value={newPhoto.imageUrl} onChange={(e) => setNewPhoto({...newPhoto, imageUrl: e.target.value})} />
+                <Label htmlFor="imageFile">Image File</Label>
+                <Input id="imageFile" type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)} />
               </div>
               <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="title">Title</Label>
@@ -146,8 +202,8 @@ export function ImageManagement() {
                 <DialogClose asChild>
                     <Button type="button" variant="secondary">Cancel</Button>
                 </DialogClose>
-                <Button type="submit" onClick={handleUpload}>
-                    Upload
+                <Button type="submit" onClick={handleUpload} disabled={isUploading}>
+                    {isUploading ? 'Uploading...' : 'Upload'}
                 </Button>
             </DialogFooter>
           </DialogContent>
