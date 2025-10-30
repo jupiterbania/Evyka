@@ -4,12 +4,36 @@ import { Footer } from '@/components/footer';
 import { ImageCard } from '@/components/image-card';
 import Image from 'next/image';
 import type { Image as ImageType, SiteSettings } from '@/lib/types';
-import { useCollection, useFirestore, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { placeholderImages } from '@/lib/placeholder-images';
+import { useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Upload } from 'lucide-react';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { uploadImage } from '@/ai/flows/upload-image-flow';
+import { extractDominantColor } from '@/ai/flows/extract-color-flow';
+
 
 export default function Home() {
   const firestore = useFirestore();
+  const { user } = useUser();
+  const { toast } = useToast();
+  
   const imagesCollection = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
   const { data: photos, isLoading } = useCollection<ImageType>(imagesCollection);
 
@@ -19,6 +43,82 @@ export default function Home() {
   const defaultHero = placeholderImages[0];
   const heroImageUrl = settings?.heroImageUrl || defaultHero.imageUrl;
   const heroImageHint = settings?.heroImageHint || defaultHero.imageHint;
+
+  const designatedAdminEmail = 'jupiterbania472@gmail.com';
+  const isAdmin = user?.email === designatedAdminEmail;
+
+  // State for upload dialog
+  const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [newPhoto, setNewPhoto] = useState({ title: '', description: '', price: 0 });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
+  const handleUpload = async () => {
+    if (!firestore || !imageFile) {
+      toast({
+        variant: 'destructive',
+        title: 'Upload Error',
+        description: 'Please select an image file to upload.',
+      });
+      return;
+    }
+
+    setIsUploading(true);
+
+    const reader = new FileReader();
+    reader.readAsDataURL(imageFile);
+    reader.onload = async () => {
+      const photoDataUri = reader.result as string;
+
+      try {
+        const uploadResult = await uploadImage({ photoDataUri });
+        if (!uploadResult || !uploadResult.imageUrl) {
+          throw new Error('Image URL was not returned from the upload service.');
+        }
+
+        const colorResult = await extractDominantColor({ photoDataUri });
+        const dominantColor = colorResult.dominantColor;
+
+        addDocumentNonBlocking(
+          imagesCollection,
+          {
+            ...newPhoto,
+            imageUrl: uploadResult.imageUrl,
+            blurredImageUrl: uploadResult.imageUrl,
+            dominantColor: dominantColor,
+            uploadDate: serverTimestamp(),
+            sales: 0,
+          }
+        );
+
+        setUploadDialogOpen(false);
+        setNewPhoto({ title: '', description: '', price: 0 });
+        setImageFile(null);
+        toast({
+          title: 'Image Uploaded!',
+          description: 'The new image is now live in the gallery.',
+        });
+      } catch (error: any) {
+        console.error('Upload process failed:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Upload Failed',
+          description:
+            error.message || 'An unknown error occurred during image upload.',
+        });
+      } finally {
+        setIsUploading(false);
+      }
+    };
+    reader.onerror = (error) => {
+      toast({
+        variant: 'destructive',
+        title: 'File Read Error',
+        description: 'Could not read the selected file.',
+      });
+      setIsUploading(false);
+    };
+  };
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -46,6 +146,50 @@ export default function Home() {
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline">
                 Explore Gallery
               </h2>
+              {isAdmin && (
+                <Dialog open={isUploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload Image
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Upload New Image</DialogTitle>
+                      <DialogDescription>
+                        Select an image file and set its details to add it to the gallery.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="imageFile">Image File</Label>
+                        <Input id="imageFile" type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)} />
+                      </div>
+                      <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="title">Title</Label>
+                        <Input id="title" type="text" placeholder="A beautiful landscape" value={newPhoto.title} onChange={(e) => setNewPhoto({...newPhoto, title: e.target.value})} />
+                      </div>
+                      <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="description">Description</Label>
+                        <Textarea id="description" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
+                      </div>
+                      <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="price">Price (₹)</Label>
+                        <Input id="price" type="number" placeholder="50" value={newPhoto.price} onChange={(e) => setNewPhoto({...newPhoto, price: Number(e.target.value)})} />
+                      </div>
+                    </div>
+                    <DialogFooter className="flex-col-reverse sm:flex-row">
+                        <DialogClose asChild>
+                            <Button type="button" variant="secondary">Cancel</Button>
+                        </DialogClose>
+                        <Button type="submit" onClick={handleUpload} disabled={isUploading}>
+                            {isUploading ? 'Uploading...' : 'Upload'}
+                        </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              )}
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
               {isLoading && Array.from({ length: 9 }).map((_, i) => (
