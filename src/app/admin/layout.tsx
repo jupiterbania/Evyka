@@ -1,5 +1,5 @@
-import { SidebarProvider, SidebarInset } from '@/components/ui/sidebar';
-import { AdminSidebar } from '@/components/admin-sidebar';
+import { Header } from '@/components/header';
+import { AdminHeader } from '@/components/admin-header';
 
 export default function AdminLayout({
   children,
@@ -7,13 +7,9 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <SidebarProvider>
-      <AdminSidebar />
-      <SidebarInset>
-        <div className="min-h-screen">
-          {children}
-        </div>
-      </SidebarInset>
-    </SidebarProvider>
+    <>
+      <AdminHeader />
+      <div className="min-h-screen">{children}</div>
+    </>
   );
 }

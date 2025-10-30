@@ -10,7 +10,7 @@ import {
 
 export default function AdminDashboardPage() {
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-4">
       <header className="mb-8">
         <h1 className="text-3xl font-bold font-headline">Admin Dashboard</h1>
         <p className="text-muted-foreground">Welcome back, Admin! Here's what's happening.</p>

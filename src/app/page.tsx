@@ -12,14 +12,14 @@ export default function Home() {
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-grow">
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-card">
-          <div className="container px-4 md:px-6">
+        <section className="w-full py-24 bg-card">
+          <div className="container px-4">
             <div className="flex flex-col items-center space-y-4 text-center">
               <div className="space-y-2">
-                <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none font-headline">
+                <h1 className="text-4xl font-bold tracking-tighter font-headline">
                   Welcome to EVYKA
                 </h1>
-                <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
+                <p className="mx-auto max-w-[700px] text-muted-foreground text-lg">
                   Discover and purchase unique, high-quality images from talented photographers around the world.
                 </p>
               </div>
@@ -39,9 +39,9 @@ export default function Home() {
             </div>
           </div>
         </section>
-        <section id="gallery" className="py-12 md:py-16">
+        <section id="gallery" className="py-12">
           <div className="container">
-            <div className="flex flex-col md:flex-row items-center justify-between mb-8 gap-4">
+            <div className="flex flex-col items-center justify-between mb-8 gap-4">
               <h2 className="text-3xl font-bold tracking-tight font-headline">Explore Gallery</h2>
                <div className="flex items-center gap-4">
                  <Select defaultValue="all">
@@ -58,7 +58,7 @@ export default function Home() {
                   </Select>
                </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 gap-4">
               {allPhotos.map((photo) => (
                 <ImageCard key={photo.id} photo={photo} />
               ))}

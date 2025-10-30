@@ -9,10 +9,7 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
-        <div className="mr-4 hidden md:flex">
-          <Logo />
-        </div>
-        <div className="flex md:hidden mr-2">
+        <div className="flex-1 flex items-center">
           <Sheet>
             <SheetTrigger asChild>
               <Button variant="ghost" size="icon">
@@ -32,26 +29,10 @@ export function Header() {
             </SheetContent>
           </Sheet>
         </div>
-        <div className="flex-1 hidden md:flex items-center gap-4">
-          <nav className="flex items-center space-x-6 text-sm font-medium">
-            <Link href="/" className="hover:text-primary transition-colors">Home</Link>
-            <Link href="/#gallery" className="hover:text-primary transition-colors">Gallery</Link>
-            <Link href="/admin" className="hover:text-primary transition-colors">Admin</Link>
-          </nav>
+        <div className="flex items-center justify-center">
+           <Logo />
         </div>
         <div className="flex flex-1 items-center justify-end space-x-2">
-            <div className="w-full flex-1 md:w-auto md:flex-none">
-              <form>
-                <div className="relative">
-                  <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="search"
-                    placeholder="Search..."
-                    className="pl-8 sm:w-[300px] md:w-[200px] lg:w-[300px]"
-                  />
-                </div>
-              </form>
-            </div>
              <Button>Sign In</Button>
         </div>
       </div>
