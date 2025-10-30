@@ -24,3 +24,11 @@ export type SiteSettings = {
     heroImageUrl?: string;
     heroImageHint?: string;
 }
+
+export type User = {
+  id: string;
+  email: string;
+  username: string;
+  profileImageUrl?: string;
+  isAdmin?: boolean;
+}
