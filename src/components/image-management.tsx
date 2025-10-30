@@ -38,14 +38,14 @@ import Image from 'next/image';
 import { Upload, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
-import { useCollection, useFirestore } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Textarea } from './ui/textarea';
 
 export function ImageManagement() {
   const firestore = useFirestore();
-  const imagesCollection = collection(firestore, 'images');
+  const imagesCollection = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
   const { data: photos, isLoading } = useCollection<ImageType>(imagesCollection);
 
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
