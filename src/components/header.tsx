@@ -2,8 +2,7 @@ import Link from 'next/link';
 import { Logo } from './logo';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from './ui/sheet';
-import { Menu, Search } from 'lucide-react';
-import { Input } from './ui/input';
+import { Menu } from 'lucide-react';
 
 export function Header() {
   return (

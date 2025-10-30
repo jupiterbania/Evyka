@@ -1,9 +1,6 @@
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { ImageCard } from '@/components/image-card';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Search } from 'lucide-react';
 import { allPhotos } from '@/lib/placeholder-data';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -22,19 +19,6 @@ export default function Home() {
                 <p className="mx-auto max-w-[700px] text-muted-foreground text-lg">
                   Discover and purchase unique, high-quality images from talented photographers around the world.
                 </p>
-              </div>
-              <div className="w-full max-w-lg">
-                <form className="flex space-x-2">
-                  <Input
-                    type="search"
-                    placeholder="Search for images..."
-                    className="flex-1"
-                    aria-label="Search for images"
-                  />
-                  <Button type="submit" aria-label="Search">
-                    <Search className="h-4 w-4" />
-                  </Button>
-                </form>
               </div>
             </div>
           </div>
