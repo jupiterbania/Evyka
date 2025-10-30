@@ -39,7 +39,7 @@ export function Header() {
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
-    const provider = new new GoogleAuthProvider();
+    const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
     } catch (error) {
