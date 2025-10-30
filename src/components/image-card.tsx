@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Image as ImageType, Purchase } from '@/lib/types';
@@ -23,6 +24,7 @@ import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebas
 import { collection, doc, query, where, serverTimestamp, increment } from 'firebase/firestore';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { format } from 'date-fns';
+import { Badge } from './ui/badge';
 
 type ImageCardProps = {
   photo: ImageType;
@@ -37,6 +39,8 @@ export function ImageCard({ photo }: ImageCardProps) {
   const { data: purchases, isLoading: isPurchaseLoading } = useCollection<Purchase>(purchasesCollection);
 
   const isPurchased = (purchases?.length ?? 0) > 0;
+  const isFree = photo.price === 0;
+  const isLocked = !isPurchased && !isFree;
 
   const handlePurchase = () => {
     if (!user || !firestore) {
@@ -98,11 +102,11 @@ export function ImageCard({ photo }: ImageCardProps) {
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className={cn(
               "object-cover transition-all duration-300 ease-in-out group-hover:scale-105",
-              !isPurchased && "blur-lg group-hover:blur-md"
+              isLocked && "blur-lg group-hover:blur-md"
             )}
             data-ai-hint="photo"
           />
-          {!isPurchased && (
+          {isLocked && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
               <Eye className="h-10 w-10 text-white" />
             </div>
@@ -113,11 +117,15 @@ export function ImageCard({ photo }: ImageCardProps) {
         <CardTitle className="text-lg leading-tight mb-1 truncate">{photo.title}</CardTitle>
       </CardContent>
       <CardFooter className="p-4 pt-0 flex justify-between items-center">
-        <p className="text-lg font-bold text-primary">${photo.price}</p>
+        <p className="text-lg font-bold text-primary">
+            {isFree ? 'Free' : `$${photo.price}`}
+        </p>
         {isPurchaseLoading ? (
             <Button disabled>Loading...</Button>
         ) : isPurchased ? (
           <Button variant="outline" disabled>Purchased</Button>
+        ) : isFree ? (
+            <Badge variant="secondary">Free</Badge>
         ) : (
           <AlertDialog>
             <AlertDialogTrigger asChild>
