@@ -11,10 +11,12 @@ export function Footer() {
             Built by your friendly neighborhood AI. Discover and purchase unique, high-quality images from talented photographers around the world.
           </p>
         </div>
-        <div className="flex gap-4">
-          <Link href="#" className="text-sm font-medium hover:text-primary">Terms of Service</Link>
-          <Link href="#" className="text-sm font-medium hover:text-primary">Privacy Policy</Link>
+        <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
+          <Link href="/terms-and-conditions" className="text-sm font-medium hover:text-primary">Terms & Conditions</Link>
+          <Link href="/privacy-policy" className="text-sm font-medium hover:text-primary">Privacy Policy</Link>
           <Link href="/shipping-policy" className="text-sm font-medium hover:text-primary">Shipping Policy</Link>
+          <Link href="/cancellations-and-refunds" className="text-sm font-medium hover:text-primary">Cancellations & Refunds</Link>
+          <Link href="https://www.instagram.com/heyeveyka" target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:text-primary">Contact Us</Link>
         </div>
         <p className="text-center text-sm text-muted-foreground">
           © {new Date().getFullYear()} EVYKA Inc. All rights reserved.
