@@ -20,6 +20,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
 import { useCollection, useFirestore, useUser, useMemoFirebase, useAuth } from '@/firebase';
 import { collection, doc, query, where, serverTimestamp, increment } from 'firebase/firestore';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
@@ -158,24 +159,38 @@ export function ImageCard({ photo }: ImageCardProps) {
   return (
     <Card className="group overflow-hidden flex flex-col">
       <CardHeader className="p-0">
-        <div className="relative aspect-[3/4] w-full overflow-hidden">
-          <Image
-            src={photo.imageUrl}
-            alt={photo.title}
-            width={600}
-            height={800}
-            className={cn(
-              "object-cover transition-all duration-300 ease-in-out group-hover:scale-105",
-              isLocked && "blur-lg group-hover:blur-md"
-            )}
-            data-ai-hint="photo"
-          />
-          {isLocked && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-              <Eye className="h-10 w-10 text-white" />
+        <Dialog>
+          <DialogTrigger asChild>
+            <div className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer">
+              <Image
+                src={photo.imageUrl}
+                alt={photo.title}
+                width={600}
+                height={800}
+                className={cn(
+                  "object-cover transition-all duration-300 ease-in-out group-hover:scale-105",
+                  isLocked && "blur-lg group-hover:blur-md"
+                )}
+                data-ai-hint="photo"
+              />
+              {isLocked && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Eye className="h-10 w-10 text-white" />
+                </div>
+              )}
             </div>
-          )}
-        </div>
+          </DialogTrigger>
+          <DialogContent className="max-w-5xl h-auto bg-transparent border-none shadow-none p-0">
+             <div className="relative aspect-[3/4] max-h-[90vh] w-full">
+              <Image
+                src={isLocked ? photo.blurredImageUrl : photo.imageUrl}
+                alt={photo.title}
+                fill
+                className={cn("object-contain rounded-lg", isLocked && 'blur-xl')}
+              />
+             </div>
+          </DialogContent>
+        </Dialog>
       </CardHeader>
       <CardContent className="p-4 flex-grow">
         <CardTitle className="text-lg leading-tight mb-1 truncate">{photo.title}</CardTitle>
