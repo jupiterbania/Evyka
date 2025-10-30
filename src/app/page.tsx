@@ -27,7 +27,7 @@ export default function Home() {
         <section className="relative w-full h-[50vh] sm:h-[40vh] flex items-center justify-center text-center text-white overflow-hidden">
           <Image
             src={heroImageUrl}
-            alt="Misty mountains"
+            alt="Welcome banner background"
             fill
             className="object-cover"
             data-ai-hint={heroImageHint}
