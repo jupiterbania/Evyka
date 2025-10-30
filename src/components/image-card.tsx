@@ -270,11 +270,11 @@ export function ImageCard({ photo }: ImageCardProps) {
   };
   
   const cardBackground = photo.dominantColor
-    ? `radial-gradient(circle, ${photo.dominantColor} 0%, black 100%)`
+    ? `radial-gradient(${photo.dominantColor}, black)`
     : 'hsl(var(--card))';
     
   const dialogBackground = photo.dominantColor
-    ? `radial-gradient(circle, ${photo.dominantColor} 0%, black 100%)`
+    ? `radial-gradient(${photo.dominantColor}, black)`
     : 'hsl(var(--background))';
 
   return (
@@ -348,7 +348,3 @@ export function ImageCard({ photo }: ImageCardProps) {
     </Card>
   );
 }
-
-    
-
-    
