@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Image as ImageType, Purchase, User } from '@/lib/types';
@@ -447,18 +446,20 @@ export function ImageCard({ photo }: ImageCardProps) {
     }
 
     if (isFree) {
-      return <Badge variant="secondary">Free</Badge>;
+        return (
+            <Badge variant="secondary">Free</Badge>
+        );
     }
 
     return (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col items-stretch gap-2">
             <Button onClick={handlePurchase} disabled={isProcessing} size="sm">
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 Purchase
             </Button>
-            <Button onClick={handleSubscription} disabled={isProcessing} variant="outline" size="icon">
-                <Crown className="h-4 w-4 text-amber-400" />
-                 <span className="sr-only">Subscribe</span>
+            <Button onClick={handleSubscription} disabled={isProcessing} variant="outline" size="sm">
+                <Crown className="mr-2 h-4 w-4 text-amber-400" />
+                Subscribe
             </Button>
         </div>
     );
