@@ -178,20 +178,11 @@ export function ImageCard({ photo }: ImageCardProps) {
       });
       return;
     }
-  
-    if (!settings?.subscriptionPrice) {
-      toast({
-        variant: 'destructive',
-        title: 'Subscription Error',
-        description: 'Subscription price is not set. Please contact support.',
-      });
-      return;
-    }
 
     setIsProcessing(true);
   
     try {
-      const subscription = await createSubscription({ price: settings.subscriptionPrice });
+      const subscription = await createSubscription();
   
       if (!subscription) {
         throw new Error('Could not create a subscription plan.');
@@ -402,7 +393,7 @@ export function ImageCard({ photo }: ImageCardProps) {
     const shareData = {
       title: photo.title,
       text: `Check out this image on EVYKA: ${photo.title}`,
-      url: window.location.origin + '/#gallery'
+      url: window.location.origin + '/image/' + photo.id
     };
     try {
       if (navigator.share) {
@@ -681,9 +672,3 @@ export function ImageCard({ photo }: ImageCardProps) {
     </>
   );
 }
-
-    
-
-    
-
-    
