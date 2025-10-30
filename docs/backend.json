@@ -28,6 +28,20 @@
         "isAdmin": {
           "type": "boolean",
           "description": "Indicates whether the user has administrative privileges."
+        },
+        "subscriptionStatus": {
+            "type": "string",
+            "description": "The status of the user's subscription.",
+            "enum": ["active", "inactive"]
+        },
+        "subscriptionId": {
+            "type": "string",
+            "description": "The ID of the subscription from the payment provider."
+        },
+        "subscriptionEndDate": {
+            "type": "string",
+            "description": "The date when the current subscription period ends.",
+            "format": "date-time"
         }
       },
       "required": [

@@ -32,4 +32,7 @@ export type User = {
   username: string;
   profileImageUrl?: string;
   isAdmin?: boolean;
+  subscriptionStatus?: 'active' | 'inactive';
+  subscriptionId?: string;
+  subscriptionEndDate?: Timestamp;
 }

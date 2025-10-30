@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Image as ImageType, Purchase } from '@/lib/types';
+import type { Image as ImageType, Purchase, User } from '@/lib/types';
 import Image from 'next/image';
 import { useState, MouseEvent, useRef } from 'react';
 import {
@@ -46,6 +46,7 @@ import {
   useFirestore,
   useUser,
   useMemoFirebase,
+  useDoc,
 } from '@/firebase';
 import {
   collection,
@@ -92,6 +93,10 @@ export function ImageCard({ photo }: ImageCardProps) {
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
   const isAdmin = user?.email === designatedAdminEmail;
 
+  const userDocRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
+  const { data: userData } = useDoc<User>(userDocRef);
+  const isSubscribed = userData?.subscriptionStatus === 'active';
+
   const purchasesCollection = useMemoFirebase(
     () =>
       user
@@ -107,7 +112,7 @@ export function ImageCard({ photo }: ImageCardProps) {
 
   const isPurchased = (purchases?.length ?? 0) > 0;
   const isFree = photo.price === 0;
-  const isLocked = !isPurchased && !isFree && !isAdmin;
+  const isLocked = !isPurchased && !isFree && !isAdmin && !isSubscribed;
 
   const [isZoomed, setIsZoomed] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
@@ -166,6 +171,15 @@ export function ImageCard({ photo }: ImageCardProps) {
         title: 'Service Unavailable',
         description:
           'The payment service is temporarily unavailable. Please try again later.',
+      });
+      return;
+    }
+     if (!user) {
+      toast({
+        variant: 'destructive',
+        title: 'Please Sign In',
+        description:
+          'You need to sign in to purchase an image.',
       });
       return;
     }
@@ -335,6 +349,14 @@ export function ImageCard({ photo }: ImageCardProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+      );
+    }
+    
+    if (isSubscribed) {
+      return (
+          <Badge variant="outline" className="border-amber-400 text-amber-400">
+              Pro
+          </Badge>
       );
     }
 

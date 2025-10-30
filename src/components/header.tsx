@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Logo } from './logo';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from './ui/sheet';
-import { Menu, User as UserIcon, LogOut, LogIn } from 'lucide-react';
+import { Menu, User as UserIcon, LogOut, LogIn, Crown } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import {
@@ -16,21 +16,32 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { doc, setDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
+import { createSubscription, verifySubscription } from '@/lib/razorpay';
+import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useState } from 'react';
+
+declare global {
+  interface Window {
+    Razorpay: any;
+  }
+}
+
 
 export function Header() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
-    const provider = new GoogleAuthProvider();
+    const provider = new new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
     } catch (error) {
@@ -51,6 +62,83 @@ export function Header() {
       console.error('Error signing out', error);
     }
   };
+
+  const handleSubscription = async () => {
+    if (!firestore || !user) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Error',
+        description: 'You must be logged in to subscribe.',
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const subscription = await createSubscription();
+
+      if (!subscription) {
+        throw new Error('Could not create a subscription plan.');
+      }
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        subscription_id: subscription.id,
+        name: 'EVYKA Pro',
+        description: `Monthly Subscription`,
+        handler: async function (response: any) {
+          const verificationResult = await verifySubscription({
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_subscription_id: response.razorpay_subscription_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+
+          if (verificationResult.isSignatureValid) {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + 1);
+
+            updateDocumentNonBlocking(userDocRef, {
+              subscriptionStatus: 'active',
+              subscriptionId: response.razorpay_subscription_id,
+              subscriptionEndDate: endDate,
+            });
+
+            toast({
+              title: 'Subscription Successful!',
+              description: 'Welcome to Pro! All images are now unlocked.',
+            });
+          } else {
+            toast({
+              variant: 'destructive',
+              title: 'Payment Failed',
+              description: 'Your payment could not be verified. Please contact support.',
+            });
+          }
+        },
+        prefill: {
+          name: user.displayName,
+          email: user.email,
+        },
+        theme: {
+          color: '#3399cc',
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Subscription Error',
+        description: error.message || 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
 
   const getInitials = (name?: string | null) => {
     if (!name) return 'U';
@@ -103,6 +191,13 @@ export function Header() {
           {isUserLoading ? (
             <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
           ) : user ? (
+            <>
+            {user.subscriptionStatus !== 'active' && user.email !== designatedAdminEmail && (
+                <Button onClick={handleSubscription} disabled={isProcessing} size="sm" variant="outline">
+                    <Crown className="mr-2 h-4 w-4 text-amber-400" />
+                    {isProcessing ? 'Processing...' : 'Subscribe'}
+                </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -126,6 +221,7 @@ export function Header() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </>
           ) : (
             <Button onClick={handleGoogleSignIn}>
               <LogIn className="mr-2 h-4 w-4" />
