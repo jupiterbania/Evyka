@@ -24,7 +24,7 @@ export default function Home() {
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-grow">
-        <section className="relative w-full h-[50vh] sm:h-[40vh] flex items-center justify-center text-center text-white overflow-hidden">
+        <section className="relative w-full h-[40vh] sm:h-[50vh] md:h-[60vh] flex items-center justify-center text-center text-white overflow-hidden">
           <Image
             src={heroImageUrl}
             alt="Welcome banner background"

@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Image as ImageType, Purchase } from '@/lib/types';
@@ -384,10 +383,10 @@ export function ImageCard({ photo }: ImageCardProps) {
                 <Image
                   src={photo.imageUrl}
                   alt={photo.title}
-                  width={600}
-                  height={800}
+                  fill
+                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, 33vw"
                   className={cn(
-                    'object-contain transition-all duration-300 ease-in-out group-hover:scale-105 w-full h-full',
+                    'object-contain transition-all duration-300 ease-in-out group-hover:scale-105',
                     isLocked && 'blur-lg group-hover:blur-md'
                   )}
                   data-ai-hint="photo"
@@ -532,5 +531,3 @@ export function ImageCard({ photo }: ImageCardProps) {
     </>
   );
 }
-
-    
