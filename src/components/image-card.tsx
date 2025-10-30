@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useCollection, useFirestore, useUser, useMemoFirebase, useAuth } from '@/firebase';
-import { collection, query, where, serverTimestamp, increment } from 'firebase/firestore';
+import { collection, query, where, serverTimestamp, increment, doc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import { Badge } from './ui/badge';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';

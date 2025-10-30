@@ -14,6 +14,7 @@ export function Footer() {
         <div className="flex gap-4">
           <Link href="#" className="text-sm font-medium hover:text-primary">Terms of Service</Link>
           <Link href="#" className="text-sm font-medium hover:text-primary">Privacy Policy</Link>
+          <Link href="/shipping-policy" className="text-sm font-medium hover:text-primary">Shipping Policy</Link>
         </div>
         <p className="text-center text-sm text-muted-foreground">
           © {new Date().getFullYear()} EVYKA Inc. All rights reserved.
