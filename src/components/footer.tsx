@@ -7,9 +7,6 @@ export function Footer() {
       <div className="container flex flex-col items-center gap-6 py-8 sm:py-10">
         <div className="flex flex-col items-center gap-4 px-4 sm:px-8">
           <Logo />
-          <p className="text-center text-sm leading-loose text-muted-foreground max-w-md">
-            Built by your friendly neighborhood AI. Discover and purchase unique, high-quality images from talented photographers around the world.
-          </p>
         </div>
         <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
           <Link href="/terms-and-conditions" className="text-sm font-medium hover:text-primary">Terms & Conditions</Link>
