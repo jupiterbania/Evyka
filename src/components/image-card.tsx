@@ -451,12 +451,12 @@ export function ImageCard({ photo }: ImageCardProps) {
     }
 
     return (
-        <div className="flex items-center gap-2">
-            <Button onClick={handlePurchase} disabled={isProcessing} size="sm">
+        <div className="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
+            <Button onClick={handlePurchase} disabled={isProcessing} className="w-full sm:w-auto">
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 Purchase
             </Button>
-             <Button onClick={handleSubscription} disabled={isProcessing} size="sm" variant="outline">
+             <Button onClick={handleSubscription} disabled={isProcessing} variant="outline" className="w-full sm:w-auto">
                 <Crown className="mr-2 h-4 w-4 text-amber-400" />
                 Subscribe
             </Button>
@@ -533,8 +533,8 @@ export function ImageCard({ photo }: ImageCardProps) {
             {photo.title}
           </CardTitle>
         </CardContent>
-        <CardFooter className="p-4 pt-0 flex justify-between items-center">
-          <p className="text-lg font-bold text-primary">
+        <CardFooter className="p-4 pt-0 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <p className="text-lg font-bold text-primary self-start sm:self-center">
             {isFree ? 'Free' : `₹${photo.price}`}
           </p>
           {renderPurchaseButton()}
