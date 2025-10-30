@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { Image as ImageType, Purchase } from '@/lib/types';
@@ -28,6 +27,7 @@ import { Badge } from './ui/badge';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { createOrder, verifyPayment } from '@/lib/razorpay';
 import type { Order } from 'razorpay/dist/types/orders';
+import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 declare global {
     interface Window {
@@ -188,7 +188,6 @@ export function ImageCard({ photo }: ImageCardProps) {
 
   const finalizePurchase = async (userId: string, imageId: string, price: number) => {
     if (!firestore) return;
-    const { addDocumentNonBlocking, updateDocumentNonBlocking } = await import('@/firebase/non-blocking-updates');
 
     // Add to user's personal purchase history
     const userPurchaseCollectionRef = collection(firestore, 'users', userId, 'purchases');
