@@ -2,17 +2,15 @@
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { ImageCard } from '@/components/image-card';
-import { generateAllPhotos } from '@/lib/placeholder-data';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
-import type { Photo } from '@/lib/types';
+import type { Image as ImageType } from '@/lib/types';
+import { useCollection, useFirestore } from '@/firebase';
+import { collection } from 'firebase/firestore';
 
 export default function Home() {
-  const [photos, setPhotos] = useState<Photo[]>([]);
-
-  useEffect(() => {
-    setPhotos(generateAllPhotos());
-  }, []);
+  const firestore = useFirestore();
+  const imagesCollection = collection(firestore, 'images');
+  const { data: photos, isLoading } = useCollection<ImageType>(imagesCollection);
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -41,7 +39,10 @@ export default function Home() {
               </h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {photos.map(photo => (
+              {isLoading && Array.from({ length: 9 }).map((_, i) => (
+                <div key={i} className="aspect-[3/4] bg-muted animate-pulse rounded-lg" />
+              ))}
+              {photos?.map(photo => (
                 <ImageCard key={photo.id} photo={photo} />
               ))}
             </div>

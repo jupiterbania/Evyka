@@ -1,10 +1,20 @@
-export type Photo = {
+import { Timestamp } from "firebase/firestore";
+
+export type Image = {
   id: string;
-  name: string;
-  price: number;
+  title: string;
+  description: string;
   imageUrl: string;
-  imageHint: string;
-  isPurchased: boolean;
-  popularity: number;
+  blurredImageUrl: string;
+  price: number;
+  uploadDate: Timestamp;
   sales: number;
 };
+
+export type Purchase = {
+    id: string;
+    userId: string;
+    imageId: string;
+    purchaseDate: Timestamp;
+    price: number;
+}

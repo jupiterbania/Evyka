@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useEffect } from 'react';
-import type { Photo } from '@/lib/types';
-import { generateAllPhotos } from '@/lib/placeholder-data';
+import { useState } from 'react';
+import type { Image as ImageType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -39,26 +38,39 @@ import Image from 'next/image';
 import { Upload, Edit, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
+import { useCollection, useFirestore } from '@/firebase';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Textarea } from './ui/textarea';
 
 export function ImageManagement() {
-  const [photos, setPhotos] = useState<Photo[]>([]);
+  const firestore = useFirestore();
+  const imagesCollection = collection(firestore, 'images');
+  const { data: photos, isLoading } = useCollection<ImageType>(imagesCollection);
+
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
+  
+  const [newPhoto, setNewPhoto] = useState({ title: '', description: '', price: 0, imageUrl: '' });
+  const [selectedPhoto, setSelectedPhoto] = useState<ImageType | null>(null);
+
   const { toast } = useToast();
 
-  useEffect(() => {
-    setPhotos(generateAllPhotos());
-  }, []);
-
-  const handleEditClick = (photo: Photo) => {
+  const handleEditClick = (photo: ImageType) => {
     setSelectedPhoto(photo);
     setEditDialogOpen(true);
   };
 
   const handleSaveEdit = () => {
-    if (!selectedPhoto) return;
-    setPhotos(photos.map(p => p.id === selectedPhoto.id ? selectedPhoto : p));
+    if (!selectedPhoto || !firestore) return;
+
+    const docRef = doc(firestore, 'images', selectedPhoto.id);
+    updateDocumentNonBlocking(docRef, {
+        title: selectedPhoto.title,
+        description: selectedPhoto.description,
+        price: selectedPhoto.price,
+    });
+    
     toast({
         title: "Image Updated",
         description: "The image details have been successfully updated.",
@@ -68,12 +80,30 @@ export function ImageManagement() {
   }
 
   const handleDelete = (photoId: string) => {
-    setPhotos(photos.filter(p => p.id !== photoId));
+    if (!firestore) return;
+    const docRef = doc(firestore, 'images', photoId);
+    deleteDocumentNonBlocking(docRef);
+
     toast({
         title: "Image Deleted",
         description: "The image has been successfully removed.",
         variant: "destructive",
       });
+  }
+  
+  const handleUpload = () => {
+    if (!firestore) return;
+    
+    addDocumentNonBlocking(imagesCollection, {
+        ...newPhoto,
+        blurredImageUrl: newPhoto.imageUrl, // Using same for now
+        uploadDate: serverTimestamp(),
+        sales: 0,
+    });
+
+    setUploadDialogOpen(false);
+    setNewPhoto({ title: '', description: '', price: 0, imageUrl: '' });
+    toast({title: "Image Uploaded!", description: "The new image is now live in the gallery."});
   }
 
   return (
@@ -95,27 +125,28 @@ export function ImageManagement() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid w-full max-w-sm items-center gap-1.5">
-                <Label htmlFor="picture">Picture</Label>
-                <Input id="picture" type="file" />
+              <div className="grid w-full items-center gap-1.5">
+                <Label htmlFor="imageUrl">Image URL</Label>
+                <Input id="imageUrl" type="text" placeholder="https://example.com/image.png" value={newPhoto.imageUrl} onChange={(e) => setNewPhoto({...newPhoto, imageUrl: e.target.value})} />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="name" className="text-right">Name</Label>
-                <Input id="name" defaultValue="New Masterpiece" className="col-span-3" />
+              <div className="grid w-full items-center gap-1.5">
+                <Label htmlFor="title">Title</Label>
+                <Input id="title" type="text" placeholder="A beautiful landscape" value={newPhoto.title} onChange={(e) => setNewPhoto({...newPhoto, title: e.target.value})} />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="price" className="text-right">Price ($)</Label>
-                <Input id="price" type="number" defaultValue="50" className="col-span-3" />
+              <div className="grid w-full items-center gap-1.5">
+                <Label htmlFor="description">Description</Label>
+                <Textarea id="description" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
+              </div>
+              <div className="grid w-full items-center gap-1.5">
+                <Label htmlFor="price">Price ($)</Label>
+                <Input id="price" type="number" placeholder="50" value={newPhoto.price} onChange={(e) => setNewPhoto({...newPhoto, price: Number(e.target.value)})} />
               </div>
             </div>
             <DialogFooter>
                 <DialogClose asChild>
                     <Button type="button" variant="secondary">Cancel</Button>
                 </DialogClose>
-                <Button type="submit" onClick={() => {
-                    setUploadDialogOpen(false);
-                    toast({title: "Image Uploaded!", description: "The new image is now live in the gallery."})
-                }}>
+                <Button type="submit" onClick={handleUpload}>
                     Upload
                 </Button>
             </DialogFooter>
@@ -135,19 +166,24 @@ export function ImageManagement() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {photos.map((photo) => (
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={5} className="text-center">Loading images...</TableCell>
+              </TableRow>
+            )}
+            {!isLoading && photos?.map((photo) => (
               <TableRow key={photo.id}>
                 <TableCell>
                   <Image
                     src={photo.imageUrl}
-                    alt={photo.name}
+                    alt={photo.title}
                     width={50}
                     height={70}
                     className="rounded-md object-cover"
-                    data-ai-hint={photo.imageHint}
+                    data-ai-hint="photo"
                   />
                 </TableCell>
-                <TableCell className="font-medium">{photo.name}</TableCell>
+                <TableCell className="font-medium">{photo.title}</TableCell>
                 <TableCell className="text-right">${photo.price.toFixed(2)}</TableCell>
                 <TableCell className="text-right">{photo.sales}</TableCell>
                 <TableCell className="text-center">
@@ -192,16 +228,20 @@ export function ImageManagement() {
                     Update the details for this image.
                 </DialogDescription>
                 </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="edit-name" className="text-right">Name</Label>
-                        <Input id="edit-name" value={selectedPhoto?.name || ''} onChange={(e) => setSelectedPhoto(p => p ? {...p, name: e.target.value} : null)} className="col-span-3" />
+                {selectedPhoto && <div className="grid gap-4 py-4">
+                    <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="edit-title">Title</Label>
+                        <Input id="edit-title" value={selectedPhoto.title} onChange={(e) => setSelectedPhoto(p => p ? {...p, title: e.target.value} : null)} />
                     </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="edit-price" className="text-right">Price ($)</Label>
-                        <Input id="edit-price" type="number" value={selectedPhoto?.price || 0} onChange={(e) => setSelectedPhoto(p => p ? {...p, price: Number(e.target.value)} : null)} className="col-span-3" />
+                    <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="edit-description">Description</Label>
+                        <Textarea id="edit-description" value={selectedPhoto.description} onChange={(e) => setSelectedPhoto(p => p ? {...p, description: e.target.value} : null)} />
                     </div>
-                </div>
+                    <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="edit-price">Price ($)</Label>
+                        <Input id="edit-price" type="number" value={selectedPhoto.price} onChange={(e) => setSelectedPhoto(p => p ? {...p, price: Number(e.target.value)} : null)} />
+                    </div>
+                </div>}
                 <DialogFooter>
                     <DialogClose asChild>
                         <Button type="button" variant="secondary" onClick={() => setEditDialogOpen(false)}>Cancel</Button>

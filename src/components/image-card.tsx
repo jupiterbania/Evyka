@@ -1,8 +1,8 @@
 "use client";
 
-import type { Photo } from '@/lib/types';
+import type { Image as ImageType, Purchase } from '@/lib/types';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
@@ -18,21 +18,44 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { useCollection, useFirestore, useUser } from '@/firebase';
+import { collection, doc, query, where, serverTimestamp } from 'firebase/firestore';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 type ImageCardProps = {
-  photo: Photo;
+  photo: ImageType;
 };
 
 export function ImageCard({ photo }: ImageCardProps) {
-  const [isPurchased, setIsPurchased] = useState(photo.isPurchased);
+  const { user } = useUser();
+  const firestore = useFirestore();
   const { toast } = useToast();
 
+  const purchasesCollection = user ? query(collection(firestore, 'users', user.uid, 'purchases'), where('imageId', '==', photo.id)) : null;
+  const { data: purchases, isLoading: isPurchaseLoading } = useCollection<Purchase>(purchasesCollection);
+
+  const isPurchased = (purchases?.length ?? 0) > 0;
+
   const handlePurchase = () => {
-    setIsPurchased(true);
+    if (!user || !firestore) {
+      toast({
+        variant: "destructive",
+        title: "Authentication Required",
+        description: "You must be signed in to purchase an image.",
+      });
+      return;
+    }
+    const purchaseCollectionRef = collection(firestore, 'users', user.uid, 'purchases');
+    addDocumentNonBlocking(purchaseCollectionRef, {
+        imageId: photo.id,
+        price: photo.price,
+        purchaseDate: serverTimestamp()
+    });
+
     toast({
       title: 'Purchase Successful!',
-      description: `You can now view "${photo.name}" without blur.`,
+      description: `You can now view "${photo.title}" without blur.`,
     });
   };
 
@@ -42,14 +65,14 @@ export function ImageCard({ photo }: ImageCardProps) {
         <div className="relative aspect-[3/4] overflow-hidden">
           <Image
             src={photo.imageUrl}
-            alt={photo.name}
+            alt={photo.title}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className={cn(
               "object-cover transition-all duration-300 ease-in-out group-hover:scale-105",
               !isPurchased && "blur-lg group-hover:blur-md"
             )}
-            data-ai-hint={photo.imageHint}
+            data-ai-hint="photo"
           />
           {!isPurchased && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -59,11 +82,13 @@ export function ImageCard({ photo }: ImageCardProps) {
         </div>
       </CardHeader>
       <CardContent className="p-4 flex-grow">
-        <CardTitle className="text-lg leading-tight mb-1 truncate">{photo.name}</CardTitle>
+        <CardTitle className="text-lg leading-tight mb-1 truncate">{photo.title}</CardTitle>
       </CardContent>
       <CardFooter className="p-4 pt-0 flex justify-between items-center">
         <p className="text-lg font-bold text-primary">${photo.price}</p>
-        {isPurchased ? (
+        {isPurchaseLoading ? (
+            <Button disabled>Loading...</Button>
+        ) : isPurchased ? (
           <Button variant="outline" disabled>Purchased</Button>
         ) : (
           <AlertDialog>
@@ -77,7 +102,7 @@ export function ImageCard({ photo }: ImageCardProps) {
               <AlertDialogHeader>
                 <AlertDialogTitle>Confirm Purchase</AlertDialogTitle>
                 <AlertDialogDescription>
-                  You are about to purchase "{photo.name}" for ${photo.price}.
+                  You are about to purchase "{photo.title}" for ${photo.price}.
                   This action cannot be undone.
                 </AlertDialogDescription>
               </AlertDialogHeader>

@@ -1,38 +1,58 @@
 "use client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { DollarSign, ShoppingCart, ImageIcon } from "lucide-react";
-import { generateAllPhotos, generateDashboardStats } from "@/lib/placeholder-data";
+import { useCollection, useFirestore } from "@/firebase";
+import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useState } from "react";
-import type { Photo } from "@/lib/types";
+import type { Image, Purchase } from "@/lib/types";
 
 export function DashboardStats() {
-    const [statsData, setStatsData] = useState({
-        totalRevenue: 0,
-        totalSales: 0,
-        totalImages: 0,
-    });
+    const firestore = useFirestore();
+    const { data: images, isLoading: imagesLoading } = useCollection<Image>(collection(firestore, 'images'));
+    const [totalRevenue, setTotalRevenue] = useState(0);
+    const [totalSales, setTotalSales] = useState(0);
 
     useEffect(() => {
-        const photos = generateAllPhotos();
-        setStatsData(generateDashboardStats(photos));
-    }, []);
+        const calculateStats = async () => {
+            if (!firestore) return;
+
+            const purchasesQuery = collection(firestore, 'users');
+            const usersSnapshot = await getDocs(purchasesQuery);
+            let revenue = 0;
+            let sales = 0;
+
+            for (const userDoc of usersSnapshot.docs) {
+                const userPurchasesCollection = collection(firestore, 'users', userDoc.id, 'purchases');
+                const purchasesSnapshot = await getDocs(userPurchasesCollection);
+                purchasesSnapshot.forEach(purchaseDoc => {
+                    const purchase = purchaseDoc.data() as Purchase;
+                    revenue += purchase.price;
+                    sales += 1;
+                });
+            }
+            setTotalRevenue(revenue);
+            setTotalSales(sales);
+        };
+
+        calculateStats();
+    }, [firestore, images]);
 
     const stats = [
         {
             title: "Total Revenue",
-            value: `$${statsData.totalRevenue.toLocaleString()}`,
+            value: `$${totalRevenue.toLocaleString()}`,
             icon: DollarSign,
             description: "Total revenue from all image sales."
         },
         {
             title: "Total Sales",
-            value: statsData.totalSales.toLocaleString(),
+            value: totalSales.toLocaleString(),
             icon: ShoppingCart,
             description: "Total number of images sold."
         },
         {
             title: "Images Available",
-            value: statsData.totalImages.toLocaleString(),
+            value: images?.length.toLocaleString() ?? '...',
             icon: ImageIcon,
             description: "Total number of images in the gallery."
         }

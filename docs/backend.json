@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -71,10 +72,6 @@
           "type": "string",
           "description": "Date and time when the image was uploaded.",
           "format": "date-time"
-        },
-        "categoryId": {
-          "type": "string",
-          "description": "Reference to Category. (Relationship: Category 1:N Image)"
         }
       },
       "required": [
@@ -83,32 +80,7 @@
         "imageUrl",
         "blurredImageUrl",
         "price",
-        "uploadDate",
-        "categoryId"
-      ]
-    },
-    "Category": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Category",
-      "type": "object",
-      "description": "Represents a category for organizing images.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the category."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the category."
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the category."
-        }
-      },
-      "required": [
-        "id",
-        "name"
+        "uploadDate"
       ]
     },
     "Purchase": {
@@ -150,8 +122,7 @@
   },
   "auth": {
     "providers": [
-      "password",
-      "anonymous"
+      "google.com"
     ]
   },
   "firestore": {
@@ -163,7 +134,7 @@
           "schema": {
             "$ref": "#/backend/entities/User"
           },
-          "description": "Stores user profile information.  Accessible only to the user and administrators.",
+          "description": "Stores user profile information. Accessible only to the user and administrators.",
           "params": [
             {
               "name": "userId",
@@ -179,27 +150,11 @@
           "schema": {
             "$ref": "#/backend/entities/Image"
           },
-          "description": "Stores image metadata. Includes `categoryId` for authorization independence (no need to `get()` category during rule evaluation).",
+          "description": "Stores image metadata.",
           "params": [
             {
               "name": "imageId",
               "description": "The unique identifier of the image."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/categories/{categoryId}",
-        "definition": {
-          "entityName": "Category",
-          "schema": {
-            "$ref": "#/backend/entities/Category"
-          },
-          "description": "Stores image categories.",
-          "params": [
-            {
-              "name": "categoryId",
-              "description": "The unique identifier of the category."
             }
           ]
         }
@@ -240,7 +195,6 @@
           ]
         }
       }
-    ],
-    "reasoning": "The Firestore structure is designed to support an image e-commerce platform, FocusFinds, with a focus on security, scalability, and clear authorization. Key design decisions include:\n\n1.  **Authorization Independence:** The structure avoids `get()` calls in security rules by denormalizing data. Specifically, the `images` collection includes the `categoryId` to enable direct access to category information without needing to fetch the category document itself.\n2.  **Structural Segregation:**  Data with different security postures are stored in separate collections.  User profiles are stored under `/users/{userId}`, ensuring private user data is protected.  Images are stored in the `/images` collection, and admin-only roles are managed in `/roles_admin/{userId}`.\n3.  **Access Modeling:**\n    *   **User-Owned Data:** User profile data is stored under `/users/{userId}`, following the path-based ownership model.\n    *   **Global Roles (DBAC):** The `/roles_admin/{userId}` collection is used to manage administrator roles based on document existence rather than content.\n    *   **Collaborative Data:** N/A\n4.  **Data Clarity and Predictability:**\n    *   Explicit data modeling is used. For example, image documents include all necessary information, such as URLs for both the original and blurred images, to avoid deriving information from other sources.\n\n**QAPs (Rules are not Filters):**\n\n*   The use of separate collections for different data types (e.g., images, users, categories, purchases) allows for efficient and secure `list` operations. Security rules can be written to allow listing images based on various criteria without exposing sensitive data. For example, the image `list` operation does not expose the actual image URL until the image is purchased, while the `blurredImageUrl` is exposed.\n\n**Invariants:**\n\nThe structure enforces data integrity through the use of required fields in the schema definitions. For example, all images must have a `title`, `imageUrl`, `blurredImageUrl`, `price`, `uploadDate`, and `categoryId`. Purchases require `userId`, `imageId`, `purchaseDate`, and `price`.\n"
+    ]
   }
 }
