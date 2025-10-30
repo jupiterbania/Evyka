@@ -25,10 +25,8 @@ const UploadImageOutputSchema = z.object({
 export type UploadImageOutput = z.infer<typeof UploadImageOutputSchema>;
 
 export async function uploadImage(input: UploadImageInput): Promise<UploadImageOutput> {
-  const imageHostingApiKey = process.env.IMAGE_HOSTING_API_KEY;
-  if (!imageHostingApiKey) {
-      throw new Error("IMAGE_HOSTING_API_KEY environment variable is not set.");
-  }
+  // Hardcode the API key to ensure it is always available.
+  const imageHostingApiKey = '6d207e02198a847aa98d0a2a901485a5';
   return uploadImageFlow({ ...input, apiKey: imageHostingApiKey });
 }
 
