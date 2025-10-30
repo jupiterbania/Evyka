@@ -1,9 +1,8 @@
-
 'use client';
 
 import type { Image as ImageType } from '@/lib/types';
 import Image from 'next/image';
-import { useState, MouseEvent, useRef } from 'react';
+import { useState } from 'react';
 import {
   Card,
   CardContent,
@@ -12,7 +11,6 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from './ui/button';
-import { cn } from '@/lib/utils';
 import {
   MoreVertical,
   Edit,
@@ -34,7 +32,6 @@ import {
   Dialog,
   DialogContent,
   DialogTitle,
-  DialogTrigger,
   DialogHeader,
   DialogDescription,
   DialogFooter,
@@ -43,7 +40,6 @@ import {
 import {
   useFirestore,
   useUser,
-  useMemoFirebase,
 } from '@/firebase';
 import {
   doc,
@@ -203,23 +199,20 @@ export function ImageCard({ photo }: ImageCardProps) {
           </Link>
         </CardHeader>
         <CardContent className="p-4 flex-grow">
-          <div className="flex justify-between items-start gap-2">
-            <Link href={`/image/${photo.id}`} className="flex-grow">
-              <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline">
-                {photo.title}
-              </CardTitle>
-            </Link>
+          <Link href={`/image/${photo.id}`} className="flex-grow">
+            <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline">
+              {photo.title}
+            </CardTitle>
+          </Link>
+        </CardContent>
+        <CardFooter className="p-4 pt-0 flex justify-end items-center">
+            <div className="flex-grow"></div>
             <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>
               <Share2 className="h-4 w-4" />
               <span className="sr-only">Share</span>
             </Button>
-          </div>
-        </CardContent>
-        {isAdmin && (
-            <CardFooter className="p-4 pt-0 flex justify-end items-center">
-                {renderAdminMenu()}
-            </CardFooter>
-        )}
+            {isAdmin && renderAdminMenu()}
+        </CardFooter>
       </Card>
 
       {/* Admin Modals */}
