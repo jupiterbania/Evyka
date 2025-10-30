@@ -25,7 +25,7 @@ const UploadImageOutputSchema = z.object({
 export type UploadImageOutput = z.infer<typeof UploadImageOutputSchema>;
 
 export async function uploadImage(input: UploadImageInput): Promise<UploadImageOutput> {
-  // Using a publicly available key for iili.io service
+  // Using a publicly available key for freeimage.host service
   const imageHostingApiKey = 'fb2d319e75505b33f6d534579f134548';
   return uploadImageFlow({ ...input, apiKey: imageHostingApiKey });
 }
