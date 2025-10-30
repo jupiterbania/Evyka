@@ -53,7 +53,6 @@ import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlo
 import { Textarea } from './ui/textarea';
 import { uploadImage } from '@/ai/flows/upload-image-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
-import { ScrollArea } from './ui/scroll-area';
 
 export function ImageManagement() {
   const firestore = useFirestore();
@@ -64,7 +63,7 @@ export function ImageManagement() {
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
-  const [newPhoto, setNewPhoto] = useState({ title: '', description: '', price: 0 });
+  const [newPhoto, setNewPhoto] = useState({ title: '', description: '' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<ImageType | null>(null);
@@ -84,7 +83,6 @@ export function ImageManagement() {
     updateDocumentNonBlocking(docRef, {
         title: selectedPhoto.title,
         description: selectedPhoto.description,
-        price: selectedPhoto.price,
     });
     
     toast({
@@ -167,12 +165,11 @@ export function ImageManagement() {
           blurredImageUrl: finalImageUrl,
           dominantColor: dominantColor,
           uploadDate: serverTimestamp(),
-          sales: 0,
         }
       );
   
       setUploadDialogOpen(false);
-      setNewPhoto({ title: '', description: '', price: 0 });
+      setNewPhoto({ title: '', description: '' });
       setImageFile(null);
       setImageUrl('');
       toast({
@@ -247,10 +244,6 @@ export function ImageManagement() {
                 <Label htmlFor="description-admin">Description</Label>
                 <Textarea id="description-admin" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
               </div>
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="price-admin">Price (₹)</Label>
-                <Input id="price-admin" type="number" placeholder="0" value={newPhoto.price} onChange={(e) => setNewPhoto({...newPhoto, price: Number(e.target.value)})} />
-              </div>
             </div>
             <DialogFooter className="flex-col-reverse sm:flex-row">
                 <DialogClose asChild>
@@ -270,15 +263,13 @@ export function ImageManagement() {
             <TableRow>
               <TableHead className="w-[80px] px-4">Image</TableHead>
               <TableHead>Name</TableHead>
-              <TableHead className="text-right">Price</TableHead>
-              <TableHead>Sales</TableHead>
               <TableHead className="w-[120px] text-center px-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center h-24">Loading images...</TableCell>
+                <TableCell colSpan={3} className="text-center h-24">Loading images...</TableCell>
               </TableRow>
             )}
             {!isLoading && photos?.map((photo) => (
@@ -297,8 +288,6 @@ export function ImageManagement() {
                   </div>
                 </TableCell>
                 <TableCell className="font-medium truncate max-w-xs">{photo.title}</TableCell>
-                <TableCell className="text-right">₹{photo.price.toFixed(2)}</TableCell>
-                <TableCell className="text-right">{photo.sales || 0}</TableCell>
                 <TableCell className="text-center px-4">
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -361,10 +350,6 @@ export function ImageManagement() {
                     <div className="grid w-full items-center gap-1.5">
                         <Label htmlFor="edit-description">Description</Label>
                         <Textarea id="edit-description" value={selectedPhoto.description} onChange={(e) => setSelectedPhoto(p => p ? {...p, description: e.target.value} : null)} />
-                    </div>
-                    <div className="grid w-full items-center gap-1.5">
-                        <Label htmlFor="edit-price">Price (₹)</Label>
-                        <Input id="edit-price" type="number" value={selectedPhoto.price} onChange={(e) => setSelectedPhoto(p => p ? {...p, price: Number(e.target.value)} : null)} />
                     </div>
                 </div>}
                 <DialogFooter className="flex-col-reverse sm:flex-row">

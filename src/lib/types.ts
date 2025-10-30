@@ -6,25 +6,14 @@ export type Image = {
   description: string;
   imageUrl: string;
   blurredImageUrl: string;
-  price: number;
   uploadDate: Timestamp;
-  sales: number;
   dominantColor?: string;
 };
-
-export type Purchase = {
-    id: string;
-    userId?: string;
-    imageId: string;
-    purchaseDate: Timestamp;
-    price: number;
-}
 
 export type SiteSettings = {
     id?: string;
     heroImageUrl?: string;
     heroImageHint?: string;
-    subscriptionPrice?: number;
 }
 
 export type User = {
@@ -33,7 +22,4 @@ export type User = {
   username: string;
   profileImageUrl?: string;
   isAdmin?: boolean;
-  subscriptionStatus?: 'active' | 'inactive';
-  subscriptionId?: string;
-  subscriptionEndDate?: Timestamp;
 }

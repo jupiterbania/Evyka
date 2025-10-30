@@ -28,20 +28,6 @@
         "isAdmin": {
           "type": "boolean",
           "description": "Indicates whether the user has administrative privileges."
-        },
-        "subscriptionStatus": {
-            "type": "string",
-            "description": "The status of the user's subscription.",
-            "enum": ["active", "inactive"]
-        },
-        "subscriptionId": {
-            "type": "string",
-            "description": "The ID of the subscription from the payment provider."
-        },
-        "subscriptionEndDate": {
-            "type": "string",
-            "description": "The date when the current subscription period ends.",
-            "format": "date-time"
         }
       },
       "required": [
@@ -54,7 +40,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Image",
       "type": "object",
-      "description": "Represents an image available for purchase on the FocusFinds platform.",
+      "description": "Represents an image available on the FocusFinds platform.",
       "properties": {
         "id": {
           "type": "string",
@@ -78,18 +64,10 @@
           "description": "URL of the blurred version of the image.",
           "format": "uri"
         },
-        "price": {
-          "type": "number",
-          "description": "Price of the image."
-        },
         "uploadDate": {
           "type": "string",
           "description": "Date and time when the image was uploaded.",
           "format": "date-time"
-        },
-        "sales": {
-          "type": "number",
-          "description": "The number of times this image has been sold."
         },
         "dominantColor": {
           "type": "string",
@@ -101,43 +79,7 @@
         "title",
         "imageUrl",
         "blurredImageUrl",
-        "price",
         "uploadDate"
-      ]
-    },
-    "Purchase": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Purchase",
-      "type": "object",
-      "description": "Represents a purchase of an image by a user.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the purchase."
-        },
-        "userId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Purchase). Optional for guest purchases."
-        },
-        "imageId": {
-          "type": "string",
-          "description": "Reference to Image. (Relationship: Image 1:N Purchase)"
-        },
-        "purchaseDate": {
-          "type": "string",
-          "description": "Date and time when the image was purchased.",
-          "format": "date-time"
-        },
-        "price": {
-          "type": "number",
-          "description": "Price at which the image was purchased. Redundant data, but useful for historical tracking."
-        }
-      },
-      "required": [
-        "id",
-        "imageId",
-        "purchaseDate",
-        "price"
       ]
     },
     "SiteSettings": {
@@ -153,10 +95,6 @@
          "heroImageHint": {
           "type": "string",
           "description": "The AI hint for the hero image."
-        },
-        "subscriptionPrice": {
-          "type": "number",
-          "description": "The monthly subscription price in the base currency unit (e.g., INR)."
         }
       }
     }
@@ -196,46 +134,6 @@
             {
               "name": "imageId",
               "description": "The unique identifier of the image."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/users/{userId}/purchases/{purchaseId}",
-        "definition": {
-          "entityName": "Purchase",
-          "schema": {
-            "$ref": "#/backend/entities/Purchase"
-          },
-          "description": "Stores purchase history for each user.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier of the user."
-            },
-            {
-              "name": "purchaseId",
-              "description": "The unique identifier of the purchase."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/images/{imageId}/purchases/{purchaseId}",
-        "definition": {
-          "entityName": "Purchase",
-          "schema": {
-            "$ref": "#/backend/entities/Purchase"
-          },
-          "description": "Stores anonymous purchase data for an image, for admin analytics.",
-          "params": [
-            {
-              "name": "imageId",
-              "description": "The unique identifier of the image."
-            },
-            {
-              "name": "purchaseId",
-              "description": "The unique identifier of the purchase."
             }
           ]
         }

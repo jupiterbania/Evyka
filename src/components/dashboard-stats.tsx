@@ -1,10 +1,10 @@
 
 "use client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Users } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import type { Image } from "@/lib/types";
+import type { Image, User } from "@/lib/types";
 
 export function DashboardStats() {
     const firestore = useFirestore();
@@ -12,12 +12,21 @@ export function DashboardStats() {
     const imagesQuery = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
     const { data: images, isLoading: imagesLoading } = useCollection<Image>(imagesQuery);
 
+    const usersQuery = useMemoFirebase(() => collection(firestore, 'users'), [firestore]);
+    const { data: users, isLoading: usersLoading } = useCollection<User>(usersQuery);
+
     const stats = [
         {
-            title: "Images Available",
+            title: "Total Images",
             value: imagesLoading ? '...' : (images?.length ?? 0).toLocaleString(),
             icon: ImageIcon,
             description: "Total number of images in the gallery."
+        },
+        {
+            title: "Total Users",
+            value: usersLoading ? '...' : (users?.length ?? 0).toLocaleString(),
+            icon: Users,
+            description: "Total number of registered users."
         }
     ]
   return (

@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Image as ImageType, Purchase, User, SiteSettings } from '@/lib/types';
+import type { Image as ImageType } from '@/lib/types';
 import Image from 'next/image';
 import { useState, MouseEvent, useRef } from 'react';
 import {
@@ -14,12 +14,9 @@ import {
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
 import {
-  Eye,
-  ShoppingCart,
   MoreVertical,
   Edit,
   Trash2,
-  Crown,
   Share2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -44,24 +41,14 @@ import {
   DialogClose,
 } from '@/components/ui/dialog';
 import {
-  useCollection,
   useFirestore,
   useUser,
   useMemoFirebase,
-  useDoc,
 } from '@/firebase';
 import {
-  collection,
-  query,
-  where,
-  serverTimestamp,
   doc,
 } from 'firebase/firestore';
-import { Badge } from './ui/badge';
-import { createOrder, verifyPayment, createSubscription } from '@/lib/razorpay';
-import type { Order } from 'razorpay/dist/types/orders';
 import {
-  addDocumentNonBlocking,
   deleteDocumentNonBlocking,
   updateDocumentNonBlocking,
 } from '@/firebase/non-blocking-updates';
@@ -76,281 +63,24 @@ import {
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
-
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
+import Link from 'next/link';
 
 type ImageCardProps = {
   photo: ImageType;
 };
 
 export function ImageCard({ photo }: ImageCardProps) {
-  const { user, isUserLoading } = useUser();
+  const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
   const isAdmin = user?.email === designatedAdminEmail;
 
-  const userDocRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userData } = useDoc<User>(userDocRef);
-  const isSubscribed = userData?.subscriptionStatus === 'active';
-
-  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'main'), [firestore]);
-  const { data: settings } = useDoc<SiteSettings>(settingsDocRef);
-
-  const purchasesCollection = useMemoFirebase(
-    () =>
-      user
-        ? query(
-            collection(firestore, 'users', user.uid, 'purchases'),
-            where('imageId', '==', photo.id)
-          )
-        : null,
-    [firestore, user, photo.id]
-  );
-  const { data: purchases, isLoading: isPurchaseLoading } =
-    useCollection<Purchase>(purchasesCollection);
-
-  const isPurchased = (purchases?.length ?? 0) > 0;
-  const isFree = photo.price === 0;
-  const isLocked = !isPurchased && !isFree && !isAdmin && !isSubscribed;
-
-  const [isZoomed, setIsZoomed] = useState(false);
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const imageRef = useRef<HTMLImageElement>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-
   // State for Edit/Delete dialogs
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editedPhoto, setEditedPhoto] = useState<ImageType | null>(null);
-
-  const handleDoubleClick = () => {
-    if (isLocked) return;
-    setIsZoomed(!isZoomed);
-    if (isZoomed) {
-      setPosition({ x: 0, y: 0 });
-    }
-  };
-
-  const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
-    if (isZoomed) {
-      setIsDragging(true);
-      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
-      e.currentTarget.style.cursor = 'grabbing';
-    }
-  };
-
-  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
-    if (isDragging && isZoomed) {
-      const newX = e.clientX - dragStart.x;
-      const newY = e.clientY - dragStart.y;
-      setPosition({ x: newX, y: newY });
-    }
-  };
-
-  const handleMouseUp = (e: MouseEvent<HTMLDivElement>) => {
-    setIsDragging(false);
-    if (isZoomed) {
-      e.currentTarget.style.cursor = 'zoom-out';
-    }
-  };
-
-  const handleMouseLeave = (e: MouseEvent<HTMLDivElement>) => {
-    setIsDragging(false);
-    if (isZoomed) {
-      e.currentTarget.style.cursor = 'zoom-out';
-    }
-  };
-  
-  const handleSubscription = async () => {
-    if (!firestore || !user) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication Error',
-        description: 'You must be logged in to subscribe.',
-      });
-      return;
-    }
-
-    setIsProcessing(true);
-  
-    try {
-      const subscription = await createSubscription();
-  
-      if (!subscription) {
-        throw new Error('Could not create a subscription plan.');
-      }
-  
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        subscription_id: subscription.id,
-        name: 'EVYKA Pro',
-        description: 'Monthly Subscription',
-        handler: async function (response: any) {
-          const verificationResult = { isSignatureValid: true };
-  
-          if (verificationResult.isSignatureValid) {
-            const userDocRef = doc(firestore, 'users', user.uid);
-            const endDate = new Date();
-            endDate.setMonth(endDate.getMonth() + 1);
-  
-            updateDocumentNonBlocking(userDocRef, {
-              subscriptionStatus: 'active',
-              subscriptionId: response.razorpay_subscription_id,
-              subscriptionEndDate: endDate,
-            });
-  
-            toast({
-              title: 'Subscription Successful!',
-              description: 'Welcome to Pro! All images are now unlocked.',
-            });
-          } else {
-            toast({
-              variant: 'destructive',
-              title: 'Payment Failed',
-              description: 'Your payment could not be verified. Please contact support.',
-            });
-          }
-        },
-        prefill: {
-          name: user.displayName || 'Guest User',
-          email: user.email || undefined,
-        },
-        theme: {
-          color: '#3399cc',
-        },
-      };
-  
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Subscription Error',
-        description: error.message || 'Something went wrong. Please try again.',
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-
-  const handlePurchase = async () => {
-    if (!firestore) {
-      toast({
-        variant: 'destructive',
-        title: 'Service Unavailable',
-        description:
-          'The payment service is temporarily unavailable. Please try again later.',
-      });
-      return;
-    }
-
-    setIsProcessing(true);
-
-    try {
-      const order = await createOrder({
-        amount: photo.price,
-        imageTitle: photo.title,
-      });
-
-      if (!order) {
-        throw new Error('Could not create a payment order.');
-      }
-
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        amount: order.amount,
-        currency: order.currency,
-        name: 'EVYKA',
-        description: `Purchase: ${photo.title}`,
-        order_id: order.id,
-        handler: async function (response: any) {
-          const verificationResult = await verifyPayment({
-            razorpay_order_id: response.razorpay_order_id,
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_signature: response.razorpay_signature,
-          });
-
-          if (verificationResult.isSignatureValid) {
-            await finalizePurchase(user?.uid, photo.id, photo.price);
-            toast({
-              title: 'Purchase Successful!',
-              description: `You can now view "${photo.title}" without blur.`,
-            });
-          } else {
-            toast({
-              variant: 'destructive',
-              title: 'Payment Failed',
-              description:
-                'Your payment could not be verified. Please contact support.',
-            });
-          }
-        },
-        prefill: {
-          name: user?.displayName || 'Guest User',
-          email: user?.email || undefined,
-        },
-        theme: {
-          color: '#3399cc',
-        },
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Payment Error',
-        description: error.message || 'Something went wrong. Please try again.',
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const finalizePurchase = async (
-    userId: string | undefined,
-    imageId: string,
-    price: number
-  ) => {
-    if (!firestore) return;
-
-    if (userId) {
-      const userPurchaseCollectionRef = collection(
-        firestore,
-        'users',
-        userId,
-        'purchases'
-      );
-      addDocumentNonBlocking(userPurchaseCollectionRef, {
-        imageId: imageId,
-        price: price,
-        purchaseDate: serverTimestamp(),
-        userId: userId,
-      });
-    }
-
-    const imagePurchaseCollectionRef = collection(
-      firestore,
-      'images',
-      imageId,
-      'purchases'
-    );
-    addDocumentNonBlocking(imagePurchaseCollectionRef, {
-      imageId: imageId,
-      price: price,
-      purchaseDate: serverTimestamp(),
-      userId: userId, // Can be undefined for guests
-    });
-  };
 
   const handleEditClick = () => {
     setEditedPhoto(photo);
@@ -363,7 +93,6 @@ export function ImageCard({ photo }: ImageCardProps) {
     updateDocumentNonBlocking(docRef, {
       title: editedPhoto.title,
       description: editedPhoto.description,
-      price: editedPhoto.price,
     });
     toast({
       title: 'Image Updated',
@@ -406,7 +135,6 @@ export function ImageCard({ photo }: ImageCardProps) {
         });
       }
     } catch (error: any) {
-      // Fallback to clipboard for permission errors or other failures.
       if (error.name === 'NotAllowedError') {
         await navigator.clipboard.writeText(shareData.url);
         toast({
@@ -424,16 +152,15 @@ export function ImageCard({ photo }: ImageCardProps) {
     }
   };
 
-  const renderPurchaseButton = () => {
-    if (isUserLoading || (user && isPurchaseLoading)) {
-      return <Button disabled>Loading...</Button>;
+  const renderAdminMenu = () => {
+    if (!isAdmin) {
+      return null;
     }
 
-    if (isAdmin) {
-      return (
+    return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon">
+            <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
               <MoreVertical className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
@@ -453,55 +180,6 @@ export function ImageCard({ photo }: ImageCardProps) {
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-      );
-    }
-    
-    if (isSubscribed) {
-      return (
-          <Badge variant="outline" className="border-amber-400 text-amber-400">
-              Pro
-          </Badge>
-      );
-    }
-
-    if (isPurchased) {
-      return (
-        <Button variant="outline" disabled>
-          Purchased
-        </Button>
-      );
-    }
-
-    if (isFree) {
-        return (
-          <div className="flex justify-between items-center w-full">
-            <span>Free</span>
-            <Badge variant="secondary">Free</Badge>
-          </div>
-        );
-    }
-
-    if (!user) { // Guest user
-      return (
-        <Button onClick={handlePurchase} disabled={isProcessing} className="w-full">
-            <ShoppingCart className="mr-2 h-4 w-4" />
-            Purchase
-        </Button>
-      );
-    }
-
-
-    return (
-      <div className="flex w-full flex-col items-stretch gap-2">
-        <Button onClick={handlePurchase} disabled={isProcessing} size="sm">
-          <ShoppingCart className="mr-2 h-4 w-4" />
-          Purchase
-        </Button>
-        <Button onClick={handleSubscription} disabled={isProcessing} variant="outline" size="sm">
-          <Crown className="mr-2 h-4 w-4 text-amber-400" />
-          Subscribe
-        </Button>
-      </div>
     );
   };
 
@@ -509,8 +187,7 @@ export function ImageCard({ photo }: ImageCardProps) {
     <>
       <Card className="group overflow-hidden flex flex-col">
         <CardHeader className="p-0">
-          <Dialog onOpenChange={(open) => !open && setIsZoomed(false)}>
-            <DialogTrigger asChild>
+          <Link href={`/image/${photo.id}`} className="block">
               <div
                 className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer bg-card"
               >
@@ -519,75 +196,30 @@ export function ImageCard({ photo }: ImageCardProps) {
                   alt={photo.title}
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className={cn(
-                    'object-contain transition-all duration-300 ease-in-out group-hover:scale-105',
-                    isLocked && 'blur-lg group-hover:blur-md'
-                  )}
+                  className='object-contain transition-all duration-300 ease-in-out group-hover:scale-105'
                   data-ai-hint="photo"
                 />
-                {isLocked && (
-                  <div className="absolute inset-0 flex items-center justify-center bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Eye className="h-10 w-10 text-white" />
-                  </div>
-                )}
               </div>
-            </DialogTrigger>
-            <DialogContent className="max-w-5xl h-auto bg-transparent border-none shadow-none p-0">
-              <DialogTitle className="sr-only">{photo.title}</DialogTitle>
-              <div
-                className="relative aspect-[3/4] max-h-[90vh] w-full overflow-hidden rounded-lg bg-background"
-                onDoubleClick={handleDoubleClick}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseLeave}
-                style={{
-                  cursor: isLocked
-                    ? 'not-allowed'
-                    : isZoomed
-                    ? 'zoom-out'
-                    : 'zoom-in',
-                }}
-              >
-                <Image
-                  ref={imageRef}
-                  src={photo.imageUrl}
-                  alt={photo.title}
-                  fill
-                  className={cn(
-                    'object-contain transition-transform duration-300 ease-in-out',
-                    isLocked && 'blur-xl'
-                  )}
-                  style={{
-                    transform: isZoomed
-                      ? `scale(2) translate(${position.x}px, ${position.y}px)`
-                      : 'scale(1)',
-                    transformOrigin: 'center center',
-                  }}
-                />
-              </div>
-            </DialogContent>
-          </Dialog>
+          </Link>
         </CardHeader>
         <CardContent className="p-4 flex-grow">
           <div className="flex justify-between items-start gap-2">
-            <CardTitle className="text-lg leading-tight mb-1 truncate flex-grow">
-              {photo.title}
-            </CardTitle>
+            <Link href={`/image/${photo.id}`} className="flex-grow">
+              <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline">
+                {photo.title}
+              </CardTitle>
+            </Link>
             <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>
               <Share2 className="h-4 w-4" />
               <span className="sr-only">Share</span>
             </Button>
           </div>
         </CardContent>
-        <CardFooter className="p-4 pt-0 flex justify-between items-center gap-4">
-          {!isFree && (
-            <p className="text-lg font-bold text-primary">
-              ₹{photo.price}
-            </p>
-          )}
-          {renderPurchaseButton()}
-        </CardFooter>
+        {isAdmin && (
+            <CardFooter className="p-4 pt-0 flex justify-end items-center">
+                {renderAdminMenu()}
+            </CardFooter>
+        )}
       </Card>
 
       {/* Admin Modals */}
@@ -640,19 +272,6 @@ export function ImageCard({ photo }: ImageCardProps) {
                   onChange={(e) =>
                     setEditedPhoto((p) =>
                       p ? { ...p, description: e.target.value } : null
-                    )
-                  }
-                />
-              </div>
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="edit-price">Price (₹)</Label>
-                <Input
-                  id="edit-price"
-                  type="number"
-                  value={editedPhoto.price}
-                  onChange={(e) =>
-                    setEditedPhoto((p) =>
-                      p ? { ...p, price: Number(e.target.value) } : null
                     )
                   }
                 />

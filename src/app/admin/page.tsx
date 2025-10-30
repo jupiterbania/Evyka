@@ -1,13 +1,5 @@
 import { DashboardStats } from '@/components/dashboard-stats';
-import { SalesChart } from '@/components/sales-chart';
 import { SiteSettings } from '@/components/site-settings';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 
 export default function AdminDashboardPage() {
   return (

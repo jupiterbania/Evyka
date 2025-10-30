@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import Image from 'next/image';
 import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc } from 'firebase/firestore';
@@ -12,7 +12,6 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
-  CardFooter
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,7 +20,6 @@ import { uploadImage } from '@/ai/flows/upload-image-flow';
 import type { SiteSettings as SiteSettingsType } from '@/lib/types';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { Upload } from 'lucide-react';
-import { Separator } from './ui/separator';
 
 export function SiteSettings() {
   const firestore = useFirestore();
@@ -35,17 +33,9 @@ export function SiteSettings() {
 
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const [subscriptionPrice, setSubscriptionPrice] = useState<number | string>('');
-  const [isSavingPrice, setIsSavingPrice] = useState(false);
   
   const defaultHero = placeholderImages[0];
   const currentHeroImageUrl = settings?.heroImageUrl || defaultHero.imageUrl;
-
-  useEffect(() => {
-    if (settings?.subscriptionPrice) {
-      setSubscriptionPrice(settings.subscriptionPrice);
-    }
-  }, [settings]);
   
   const handleHeroImageUpload = async () => {
     if (!heroImageFile) {
@@ -93,29 +83,6 @@ export function SiteSettings() {
     }
   };
 
-  const handlePriceSave = () => {
-    const priceNumber = Number(subscriptionPrice);
-    if (isNaN(priceNumber) || priceNumber <= 0) {
-      toast({
-        variant: 'destructive',
-        title: 'Invalid Price',
-        description: 'Please enter a valid subscription price.',
-      });
-      return;
-    }
-
-    setIsSavingPrice(true);
-    setDocumentNonBlocking(settingsDocRef, {
-        subscriptionPrice: priceNumber
-    }, { merge: true });
-
-    toast({
-        title: 'Subscription Price Updated!',
-        description: `The monthly price is now ₹${priceNumber}.`,
-    });
-    setIsSavingPrice(false);
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -159,29 +126,6 @@ export function SiteSettings() {
             </div>
             <p className="text-sm text-muted-foreground">
               This will replace the background image on the main welcome banner.
-            </p>
-          </div>
-        </div>
-        <Separator />
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="subscription-price">Monthly Subscription Price (₹)</Label>
-            <div className="flex items-center gap-2">
-              <Input
-                id="subscription-price"
-                type="number"
-                value={subscriptionPrice}
-                onChange={(e) => setSubscriptionPrice(e.target.value)}
-                placeholder="e.g., 79"
-                className="max-w-xs"
-                disabled={isSettingsLoading}
-              />
-              <Button onClick={handlePriceSave} disabled={isSavingPrice || isSettingsLoading}>
-                  {isSavingPrice ? 'Saving...' : 'Save Price'}
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground">
-                Set the price for the monthly subscription.
             </p>
           </div>
         </div>

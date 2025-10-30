@@ -3,9 +3,9 @@ import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { ImageCard } from '@/components/image-card';
 import Image from 'next/image';
-import type { Image as ImageType, SiteSettings, User } from '@/lib/types';
+import type { Image as ImageType, SiteSettings } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
-import { collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { useMemo, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -23,11 +23,10 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, Crown } from 'lucide-react';
-import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Upload } from 'lucide-react';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadImage } from '@/ai/flows/upload-image-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
-import { createSubscription, verifySubscription } from '@/lib/razorpay';
 
 
 export default function Home() {
@@ -40,18 +39,11 @@ export default function Home() {
 
   const sortedPhotos = useMemo(() => {
     if (!photos) return [];
-    return [...photos].sort((a, b) => {
-      if (a.price === 0 && b.price !== 0) return -1;
-      if (a.price !== 0 && b.price === 0) return 1;
-      return 0;
-    });
+    return [...photos].sort((a, b) => b.uploadDate.toMillis() - a.uploadDate.toMillis());
   }, [photos]);
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'main'), [firestore]);
   const { data: settings } = useDoc<SiteSettings>(settingsDocRef);
-
-  const userDocRef = useMemoFirebase(() => user ? doc(firestore, 'users', user.uid) : null, [firestore, user]);
-  const { data: userData } = useDoc<User>(userDocRef);
   
   const defaultHero = placeholderImages[0];
   const heroImageUrl = settings?.heroImageUrl || defaultHero.imageUrl;
@@ -63,99 +55,10 @@ export default function Home() {
   // State for upload dialog
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [newPhoto, setNewPhoto] = useState({ title: '', description: '', price: 0 });
+  const [newPhoto, setNewPhoto] = useState({ title: '', description: '' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
-
-  // State for subscription
-  const [isProcessing, setIsProcessing] = useState(false);
   
-  const handleSubscription = async () => {
-    if (!firestore || !user) {
-      toast({
-        variant: 'destructive',
-        title: 'Authentication Error',
-        description: 'You must be logged in to subscribe.',
-      });
-      return;
-    }
-    
-    if (!settings?.subscriptionPrice) {
-      toast({
-        variant: 'destructive',
-        title: 'Subscription Error',
-        description: 'Subscription price is not set. Please contact support.',
-      });
-      return;
-    }
-  
-    setIsProcessing(true);
-  
-    try {
-      const subscription = await createSubscription();
-  
-      if (!subscription) {
-        throw new Error('Could not create a subscription plan.');
-      }
-  
-      const options = {
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-        subscription_id: subscription.id,
-        name: 'EVYKA Pro',
-        description: 'Monthly Subscription',
-        handler: async function (response: any) {
-          const verificationResult = await verifySubscription({
-            razorpay_payment_id: response.razorpay_payment_id,
-            razorpay_subscription_id: response.razorpay_subscription_id,
-            razorpay_signature: response.razorpay_signature,
-          });
-  
-          if (verificationResult.isSignatureValid) {
-            const userDocRef = doc(firestore, 'users', user.uid);
-            const endDate = new Date();
-            endDate.setMonth(endDate.getMonth() + 1);
-  
-            updateDocumentNonBlocking(userDocRef, {
-              subscriptionStatus: 'active',
-              subscriptionId: response.razorpay_subscription_id,
-              subscriptionEndDate: endDate,
-            });
-  
-            toast({
-              title: 'Subscription Successful!',
-              description: 'Welcome to Pro! All images are now unlocked.',
-            });
-          } else {
-            toast({
-              variant: 'destructive',
-              title: 'Payment Failed',
-              description: 'Your payment could not be verified. Please contact support.',
-            });
-          }
-        },
-        prefill: {
-          name: user.displayName,
-          email: user.email,
-        },
-        theme: {
-          color: '#3399cc',
-        },
-      };
-  
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
-    } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Subscription Error',
-        description: error.message || 'Something went wrong. Please try again.',
-      });
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-
   const handleUpload = async () => {
     if (!firestore) return;
     if (!imageFile && !imageUrl) {
@@ -194,8 +97,6 @@ export default function Home() {
       }
 
       let dominantColor = '#F0F4F8'; // Default background color
-      // Color extraction might not work for all remote URLs, but we can try
-      // For simplicity, we'll only extract color for uploaded files.
       if (photoDataUriForColor) {
         const colorResult = await extractDominantColor({ photoDataUri: photoDataUriForColor });
         dominantColor = colorResult.dominantColor;
@@ -208,13 +109,12 @@ export default function Home() {
           imageUrl: finalImageUrl,
           blurredImageUrl: finalImageUrl,
           uploadDate: serverTimestamp(),
-          sales: 0,
           dominantColor: dominantColor
         }
       );
 
       setUploadDialogOpen(false);
-      setNewPhoto({ title: '', description: '', price: 0 });
+      setNewPhoto({ title: '', description: '' });
       setImageFile(null);
       setImageUrl('');
       toast({
@@ -263,12 +163,6 @@ export default function Home() {
                 Explore Gallery
               </h2>
               <div className="flex items-center gap-2">
-                {user && userData && userData.subscriptionStatus !== 'active' && !isAdmin && (
-                  <Button onClick={handleSubscription} disabled={isProcessing} size="sm" variant="outline">
-                      <Crown className="mr-2 h-4 w-4 text-amber-400" />
-                      {isProcessing ? 'Processing...' : 'Subscribe to Unlock All'}
-                  </Button>
-                )}
                 {isAdmin && (
                   <Dialog open={isUploadDialogOpen} onOpenChange={setUploadDialogOpen}>
                     <DialogTrigger asChild>
@@ -321,10 +215,6 @@ export default function Home() {
                         <div className="grid w-full items-center gap-1.5">
                           <Label htmlFor="description">Description</Label>
                           <Textarea id="description" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
-                        </div>
-                        <div className="grid w-full items-center gap-1.5">
-                          <Label htmlFor="price">Price (₹)</Label>
-                          <Input id="price" type="number" placeholder="0" value={newPhoto.price} onChange={(e) => setNewPhoto({...newPhoto, price: Number(e.target.value)})} />
                         </div>
                       </div>
                       <DialogFooter className="flex-col-reverse sm:flex-row">
