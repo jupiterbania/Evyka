@@ -65,6 +65,7 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [newPhoto, setNewPhoto] = useState({ title: '', description: '', price: 0 });
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrl, setImageUrl] = useState('');
 
   // State for subscription
   const [isProcessing, setIsProcessing] = useState(false);
@@ -75,6 +76,15 @@ export default function Home() {
         variant: 'destructive',
         title: 'Authentication Error',
         description: 'You must be logged in to subscribe.',
+      });
+      return;
+    }
+    
+    if (!settings?.subscriptionPrice) {
+      toast({
+        variant: 'destructive',
+        title: 'Subscription Error',
+        description: 'Subscription price is not set. Please contact support.',
       });
       return;
     }
@@ -147,70 +157,83 @@ export default function Home() {
 
 
   const handleUpload = async () => {
-    if (!firestore || !imageFile) {
+    if (!firestore) return;
+    if (!imageFile && !imageUrl) {
       toast({
         variant: 'destructive',
         title: 'Upload Error',
-        description: 'Please select an image file to upload.',
+        description: 'Please select an image file or provide a direct URL.',
       });
       return;
     }
 
     setIsUploading(true);
 
-    const reader = new FileReader();
-    reader.readAsDataURL(imageFile);
-    reader.onload = async () => {
-      const photoDataUri = reader.result as string;
+    try {
+      let finalImageUrl: string;
+      let photoDataUriForColor: string | undefined;
 
-      try {
-        const uploadResult = await uploadImage({ photoDataUri });
+      if (imageFile) {
+        // Upload from file
+        const reader = await new Promise<string>((resolve, reject) => {
+          const fileReader = new FileReader();
+          fileReader.readAsDataURL(imageFile);
+          fileReader.onload = () => resolve(fileReader.result as string);
+          fileReader.onerror = (error) => reject(error);
+        });
+
+        photoDataUriForColor = reader;
+        const uploadResult = await uploadImage({ photoDataUri: reader });
         if (!uploadResult || !uploadResult.imageUrl) {
           throw new Error('Image URL was not returned from the upload service.');
         }
-
-        const colorResult = await extractDominantColor({ photoDataUri });
-        const dominantColor = colorResult.dominantColor;
-
-        addDocumentNonBlocking(
-          imagesCollection,
-          {
-            ...newPhoto,
-            imageUrl: uploadResult.imageUrl,
-            blurredImageUrl: uploadResult.imageUrl, // Using same for now
-            uploadDate: serverTimestamp(),
-            sales: 0,
-          }
-        );
-
-        setUploadDialogOpen(false);
-        setNewPhoto({ title: '', description: '', price: 0 });
-        setImageFile(null);
-        toast({
-          title: 'Image Uploaded!',
-          description: 'The new image is now live in the gallery.',
-        });
-      } catch (error: any) {
-        console.error('Upload process failed:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Upload Failed',
-          description:
-            error.message || 'An unknown error occurred during image upload.',
-        });
-      } finally {
-        setIsUploading(false);
+        finalImageUrl = uploadResult.imageUrl;
+      } else {
+        // Use direct URL
+        finalImageUrl = imageUrl;
       }
-    };
-    reader.onerror = (error) => {
+
+      let dominantColor = '#F0F4F8'; // Default background color
+      // Color extraction might not work for all remote URLs, but we can try
+      // For simplicity, we'll only extract color for uploaded files.
+      if (photoDataUriForColor) {
+        const colorResult = await extractDominantColor({ photoDataUri: photoDataUriForColor });
+        dominantColor = colorResult.dominantColor;
+      }
+
+      addDocumentNonBlocking(
+        imagesCollection,
+        {
+          ...newPhoto,
+          imageUrl: finalImageUrl,
+          blurredImageUrl: finalImageUrl,
+          uploadDate: serverTimestamp(),
+          sales: 0,
+          dominantColor: dominantColor
+        }
+      );
+
+      setUploadDialogOpen(false);
+      setNewPhoto({ title: '', description: '', price: 0 });
+      setImageFile(null);
+      setImageUrl('');
+      toast({
+        title: 'Image Added!',
+        description: 'The new image is now live in the gallery.',
+      });
+    } catch (error: any) {
+      console.error('Upload process failed:', error);
       toast({
         variant: 'destructive',
-        title: 'File Read Error',
-        description: 'Could not read the selected file.',
+        title: 'Upload Failed',
+        description:
+          error.message || 'An unknown error occurred during image processing.',
       });
+    } finally {
       setIsUploading(false);
-    };
+    }
   };
+
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -264,9 +287,34 @@ export default function Home() {
                       <div className="grid gap-4 py-4">
                         <div className="grid w-full items-center gap-1.5">
                           <Label htmlFor="imageFile">Image File</Label>
-                          <Input id="imageFile" type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)} />
+                          <Input id="imageFile" type="file" accept="image/*" 
+                            onChange={(e) => {
+                                setImageFile(e.target.files ? e.target.files[0] : null);
+                                if (e.target.files?.length) setImageUrl('');
+                            }}
+                            disabled={!!imageUrl}
+                          />
+                        </div>
+                         <div className="relative my-2">
+                            <div className="absolute inset-0 flex items-center">
+                                <span className="w-full border-t" />
+                            </div>
+                            <div className="relative flex justify-center text-xs uppercase">
+                                <span className="bg-background px-2 text-muted-foreground">OR</span>
+                            </div>
                         </div>
                         <div className="grid w-full items-center gap-1.5">
+                          <Label htmlFor="imageUrl">Image URL</Label>
+                          <Input id="imageUrl" type="text" placeholder="https://example.com/image.png" 
+                            value={imageUrl} 
+                            onChange={(e) => {
+                                setImageUrl(e.target.value);
+                                if (e.target.value) setImageFile(null);
+                            }}
+                            disabled={!!imageFile}
+                          />
+                        </div>
+                        <div className="grid w-full items-center gap-1.5 mt-4">
                           <Label htmlFor="title">Title</Label>
                           <Input id="title" type="text" placeholder="A beautiful landscape" value={newPhoto.title} onChange={(e) => setNewPhoto({...newPhoto, title: e.target.value})} />
                         </div>
@@ -276,7 +324,7 @@ export default function Home() {
                         </div>
                         <div className="grid w-full items-center gap-1.5">
                           <Label htmlFor="price">Price (₹)</Label>
-                          <Input id="price" type="number" placeholder="50" value={newPhoto.price} onChange={(e) => setNewPhoto({...newPhoto, price: Number(e.target.value)})} />
+                          <Input id="price" type="number" placeholder="0" value={newPhoto.price} onChange={(e) => setNewPhoto({...newPhoto, price: Number(e.target.value)})} />
                         </div>
                       </div>
                       <DialogFooter className="flex-col-reverse sm:flex-row">

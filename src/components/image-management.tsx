@@ -28,7 +28,6 @@ import {
     AlertDialogCancel,
     AlertDialogContent,
     AlertDialogDescription,
-    AlertDialogFooter,
     AlertDialogHeader,
     AlertDialogTitle,
     AlertDialogTrigger,
@@ -66,6 +65,7 @@ export function ImageManagement() {
   
   const [newPhoto, setNewPhoto] = useState({ title: '', description: '', price: 0 });
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrl, setImageUrl] = useState('');
   const [selectedPhoto, setSelectedPhoto] = useState<ImageType | null>(null);
   const [photoToDelete, setPhotoToDelete] = useState<ImageType | null>(null);
 
@@ -112,74 +112,82 @@ export function ImageManagement() {
   }
   
   const handleUpload = async () => {
-    if (!firestore || !imageFile) {
+    if (!firestore) return;
+    if (!imageFile && !imageUrl) {
       toast({
         variant: 'destructive',
         title: 'Upload Error',
-        description: 'Please select an image file to upload.',
+        description: 'Please select an image file or provide a direct URL.',
       });
       return;
     }
-
+  
     setIsUploading(true);
-
-    const reader = new FileReader();
-    reader.readAsDataURL(imageFile);
-    reader.onload = async () => {
-      const photoDataUri = reader.result as string;
-
-      try {
-        // Step 1: Upload the image and get the URL
-        const uploadResult = await uploadImage({ photoDataUri });
+  
+    try {
+      let finalImageUrl: string;
+      let photoDataUriForColor: string | undefined;
+  
+      if (imageFile) {
+        // Upload from file
+        const reader = await new Promise<string>((resolve, reject) => {
+          const fileReader = new FileReader();
+          fileReader.readAsDataURL(imageFile);
+          fileReader.onload = () => resolve(fileReader.result as string);
+          fileReader.onerror = (error) => reject(error);
+        });
+  
+        photoDataUriForColor = reader;
+        const uploadResult = await uploadImage({ photoDataUri: reader });
         if (!uploadResult || !uploadResult.imageUrl) {
           throw new Error('Image URL was not returned from the upload service.');
         }
-
-        // Step 2: Extract the dominant color
-        const colorResult = await extractDominantColor({ photoDataUri });
-        const dominantColor = colorResult.dominantColor;
-
-        // Step 3: Add document to Firestore with all data
-        addDocumentNonBlocking(
-          imagesCollection,
-          {
-            ...newPhoto,
-            imageUrl: uploadResult.imageUrl,
-            blurredImageUrl: uploadResult.imageUrl, // Using same for now
-            dominantColor: dominantColor,
-            uploadDate: serverTimestamp(),
-            sales: 0,
-          }
-        );
-
-        // Reset state and show success toast
-        setUploadDialogOpen(false);
-        setNewPhoto({ title: '', description: '', price: 0 });
-        setImageFile(null);
-        toast({
-          title: 'Image Uploaded!',
-          description: 'The new image is now live in the gallery.',
-        });
-      } catch (error: any) {
-        console.error('Upload process failed:', error);
-        toast({
-          variant: 'destructive',
-          title: 'Upload Failed',
-          description:
-            error.message || 'An unknown error occurred during image upload.',
-        });
-      } finally {
-        setIsUploading(false);
+        finalImageUrl = uploadResult.imageUrl;
+      } else {
+        // Use direct URL
+        finalImageUrl = imageUrl;
       }
-    };
-    reader.onerror = (error) => {
+  
+      let dominantColor = '#F0F4F8'; // Default background color
+      if (photoDataUriForColor) {
+        try {
+          const colorResult = await extractDominantColor({ photoDataUri: photoDataUriForColor });
+          dominantColor = colorResult.dominantColor;
+        } catch (colorError) {
+          console.warn("Could not extract color, using default.", colorError);
+        }
+      }
+  
+      addDocumentNonBlocking(
+        imagesCollection,
+        {
+          ...newPhoto,
+          imageUrl: finalImageUrl,
+          blurredImageUrl: finalImageUrl,
+          dominantColor: dominantColor,
+          uploadDate: serverTimestamp(),
+          sales: 0,
+        }
+      );
+  
+      setUploadDialogOpen(false);
+      setNewPhoto({ title: '', description: '', price: 0 });
+      setImageFile(null);
+      setImageUrl('');
+      toast({
+        title: 'Image Uploaded!',
+        description: 'The new image is now live in the gallery.',
+      });
+    } catch (error: any) {
+      console.error('Upload process failed:', error);
       toast({
         variant: 'destructive',
-        title: 'File Read Error',
-        description: 'Could not read the selected file.',
+        title: 'Upload Failed',
+        description: error.message || 'An unknown error occurred during image upload.',
       });
+    } finally {
       setIsUploading(false);
-    };
+    }
   };
 
   return (
@@ -197,25 +205,50 @@ export function ImageManagement() {
             <DialogHeader>
               <DialogTitle>Upload New Image</DialogTitle>
               <DialogDescription>
-                Select an image file and set its details to add it to the gallery.
+                Select an image file, provide a URL, and set details to add it to the gallery.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="imageFile">Image File</Label>
-                <Input id="imageFile" type="file" accept="image/*" onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)} />
+                <Label htmlFor="imageFile-admin">Image File</Label>
+                <Input id="imageFile-admin" type="file" accept="image/*" 
+                    onChange={(e) => {
+                        setImageFile(e.target.files ? e.target.files[0] : null);
+                        if (e.target.files?.length) setImageUrl('');
+                    }}
+                    disabled={!!imageUrl}
+                />
+              </div>
+              <div className="relative my-2">
+                  <div className="absolute inset-0 flex items-center">
+                      <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                      <span className="bg-background px-2 text-muted-foreground">OR</span>
+                  </div>
               </div>
               <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="title">Title</Label>
-                <Input id="title" type="text" placeholder="A beautiful landscape" value={newPhoto.title} onChange={(e) => setNewPhoto({...newPhoto, title: e.target.value})} />
+                <Label htmlFor="imageUrl-admin">Image URL</Label>
+                <Input id="imageUrl-admin" type="text" placeholder="https://example.com/image.png" 
+                  value={imageUrl} 
+                  onChange={(e) => {
+                      setImageUrl(e.target.value);
+                      if (e.target.value) setImageFile(null);
+                  }}
+                  disabled={!!imageFile}
+                />
+              </div>
+              <div className="grid w-full items-center gap-1.5 mt-4">
+                <Label htmlFor="title-admin">Title</Label>
+                <Input id="title-admin" type="text" placeholder="A beautiful landscape" value={newPhoto.title} onChange={(e) => setNewPhoto({...newPhoto, title: e.target.value})} />
               </div>
               <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="description">Description</Label>
-                <Textarea id="description" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
+                <Label htmlFor="description-admin">Description</Label>
+                <Textarea id="description-admin" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
               </div>
               <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="price">Price (₹)</Label>
-                <Input id="price" type="number" placeholder="50" value={newPhoto.price} onChange={(e) => setNewPhoto({...newPhoto, price: Number(e.target.value)})} />
+                <Label htmlFor="price-admin">Price (₹)</Label>
+                <Input id="price-admin" type="number" placeholder="0" value={newPhoto.price} onChange={(e) => setNewPhoto({...newPhoto, price: Number(e.target.value)})} />
               </div>
             </div>
             <DialogFooter className="flex-col-reverse sm:flex-row">
@@ -326,7 +359,7 @@ export function ImageManagement() {
                     </div>
                     <div className="grid w-full items-center gap-1.5">
                         <Label htmlFor="edit-description">Description</Label>
-                        <Textarea id="edit-description" value={selectedPhoto.description} onChange={(e) => setSelectedPhoto(p => p ? {...p, description: e.g.target.value} : null)} />
+                        <Textarea id="edit-description" value={selectedPhoto.description} onChange={(e) => setSelectedPhoto(p => p ? {...p, description: e.target.value} : null)} />
                     </div>
                     <div className="grid w-full items-center gap-1.5">
                         <Label htmlFor="edit-price">Price (₹)</Label>
