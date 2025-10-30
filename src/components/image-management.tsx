@@ -223,8 +223,8 @@ export function ImageManagement() {
                   <Image
                     src={photo.imageUrl}
                     alt={photo.title}
-                    width={50}
-                    height={70}
+                    width={60}
+                    height={80}
                     className="rounded-md object-cover aspect-[3/4]"
                     data-ai-hint="photo"
                   />

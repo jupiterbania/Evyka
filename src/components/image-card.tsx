@@ -94,14 +94,14 @@ export function ImageCard({ photo }: ImageCardProps) {
   return (
     <Card className="group overflow-hidden flex flex-col">
       <CardHeader className="p-0">
-        <div className="relative aspect-[3/4] overflow-hidden">
+        <div className="relative aspect-[3/4] w-full overflow-hidden">
           <Image
             src={photo.imageUrl}
             alt={photo.title}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            width={600}
+            height={800}
             className={cn(
-              "object-cover transition-all duration-300 ease-in-out group-hover:scale-105",
+              "object-cover w-full h-full transition-all duration-300 ease-in-out group-hover:scale-105",
               isLocked && "blur-lg group-hover:blur-md"
             )}
             data-ai-hint="photo"
