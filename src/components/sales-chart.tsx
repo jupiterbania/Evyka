@@ -66,7 +66,7 @@ export function SalesChart() {
     return <div className="h-[300px] flex items-center justify-center text-destructive">You don't have permission to view sales data.</div>
   }
 
-  if (isLoading) {
+  if (imagesLoading) {
     return <div className="h-[300px] flex items-center justify-center text-muted-foreground">Loading chart data...</div>
   }
 
