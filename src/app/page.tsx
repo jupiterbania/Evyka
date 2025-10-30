@@ -31,6 +31,7 @@ export default function Home() {
             fill
             className="object-cover"
             data-ai-hint={heroImageHint}
+            priority
           />
           <div className="absolute inset-0 bg-black/50" />
           <div className="relative z-10 p-4">
@@ -50,6 +51,9 @@ export default function Home() {
               {isLoading && Array.from({ length: 9 }).map((_, i) => (
                 <div key={i} className="aspect-[3/4] bg-muted animate-pulse rounded-lg" />
               ))}
+              {!isLoading && photos?.length === 0 && (
+                <p className="col-span-full text-center text-muted-foreground">No images have been uploaded yet.</p>
+              )}
               {photos?.map(photo => (
                 <ImageCard key={photo.id} photo={photo} />
               ))}
