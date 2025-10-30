@@ -63,7 +63,6 @@ export function ImageManagement() {
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   
   const [newPhoto, setNewPhoto] = useState({ title: '', description: '', price: 0 });
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -97,7 +96,6 @@ export function ImageManagement() {
 
   const handleDeleteClick = (photo: ImageType) => {
     setPhotoToDelete(photo);
-    setDeleteDialogOpen(true);
   };
 
   const confirmDelete = () => {
@@ -110,7 +108,6 @@ export function ImageManagement() {
         description: "The image has been successfully removed.",
         variant: "destructive",
       });
-    setDeleteDialogOpen(false);
     setPhotoToDelete(null);
   }
   
@@ -255,7 +252,7 @@ export function ImageManagement() {
                 <TableCell className="px-4">
                   <div 
                     className="w-[60px] h-[60px] relative rounded-md overflow-hidden"
-                    style={{ backgroundColor: photo.dominantColor || 'hsl(var(--card))' }}
+                    style={{ background: photo.dominantColor ? `radial-gradient(circle, ${photo.dominantColor}, black)` : 'hsl(var(--card))' }}
                   >
                     <Image
                       src={photo.imageUrl}
@@ -297,7 +294,7 @@ export function ImageManagement() {
         </Table>
         </div>
 
-        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialog open={!!photoToDelete} onOpenChange={(open) => !open && setPhotoToDelete(null)}>
             <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
@@ -330,7 +327,7 @@ export function ImageManagement() {
                     </div>
                     <div className="grid w-full items-center gap-1.5">
                         <Label htmlFor="edit-description">Description</Label>
-                        <Textarea id="edit-description" value={selectedPhoto.description} onChange={(e) => setSelectedPhoto(p => p ? {...p, description: e.target.value} : null)} />
+                        <Textarea id="edit-description" value={selectedPhoto.description} onChange={(e) => setSelectedPhoto(p => p ? {...p, description: e.g.target.value} : null)} />
                     </div>
                     <div className="grid w-full items-center gap-1.5">
                         <Label htmlFor="edit-price">Price (₹)</Label>
@@ -349,7 +346,5 @@ export function ImageManagement() {
     </Card>
   );
 }
-
-    
 
     
