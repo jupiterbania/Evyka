@@ -125,7 +125,6 @@ export function ImageManagement() {
             <TableRow>
               <TableHead className="w-[80px]">Image</TableHead>
               <TableHead>Name</TableHead>
-              <TableHead>Category</TableHead>
               <TableHead className="text-right">Price</TableHead>
               <TableHead className="text-right">Sales</TableHead>
               <TableHead className="w-[120px] text-center">Actions</TableHead>
@@ -145,7 +144,6 @@ export function ImageManagement() {
                   />
                 </TableCell>
                 <TableCell className="font-medium">{photo.name}</TableCell>
-                <TableCell>{photo.category}</TableCell>
                 <TableCell className="text-right">${photo.price.toFixed(2)}</TableCell>
                 <TableCell className="text-right">{photo.sales}</TableCell>
                 <TableCell className="text-center">
@@ -198,10 +196,6 @@ export function ImageManagement() {
                     <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="edit-price" className="text-right">Price ($)</Label>
                         <Input id="edit-price" type="number" value={selectedPhoto?.price || 0} onChange={(e) => setSelectedPhoto(p => p ? {...p, price: Number(e.target.value)} : null)} className="col-span-3" />
-                    </div>
-                     <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="edit-category" className="text-right">Category</Label>
-                        <Input id="edit-category" value={selectedPhoto?.category || ''} onChange={(e) => setSelectedPhoto(p => p ? {...p, category: e.target.value} : null)} className="col-span-3" />
                     </div>
                 </div>
                 <DialogFooter>

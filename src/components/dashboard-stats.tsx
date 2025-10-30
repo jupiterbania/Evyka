@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { DollarSign, ShoppingCart, ImageIcon, Tag } from "lucide-react";
+import { DollarSign, ShoppingCart, ImageIcon } from "lucide-react";
 import { dashboardStats } from "@/lib/placeholder-data";
 
 export function DashboardStats() {
@@ -21,16 +21,10 @@ export function DashboardStats() {
             value: dashboardStats.totalImages.toLocaleString(),
             icon: ImageIcon,
             description: "Total number of images in the gallery."
-        },
-        {
-            title: "Most Popular Category",
-            value: dashboardStats.popularCategory,
-            icon: Tag,
-            description: "The category with the most sales."
         }
     ]
   return (
-    <div className="grid gap-4 grid-cols-2">
+    <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
       {stats.map((stat) => (
          <Card key={stat.title}>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
