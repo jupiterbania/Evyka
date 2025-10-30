@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useState } from 'react';
 import { createOrder, verifyPayment } from '@/lib/razorpay';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { Card } from '@/components/ui/card';
 
 export default function ImagePage() {
   const { id } = useParams();
