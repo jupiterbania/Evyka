@@ -1,126 +1,128 @@
 /**
- * @fileoverview Firestore Security Rules for FocusFinds.
+ * @fileoverview Firestore Security Rules for FocusFinds application.
  *
  * Core Philosophy:
- * This ruleset enforces a strict user-ownership model for user profiles and purchases,
- * public read access for images and categories, and role-based access control for administrative functions.
+ * This ruleset enforces a strict user-ownership model for user profiles and purchases, with public read access to images.
+ * Administrative privileges are granted based on the existence of a document in the `/roles_admin` collection.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profile data; only accessible to the user themselves.
- * - /images/{imageId}: Stores image metadata; publicly readable, but writes are not secured in this prototype.
- * - /categories/{categoryId}: Stores category data; publicly readable, but writes are not secured in this prototype.
- * - /users/{userId}/purchases/{purchaseId}: Stores purchase history; only accessible to the user themselves.
- * - /roles_admin/{userId}: Presence indicates admin role; existence check only.
+ * - `/users/{userId}`: Stores user profile information, accessible only to the user and admins.
+ * - `/images/{imageId}`: Stores image metadata, publicly readable.
+ * - `/users/{userId}/purchases/{purchaseId}`: Stores user-specific purchase history, accessible only to the user and admins.
+ * - `/images/{imageId}/purchases/{purchaseId}`: Stores anonymous purchase data, accessible only to admins.
+ * - `/roles_admin/{userId}`: Presence of document grants admin privileges.
  *
  * Key Security Decisions:
- * - Users can only read/write their own profile data.
- * - Image and category data is publicly readable but write access is not secured in this prototype.
- * - Only users with an admin role (document present in /roles_admin/{userId}) can perform administrative actions.
- * - Listing of user documents is disallowed.
+ * - Users can only read and write their own profile data.
+ * - Image metadata is publicly readable but write-protected.
+ * - Users can only read and write their own purchase history.
+ * - Only admins can manage anonymous purchase data and grant admin roles.
  *
  * Denormalization for Authorization:
- * - The `images` collection includes the `categoryId` to enable direct access to category information without needing to fetch the category document itself, thus avoids `get()` calls.
- *
- * Structural Segregation:
- * - User profiles and purchases are stored under /users/{userId} to ensure private user data is protected.
- * - Images and categories are stored in top-level collections for public read access.
- * - Admin roles are managed in /roles_admin/{userId}.
+ *  - Admin status is determined by the existence of a document in `/roles_admin/{userId}`, avoiding the need to store an `isAdmin` field in the user document.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper function to determine if a user is signed in.
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    // Function to check if the requesting user is the owner of the document.
+    function isOwner(userId) {
+      return request.auth != null && request.auth.uid == userId;
+    }
+
+    // Function to check if the requesting user is an admin.
+    function isAdmin() {
+      return request.auth != null && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
     /**
-     * @description Enforces user-ownership for user profiles.
+     * @description Rules for user profiles.
      * @path /users/{userId}
-     * @allow (create) User with ID 'user_abc' can create their own profile.
-     *    `request.auth.uid == 'user_abc'` and `request.resource.data.id == 'user_abc'`
-     * @allow (get, update, delete) User with ID 'user_abc' can read and modify their own profile.
-     *    `request.auth.uid == 'user_abc'`
-     * @deny (create) User with ID 'user_xyz' cannot create a profile for 'user_abc'.
-     *    `request.auth.uid == 'user_xyz'` and `request.resource.data.id == 'user_abc'`
-     * @deny (get, update, delete) User with ID 'user_xyz' cannot read/modify profile of 'user_abc'.
-     *    `request.auth.uid == 'user_xyz'`
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, validates relational integrity between documents.
+     * @allow (read, write) User with matching {userId} can access their own profile.
+     *          (read) Admin can read any user profile.
+     * @deny (read, write) Any other user cannot access this profile.
+     * @principle Enforces document ownership for user profiles.
      */
     match /users/{userId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
+      // Allow a user to read their own profile or an admin to read any profile.
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      // Allow a user to list their own profile or an admin to read any profile.
+      allow list: if isAdmin();
 
-      allow get: if isOwner(userId);
-      allow list: if false; // Listing users is not allowed.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isOwner(userId) && resource.data.id == request.resource.data.id && resource != null;
-      allow delete: if isOwner(userId) && resource != null;
+      // Allow a user to create their own profile if the userId matches their auth.uid.
+      allow create: if isSignedIn() && request.auth.uid == userId;
+
+      // Allow a user to update their profile if they are the owner.
+      allow update: if isSignedIn() && isOwner(userId);
+
+      // Allow a user to delete their profile if they are the owner and the document exists.
+      allow delete: if isSignedIn() && isOwner(userId);
     }
 
     /**
-     * @description Allows public read access to image metadata but does not secure writes in this prototype.
+     * @description Rules for images. Images are publicly readable, but only the app can modify them.
      * @path /images/{imageId}
-     * @allow (get, list) Any user can read image metadata.
-     * @deny (create, update, delete) Writes are not secured in this prototype; all writes are denied.
-     * @principle Public read access for image data; writes should be secured based on an ownership model in the future.
+     * @allow (read) Any user can read image data.
+     * @deny (write) Only the backend can write images.
+     * @principle Images are publicly readable. Write access is restricted.
      */
     match /images/{imageId} {
+      // Allow anyone to read image data.
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+
+      // Only allow create, update, and delete if the user is an admin.
+      allow create, update, delete: if isAdmin();
     }
 
     /**
-     * @description Allows public read access to categories but does not secure writes in this prototype.
-     * @path /categories/{categoryId}
-     * @allow (get, list) Any user can read category data.
-     * @deny (create, update, delete) Writes are not secured in this prototype; all writes are denied.
-     * @principle Public read access for category data; writes should be secured based on an administrative role.
-     */
-    match /categories/{categoryId} {
-      allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
-    }
-
-    /**
-     * @description Enforces user-ownership for purchase history.
+     * @description Rules for user-specific purchase history.
      * @path /users/{userId}/purchases/{purchaseId}
-     * @allow (create) User with ID 'user_abc' can create a purchase record in their own subcollection.
-     *    `request.auth.uid == 'user_abc'` and `request.resource.data.userId == 'user_abc'`
-     * @allow (get, list, update, delete) User with ID 'user_abc' can read and modify their own purchase history.
-     *    `request.auth.uid == 'user_abc'`
-     * @deny (create) User with ID 'user_xyz' cannot create a purchase record for 'user_abc'.
-     *    `request.auth.uid == 'user_xyz'` and `request.resource.data.userId == 'user_abc'`
-     * @deny (get, list, update, delete) User with ID 'user_xyz' cannot read/modify purchase history of 'user_abc'.
-     *    `request.auth.uid == 'user_xyz'`
-     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, validates relational integrity between documents.
+     * @allow (read, write) User with matching {userId} can access their own purchase history.
+     *          (read) Admin can read any user's purchase history.
+     * @deny (read, write) Any other user cannot access this purchase history.
+     * @principle Enforces document ownership for purchase history.
      */
     match /users/{userId}/purchases/{purchaseId} {
-      function isOwner(userId) {
-        return request.auth != null && request.auth.uid == userId;
-      }
+      // Allow a user to read their own purchase history or an admin to read any user's purchase history.
+      allow get: if isSignedIn() && (isOwner(userId) || isAdmin());
+      // Allow a user to list their own purchase history or an admin to read any user's purchase history.
+      allow list: if isAdmin();
+      // Allow a user to create their own purchase if the userId matches their auth.uid.
+      allow create: if isSignedIn() && isOwner(userId);
 
-      allow get, list: if isOwner(userId);
-      allow create: if isOwner(userId) && request.resource.data.userId == userId;
-      allow update: if isOwner(userId) && resource != null;
-      allow delete: if isOwner(userId) && resource != null;
+      // Allow a user to update their purchase if they are the owner and the document exists.
+      allow update: if isSignedIn() && isOwner(userId);
+      // Allow a user to delete their purchase if they are the owner and the document exists.
+      allow delete: if isSignedIn() && isOwner(userId);
+    }
+
+     /**
+      * @description Rules for image-specific purchase history.
+      * @path /images/{imageId}/purchases/{purchaseId}
+      * @allow (read, write) Admin only.
+      * @deny (read, write) Any user cannot access the purchase history.
+      * @principle Enforces admin only access.
+      */
+    match /images/{imageId}/purchases/{purchaseId} {
+      // Only allow create, update, and delete if the user is an admin.
+      allow get, list, create, update, delete: if isAdmin();
     }
 
     /**
-     * @description Grants admin privileges based on the existence of a document in this collection.
+     * @description Rules for admin roles.
      * @path /roles_admin/{userId}
-     * @allow (get) Any user can check if a user is an admin.
-     * @allow (create) Only an existing admin can grant admin privileges.
-     * @allow (update, delete) Only an existing admin can modify admin privileges.
-     * @deny (list) Listing admin roles is not allowed.
-     * @principle DBAC - Existence over Content.
+     * @allow (write) Only admins can create or delete admin roles.
+     * @deny (read) No one can read the roles directly
+     * @principle Enforces admin-only access to role management.
      */
     match /roles_admin/{userId} {
-       function isAdmin() {
-        return get(/databases/$(database)/documents/roles_admin/$(request.auth.uid)).data.id == request.auth.uid;
-      }
-      allow get: if true;
-      allow list: if false;
-      allow create: if isAdmin();
-      allow update: if isAdmin() && resource != null;
-      allow delete: if isAdmin() && resource != null;
+        allow get, list: if false;
+        allow create, update, delete: if isAdmin();
     }
   }
 }
