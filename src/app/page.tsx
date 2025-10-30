@@ -14,7 +14,7 @@ export default function Home() {
             <div className="flex flex-col items-center space-y-4 text-center">
               <div className="space-y-2">
                 <h1 className="text-4xl font-bold tracking-tighter font-headline">
-                  Welcome to EVYKA
+                  WELCOME TO MY EXCLUSIVE CONTENT
                 </h1>
                 <p className="mx-auto max-w-[700px] text-muted-foreground text-lg">
                   Discover and purchase unique, high-quality images from talented photographers around the world.
