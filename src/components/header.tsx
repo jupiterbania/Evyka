@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { Logo } from './logo';
 import { Button } from './ui/button';
-import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from './ui/sheet';
 import { Menu, Search } from 'lucide-react';
 import { Input } from './ui/input';
 
@@ -18,6 +18,7 @@ export function Header() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left">
+              <SheetTitle className="sr-only">Menu</SheetTitle>
               <div className="py-4">
                 <Logo />
               </div>

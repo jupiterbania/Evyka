@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { Logo } from './logo';
 import { Button } from './ui/button';
-import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { Sheet, SheetContent, SheetTrigger, SheetTitle } from './ui/sheet';
 import { Menu, LayoutGrid, Image as ImageIcon, Home } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
@@ -26,6 +26,7 @@ export function AdminHeader() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left">
+              <SheetTitle className="sr-only">Menu</SheetTitle>
               <div className="py-4">
                 <Logo />
               </div>
