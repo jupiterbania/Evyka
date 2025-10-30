@@ -33,10 +33,18 @@ import {
     AlertDialogTitle,
     AlertDialogTrigger,
   } from "@/components/ui/alert-dialog"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
-import { Upload, Edit, Trash2 } from 'lucide-react';
+import { Upload, Edit, Trash2, MoreHorizontal } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -54,10 +62,12 @@ export function ImageManagement() {
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   
   const [newPhoto, setNewPhoto] = useState({ title: '', description: '', price: 0 });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [selectedPhoto, setSelectedPhoto] = useState<ImageType | null>(null);
+  const [photoToDelete, setPhotoToDelete] = useState<ImageType | null>(null);
 
   const { toast } = useToast();
 
@@ -84,9 +94,14 @@ export function ImageManagement() {
     setSelectedPhoto(null);
   }
 
-  const handleDelete = (photoId: string) => {
-    if (!firestore) return;
-    const docRef = doc(firestore, 'images', photoId);
+  const handleDeleteClick = (photo: ImageType) => {
+    setPhotoToDelete(photo);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (!photoToDelete || !firestore) return;
+    const docRef = doc(firestore, 'images', photoToDelete.id);
     deleteDocumentNonBlocking(docRef);
 
     toast({
@@ -94,6 +109,8 @@ export function ImageManagement() {
         description: "The image has been successfully removed.",
         variant: "destructive",
       });
+    setDeleteDialogOpen(false);
+    setPhotoToDelete(null);
   }
   
   const handleUpload = async () => {
@@ -231,41 +248,53 @@ export function ImageManagement() {
                 </TableCell>
                 <TableCell className="font-medium truncate max-w-xs">{photo.title}</TableCell>
                 <TableCell className="text-right">₹{photo.price.toFixed(2)}</TableCell>
-                <TableCell className="text-right">{photo.sales}</TableCell>
+                <TableCell className="text-right">{photo.sales || 0}</TableCell>
                 <TableCell className="text-center px-4">
-                    <div className="flex justify-center gap-2">
-                        <Button variant="ghost" size="icon" aria-label="Edit image" onClick={() => handleEditClick(photo)}>
-                            <Edit className="h-4 w-4" />
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" className="h-8 w-8 p-0">
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
                         </Button>
-                        <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive" aria-label="Delete image">
-                                    <Trash2 className="h-4 w-4" />
-                                </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                            <AlertDialogHeader>
-                                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the image
-                                and remove its data from our servers.
-                                </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDelete(photo.id)} className="bg-destructive hover:bg-destructive/90">
-                                Delete
-                                </AlertDialogAction>
-                            </AlertDialogFooter>
-                            </AlertDialogContent>
-                        </AlertDialog>
-                    </div>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                        <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                        <DropdownMenuItem onClick={() => handleEditClick(photo)}>
+                            <Edit className="mr-2 h-4 w-4" />
+                            Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem onClick={() => handleDeleteClick(photo)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete
+                        </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </TableCell>
               </TableRow>
             ))}
           </TableBody>
         </Table>
         </ScrollArea>
+
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the image
+                    and remove its data from our servers.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setPhotoToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+                Delete
+                </AlertDialogAction>
+            </AlertDialogFooter>
+            </AlertDialogContent>
+        </AlertDialog>
+
         <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
@@ -300,5 +329,3 @@ export function ImageManagement() {
     </Card>
   );
 }
-
-    
