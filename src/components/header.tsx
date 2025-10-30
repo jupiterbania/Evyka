@@ -1,3 +1,4 @@
+
 'use client';
 import Link from 'next/link';
 import { Logo } from './logo';
@@ -17,11 +18,13 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { doc, setDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
+import { useToast } from '@/hooks/use-toast';
 
 export function Header() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
+  const { toast } = useToast();
 
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
 
@@ -32,6 +35,11 @@ export function Header() {
       await signInWithPopup(auth, provider);
     } catch (error) {
       console.error('Error signing in with Google', error);
+      toast({
+        variant: "destructive",
+        title: "Sign-In Failed",
+        description: "Could not sign in with Google. Please try again.",
+      });
     }
   };
 
@@ -47,7 +55,7 @@ export function Header() {
   const getInitials = (name?: string | null) => {
     if (!name) return 'U';
     const names = name.split(' ');
-    if (names.length > 1) {
+    if (names.length > 1 && names[0] && names[names.length - 1]) {
       return names[0][0] + names[names.length - 1][0];
     }
     return name.substring(0, 2);
