@@ -1,0 +1,126 @@
+/**
+ * @fileoverview Firestore Security Rules for FocusFinds.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a strict user-ownership model for user profiles and purchases,
+ * public read access for images and categories, and role-based access control for administrative functions.
+ *
+ * Data Structure:
+ * - /users/{userId}: Stores user profile data; only accessible to the user themselves.
+ * - /images/{imageId}: Stores image metadata; publicly readable, but writes are not secured in this prototype.
+ * - /categories/{categoryId}: Stores category data; publicly readable, but writes are not secured in this prototype.
+ * - /users/{userId}/purchases/{purchaseId}: Stores purchase history; only accessible to the user themselves.
+ * - /roles_admin/{userId}: Presence indicates admin role; existence check only.
+ *
+ * Key Security Decisions:
+ * - Users can only read/write their own profile data.
+ * - Image and category data is publicly readable but write access is not secured in this prototype.
+ * - Only users with an admin role (document present in /roles_admin/{userId}) can perform administrative actions.
+ * - Listing of user documents is disallowed.
+ *
+ * Denormalization for Authorization:
+ * - The `images` collection includes the `categoryId` to enable direct access to category information without needing to fetch the category document itself, thus avoids `get()` calls.
+ *
+ * Structural Segregation:
+ * - User profiles and purchases are stored under /users/{userId} to ensure private user data is protected.
+ * - Images and categories are stored in top-level collections for public read access.
+ * - Admin roles are managed in /roles_admin/{userId}.
+ */
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * @description Enforces user-ownership for user profiles.
+     * @path /users/{userId}
+     * @allow (create) User with ID 'user_abc' can create their own profile.
+     *    `request.auth.uid == 'user_abc'` and `request.resource.data.id == 'user_abc'`
+     * @allow (get, update, delete) User with ID 'user_abc' can read and modify their own profile.
+     *    `request.auth.uid == 'user_abc'`
+     * @deny (create) User with ID 'user_xyz' cannot create a profile for 'user_abc'.
+     *    `request.auth.uid == 'user_xyz'` and `request.resource.data.id == 'user_abc'`
+     * @deny (get, update, delete) User with ID 'user_xyz' cannot read/modify profile of 'user_abc'.
+     *    `request.auth.uid == 'user_xyz'`
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, validates relational integrity between documents.
+     */
+    match /users/{userId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      allow get: if isOwner(userId);
+      allow list: if false; // Listing users is not allowed.
+      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow update: if isOwner(userId) && resource.data.id == request.resource.data.id && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Allows public read access to image metadata but does not secure writes in this prototype.
+     * @path /images/{imageId}
+     * @allow (get, list) Any user can read image metadata.
+     * @deny (create, update, delete) Writes are not secured in this prototype; all writes are denied.
+     * @principle Public read access for image data; writes should be secured based on an ownership model in the future.
+     */
+    match /images/{imageId} {
+      allow get, list: if true;
+      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+    }
+
+    /**
+     * @description Allows public read access to categories but does not secure writes in this prototype.
+     * @path /categories/{categoryId}
+     * @allow (get, list) Any user can read category data.
+     * @deny (create, update, delete) Writes are not secured in this prototype; all writes are denied.
+     * @principle Public read access for category data; writes should be secured based on an administrative role.
+     */
+    match /categories/{categoryId} {
+      allow get, list: if true;
+      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+    }
+
+    /**
+     * @description Enforces user-ownership for purchase history.
+     * @path /users/{userId}/purchases/{purchaseId}
+     * @allow (create) User with ID 'user_abc' can create a purchase record in their own subcollection.
+     *    `request.auth.uid == 'user_abc'` and `request.resource.data.userId == 'user_abc'`
+     * @allow (get, list, update, delete) User with ID 'user_abc' can read and modify their own purchase history.
+     *    `request.auth.uid == 'user_abc'`
+     * @deny (create) User with ID 'user_xyz' cannot create a purchase record for 'user_abc'.
+     *    `request.auth.uid == 'user_xyz'` and `request.resource.data.userId == 'user_abc'`
+     * @deny (get, list, update, delete) User with ID 'user_xyz' cannot read/modify purchase history of 'user_abc'.
+     *    `request.auth.uid == 'user_xyz'`
+     * @principle Enforces document ownership for writes, restricts access to a user's own data tree, validates relational integrity between documents.
+     */
+    match /users/{userId}/purchases/{purchaseId} {
+      function isOwner(userId) {
+        return request.auth != null && request.auth.uid == userId;
+      }
+
+      allow get, list: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isOwner(userId) && resource != null;
+      allow delete: if isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Grants admin privileges based on the existence of a document in this collection.
+     * @path /roles_admin/{userId}
+     * @allow (get) Any user can check if a user is an admin.
+     * @allow (create) Only an existing admin can grant admin privileges.
+     * @allow (update, delete) Only an existing admin can modify admin privileges.
+     * @deny (list) Listing admin roles is not allowed.
+     * @principle DBAC - Existence over Content.
+     */
+    match /roles_admin/{userId} {
+       function isAdmin() {
+        return get(/databases/$(database)/documents/roles_admin/$(request.auth.uid)).data.id == request.auth.uid;
+      }
+      allow get: if true;
+      allow list: if false;
+      allow create: if isAdmin();
+      allow update: if isAdmin() && resource != null;
+      allow delete: if isAdmin() && resource != null;
+    }
+  }
+}

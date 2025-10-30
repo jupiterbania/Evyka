@@ -1,0 +1,246 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user in the FocusFinds application.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the user."
+        },
+        "email": {
+          "type": "string",
+          "description": "User's email address.",
+          "format": "email"
+        },
+        "username": {
+          "type": "string",
+          "description": "User's username or display name."
+        },
+        "profileImageUrl": {
+          "type": "string",
+          "description": "URL of the user's profile image.",
+          "format": "uri"
+        },
+        "isAdmin": {
+          "type": "boolean",
+          "description": "Indicates whether the user has administrative privileges."
+        }
+      },
+      "required": [
+        "id",
+        "email",
+        "username"
+      ]
+    },
+    "Image": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Image",
+      "type": "object",
+      "description": "Represents an image available for purchase on the FocusFinds platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the image."
+        },
+        "title": {
+          "type": "string",
+          "description": "Title of the image."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the image."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of the original, high-resolution image.",
+          "format": "uri"
+        },
+        "blurredImageUrl": {
+          "type": "string",
+          "description": "URL of the blurred version of the image.",
+          "format": "uri"
+        },
+        "price": {
+          "type": "number",
+          "description": "Price of the image."
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "Date and time when the image was uploaded.",
+          "format": "date-time"
+        },
+        "categoryId": {
+          "type": "string",
+          "description": "Reference to Category. (Relationship: Category 1:N Image)"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "imageUrl",
+        "blurredImageUrl",
+        "price",
+        "uploadDate",
+        "categoryId"
+      ]
+    },
+    "Category": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Category",
+      "type": "object",
+      "description": "Represents a category for organizing images.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the category."
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the category."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the category."
+        }
+      },
+      "required": [
+        "id",
+        "name"
+      ]
+    },
+    "Purchase": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Purchase",
+      "type": "object",
+      "description": "Represents a purchase of an image by a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the purchase."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Purchase)"
+        },
+        "imageId": {
+          "type": "string",
+          "description": "Reference to Image. (Relationship: Image 1:N Purchase)"
+        },
+        "purchaseDate": {
+          "type": "string",
+          "description": "Date and time when the image was purchased.",
+          "format": "date-time"
+        },
+        "price": {
+          "type": "number",
+          "description": "Price at which the image was purchased. Redundant data, but useful for historical tracking."
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "imageId",
+        "purchaseDate",
+        "price"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profile information.  Accessible only to the user and administrators.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/images/{imageId}",
+        "definition": {
+          "entityName": "Image",
+          "schema": {
+            "$ref": "#/backend/entities/Image"
+          },
+          "description": "Stores image metadata. Includes `categoryId` for authorization independence (no need to `get()` category during rule evaluation).",
+          "params": [
+            {
+              "name": "imageId",
+              "description": "The unique identifier of the image."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/categories/{categoryId}",
+        "definition": {
+          "entityName": "Category",
+          "schema": {
+            "$ref": "#/backend/entities/Category"
+          },
+          "description": "Stores image categories.",
+          "params": [
+            {
+              "name": "categoryId",
+              "description": "The unique identifier of the category."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/purchases/{purchaseId}",
+        "definition": {
+          "entityName": "Purchase",
+          "schema": {
+            "$ref": "#/backend/entities/Purchase"
+          },
+          "description": "Stores purchase history for each user.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            },
+            {
+              "name": "purchaseId",
+              "description": "The unique identifier of the purchase."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/roles_admin/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores administrator roles. Existence of a document grants admin privileges. DBAC - Existence over Content.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier of the user."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support an image e-commerce platform, FocusFinds, with a focus on security, scalability, and clear authorization. Key design decisions include:\n\n1.  **Authorization Independence:** The structure avoids `get()` calls in security rules by denormalizing data. Specifically, the `images` collection includes the `categoryId` to enable direct access to category information without needing to fetch the category document itself.\n2.  **Structural Segregation:**  Data with different security postures are stored in separate collections.  User profiles are stored under `/users/{userId}`, ensuring private user data is protected.  Images are stored in the `/images` collection, and admin-only roles are managed in `/roles_admin/{userId}`.\n3.  **Access Modeling:**\n    *   **User-Owned Data:** User profile data is stored under `/users/{userId}`, following the path-based ownership model.\n    *   **Global Roles (DBAC):** The `/roles_admin/{userId}` collection is used to manage administrator roles based on document existence rather than content.\n    *   **Collaborative Data:** N/A\n4.  **Data Clarity and Predictability:**\n    *   Explicit data modeling is used. For example, image documents include all necessary information, such as URLs for both the original and blurred images, to avoid deriving information from other sources.\n\n**QAPs (Rules are not Filters):**\n\n*   The use of separate collections for different data types (e.g., images, users, categories, purchases) allows for efficient and secure `list` operations. Security rules can be written to allow listing images based on various criteria without exposing sensitive data. For example, the image `list` operation does not expose the actual image URL until the image is purchased, while the `blurredImageUrl` is exposed.\n\n**Invariants:**\n\nThe structure enforces data integrity through the use of required fields in the schema definitions. For example, all images must have a `title`, `imageUrl`, `blurredImageUrl`, `price`, `uploadDate`, and `categoryId`. Purchases require `userId`, `imageId`, `purchaseDate`, and `price`.\n"
+  }
+}
