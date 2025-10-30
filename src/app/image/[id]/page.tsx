@@ -27,39 +27,41 @@ export default function ImagePage() {
   const renderContent = () => {
     if (isPhotoLoading) {
       return (
-        <div className="w-full h-screen flex items-center justify-center">
-            <Skeleton className="w-full h-full" />
+        <div className="w-full flex-grow flex flex-col">
+          <Skeleton className="w-full flex-grow" />
         </div>
       );
     }
 
     if (!photo) {
       return (
-          <div className="text-center">
-            <h2 className="text-2xl font-bold mb-4">Image Not Found</h2>
-            <p className="text-muted-foreground mb-6">The image you are looking for does not exist or may have been removed.</p>
-            <Button asChild>
-                <Link href="/#gallery">Back to Gallery</Link>
-            </Button>
+          <div className="flex-grow flex items-center justify-center text-center">
+            <div>
+                <h2 className="text-2xl font-bold mb-4">Image Not Found</h2>
+                <p className="text-muted-foreground mb-6">The image you are looking for does not exist or may have been removed.</p>
+                <Button asChild>
+                    <Link href="/#gallery">Back to Gallery</Link>
+                </Button>
+            </div>
           </div>
       );
     }
 
     return (
-        <div className="relative w-full h-screen">
-          <Image
-            src={photo.imageUrl}
-            alt={photo.title}
-            fill
-            className="object-cover"
-            sizes="100vw"
-          />
-          <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center text-center p-4">
-            <div className="relative z-10 text-white">
-                <h1 className="text-4xl md:text-6xl font-bold font-headline drop-shadow-lg">{photo.title}</h1>
-                <p className="text-lg md:text-xl text-white/90 mt-4 max-w-prose drop-shadow-md">{photo.description}</p>
+        <div className="flex flex-col items-center w-full">
+            <div className="relative w-full h-[75vh] bg-black">
+              <Image
+                src={photo.imageUrl}
+                alt={photo.title}
+                fill
+                className="object-contain"
+                sizes="100vw"
+              />
             </div>
-          </div>
+            <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 md:p-8 text-center">
+                <h1 className="text-3xl md:text-5xl font-bold font-headline">{photo.title}</h1>
+                <p className="text-lg md:text-xl text-muted-foreground mt-4 max-w-prose mx-auto">{photo.description}</p>
+            </div>
         </div>
     );
   };
@@ -67,7 +69,7 @@ export default function ImagePage() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <main className="flex-grow flex items-stretch justify-center">
+      <main className="flex-grow flex flex-col items-stretch justify-center">
         {renderContent()}
       </main>
       <Footer />
