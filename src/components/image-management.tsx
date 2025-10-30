@@ -207,7 +207,7 @@ export function ImageManagement() {
               <TableHead className="w-[80px] px-4">Image</TableHead>
               <TableHead>Name</TableHead>
               <TableHead className="text-right">Price</TableHead>
-              <TableHead className="text-right">Sales</TableHead>
+              <TableHead>Sales</TableHead>
               <TableHead className="w-[120px] text-center px-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -300,3 +300,5 @@ export function ImageManagement() {
     </Card>
   );
 }
+
+    
