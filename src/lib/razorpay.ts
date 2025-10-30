@@ -99,32 +99,45 @@ export async function createSubscription(input: z.infer<typeof CreateSubscriptio
         
         const { price } = validation.data;
 
-        // Step 1: Check if plan exists
-        let planId = process.env.RAZORPAY_PLAN_ID;
+        // Step 1: Ensure a plan ID is configured in the environment.
+        const planId = process.env.RAZORPAY_PLAN_ID;
+        
         if (!planId) {
-            // Step 2: Create a plan if it doesn't exist
-            const plan = await razorpay.plans.create({
-                period: 'monthly',
-                interval: 1,
-                item: {
-                    name: 'EVYKA Pro Monthly',
-                    amount: price * 100, // Amount in paise
-                    currency: 'INR',
-                    description: 'Monthly subscription for EVYKA Pro access.'
-                },
-                notes: {
-                    plan_type: 'standard_monthly'
-                }
-            });
-            planId = plan.id;
-            console.log(`Created new Razorpay Plan with ID: ${planId}. Consider setting this as RAZORPAY_PLAN_ID in your environment variables.`);
+            // A plan must be created manually in Razorpay dashboard and its ID set in .env
+            console.error('RAZORPAY_PLAN_ID is not set in environment variables.');
+            
+            // To help with setup, we can create a plan once if needed, but it's better to do it manually.
+            try {
+                const plan = await razorpay.plans.create({
+                    period: 'monthly',
+                    interval: 1,
+                    item: {
+                        name: 'EVYKA Pro Monthly Subscription',
+                        amount: price * 100, // Amount in paise
+                        currency: 'INR',
+                        description: 'Full access to all exclusive content.'
+                    },
+                });
+                console.log(`No RAZORPAY_PLAN_ID was found, so a new plan was created. ID: ${plan.id}. Please set this ID in your environment variables as RAZORPAY_PLAN_ID to avoid creating duplicate plans.`);
+                
+                // For this request, we'll use the newly created plan ID.
+                const subscription = await razorpay.subscriptions.create({
+                    plan_id: plan.id,
+                    customer_notify: 1,
+                    total_count: 120, // 10 years of monthly payments
+                });
+                return subscription;
+
+            } catch (planError) {
+                console.error('Could not create a new Razorpay plan:', planError);
+                throw new Error('Could not create a subscription plan. Please contact support.');
+            }
         }
         
-        // Step 3: Create a subscription
+        // Step 2: Create a subscription using the existing plan ID
         const subscription = await razorpay.subscriptions.create({
             plan_id: planId,
             customer_notify: 1,
-            quantity: 1,
             total_count: 120, // e.g., for 10 years
             notes: {
                 source: 'evyka-webapp'
