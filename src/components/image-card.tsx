@@ -19,9 +19,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useCollection, useFirestore, useUser } from '@/firebase';
+import { useCollection, useFirestore, useUser, useMemoFirebase } from '@/firebase';
 import { collection, doc, query, where, serverTimestamp } from 'firebase/firestore';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 type ImageCardProps = {
   photo: ImageType;
@@ -32,7 +32,7 @@ export function ImageCard({ photo }: ImageCardProps) {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const purchasesCollection = user ? query(collection(firestore, 'users', user.uid, 'purchases'), where('imageId', '==', photo.id)) : null;
+  const purchasesCollection = useMemoFirebase(() => user ? query(collection(firestore, 'users', user.uid, 'purchases'), where('imageId', '==', photo.id)) : null, [firestore, user, photo.id]);
   const { data: purchases, isLoading: isPurchaseLoading } = useCollection<Purchase>(purchasesCollection);
 
   const isPurchased = (purchases?.length ?? 0) > 0;
@@ -46,11 +46,28 @@ export function ImageCard({ photo }: ImageCardProps) {
       });
       return;
     }
-    const purchaseCollectionRef = collection(firestore, 'users', user.uid, 'purchases');
-    addDocumentNonBlocking(purchaseCollectionRef, {
+    
+    // Add to user's personal purchase history
+    const userPurchaseCollectionRef = collection(firestore, 'users', user.uid, 'purchases');
+    addDocumentNonBlocking(userPurchaseCollectionRef, {
         imageId: photo.id,
         price: photo.price,
+        purchaseDate: serverTimestamp(),
+        userId: user.uid,
+    });
+
+    // Add a record to the image's purchase subcollection for admin tracking
+    const imagePurchaseCollectionRef = collection(firestore, 'images', photo.id, 'purchases');
+     addDocumentNonBlocking(imagePurchaseCollectionRef, {
+        userId: user.uid,
+        price: photo.price,
         purchaseDate: serverTimestamp()
+    });
+
+    // Increment sales count on the image document
+    const imageDocRef = doc(firestore, 'images', photo.id);
+    updateDocumentNonBlocking(imageDocRef, {
+        sales: (photo.sales || 0) + 1
     });
 
     toast({

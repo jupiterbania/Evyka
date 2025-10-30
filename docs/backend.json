@@ -72,6 +72,10 @@
           "type": "string",
           "description": "Date and time when the image was uploaded.",
           "format": "date-time"
+        },
+        "sales": {
+          "type": "number",
+          "description": "The number of times this image has been sold."
         }
       },
       "required": [
@@ -171,6 +175,26 @@
             {
               "name": "userId",
               "description": "The unique identifier of the user."
+            },
+            {
+              "name": "purchaseId",
+              "description": "The unique identifier of the purchase."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/images/{imageId}/purchases/{purchaseId}",
+        "definition": {
+          "entityName": "Purchase",
+          "schema": {
+            "$ref": "#/backend/entities/Purchase"
+          },
+          "description": "Stores anonymous purchase data for an image, for admin analytics.",
+          "params": [
+            {
+              "name": "imageId",
+              "description": "The unique identifier of the image."
             },
             {
               "name": "purchaseId",
