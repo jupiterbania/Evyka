@@ -19,15 +19,6 @@ export type Purchase = {
     price: number;
 }
 
-export type Analytics = {
-    id?: string;
-    totalRevenue: number;
-    totalSales: number;
-    monthlySales: {
-        [key: string]: number;
-    };
-}
-
 export type SiteSettings = {
     id?: string;
     heroImageUrl?: string;

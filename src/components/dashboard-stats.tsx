@@ -1,10 +1,10 @@
 
 "use client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { IndianRupee, ShoppingCart, ImageIcon } from "lucide-react";
-import { useCollection, useDoc, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, doc } from "firebase/firestore";
-import type { Image, Analytics } from "@/lib/types";
+import { ImageIcon } from "lucide-react";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection } from "firebase/firestore";
+import type { Image } from "@/lib/types";
 
 export function DashboardStats() {
     const firestore = useFirestore();
@@ -12,32 +12,7 @@ export function DashboardStats() {
     const imagesQuery = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
     const { data: images, isLoading: imagesLoading } = useCollection<Image>(imagesQuery);
 
-    const analyticsDocRef = useMemoFirebase(() => doc(firestore, 'analytics', 'sales'), [firestore]);
-    const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useDoc<Analytics>(analyticsDocRef);
-
-    const getErrorMessage = (error: any) => {
-        if (!error) return null;
-        if (error.name === 'FirebaseError' && error.message.includes('denied')) {
-            return "Permission denied to view statistics.";
-        }
-        return "An error occurred fetching statistics.";
-    }
-
-    const statsError = getErrorMessage(analyticsError);
-
     const stats = [
-        {
-            title: "Total Revenue",
-            value: analyticsLoading ? '...' : (statsError ? 'Error' : `₹${(analytics?.totalRevenue ?? 0).toLocaleString()}`),
-            icon: IndianRupee,
-            description: statsError || "Total revenue from all image sales."
-        },
-        {
-            title: "Total Sales",
-            value: analyticsLoading ? '...' : (statsError ? 'Error' : (analytics?.totalSales ?? 0).toLocaleString()),
-            icon: ShoppingCart,
-            description: statsError || "Total number of images sold."
-        },
         {
             title: "Images Available",
             value: imagesLoading ? '...' : (images?.length ?? 0).toLocaleString(),

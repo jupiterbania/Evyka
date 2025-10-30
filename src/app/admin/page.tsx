@@ -20,20 +20,7 @@ export default function AdminDashboardPage() {
       <DashboardStats />
       
       <div className="grid gap-8 mt-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Sales Overview</CardTitle>
-            <CardDescription>
-              A chart showing sales performance over the last 6 months.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <SalesChart />
-          </CardContent>
-        </Card>
-
         <SiteSettings />
-
       </div>
     </div>
   );

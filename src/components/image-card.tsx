@@ -21,13 +21,12 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useCollection, useFirestore, useUser, useMemoFirebase, useAuth } from '@/firebase';
-import { collection, query, where, serverTimestamp, increment, doc } from 'firebase/firestore';
-import { format } from 'date-fns';
+import { collection, query, where, serverTimestamp } from 'firebase/firestore';
 import { Badge } from './ui/badge';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { createOrder, verifyPayment } from '@/lib/razorpay';
 import type { Order } from 'razorpay/dist/types/orders';
-import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 declare global {
     interface Window {
@@ -123,6 +122,30 @@ export function ImageCard({ photo }: ImageCardProps) {
       return;
     }
     
+    if (!user) {
+        return (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button>
+                  <LogIn className="mr-2 h-4 w-4" /> Sign in to Purchase
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Sign In Required</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    You need to sign in to purchase an image. This allows you to access your purchased content later.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleGoogleSignIn}>Sign In with Google</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          );
+    }
+
     setIsProcessing(true);
 
     try {
@@ -199,29 +222,6 @@ export function ImageCard({ photo }: ImageCardProps) {
             userId: userId,
         });
     }
-
-    // Add a record to the image's purchase subcollection for admin tracking
-    const imagePurchaseCollectionRef = collection(firestore, 'images', imageId, 'purchases');
-     addDocumentNonBlocking(imagePurchaseCollectionRef, {
-        userId: userId || 'anonymous', // Mark as anonymous if no user
-        price: price,
-        purchaseDate: serverTimestamp()
-    });
-
-    // Increment sales count on the image document
-    const imageDocRef = doc(firestore, 'images', imageId);
-    updateDocumentNonBlocking(imageDocRef, {
-        sales: increment(1)
-    });
-
-    // Increment aggregated analytics
-    const analyticsRef = doc(firestore, 'analytics', 'sales');
-    const monthKey = format(new Date(), 'yyyy-MM');
-    updateDocumentNonBlocking(analyticsRef, {
-        totalRevenue: increment(price),
-        totalSales: increment(1),
-        [`monthlySales.${monthKey}`]: increment(1),
-    });
   }
   
   const renderPurchaseButton = () => {
@@ -236,6 +236,30 @@ export function ImageCard({ photo }: ImageCardProps) {
     if (isFree) {
         return <Badge variant="secondary">Free</Badge>;
     }
+
+    if (!user) {
+        return (
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button>
+                <LogIn className="mr-2 h-4 w-4" /> Sign in to Purchase
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Sign In Required</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You need to sign in to purchase an image. This allows you to access your purchased content later.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleGoogleSignIn}>Sign In with Google</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        );
+      }
 
     return (
       <Button onClick={handlePurchase} disabled={isProcessing}>
