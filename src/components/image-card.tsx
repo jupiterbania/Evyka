@@ -274,7 +274,7 @@ export function ImageCard({ photo }: ImageCardProps) {
       <CardHeader className="p-0">
          <Dialog onOpenChange={(open) => !open && setIsZoomed(false)}>
           <DialogTrigger asChild>
-            <div className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer bg-muted/20">
+            <div className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer bg-black">
               <Image
                 src={photo.imageUrl}
                 alt={photo.title}

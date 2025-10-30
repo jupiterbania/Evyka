@@ -254,14 +254,15 @@ export function ImageManagement() {
             {!isLoading && photos?.map((photo) => (
               <TableRow key={photo.id}>
                 <TableCell className="px-4">
-                  <Image
-                    src={photo.imageUrl}
-                    alt={photo.title}
-                    width={60}
-                    height={80}
-                    className="rounded-md object-contain aspect-square bg-muted/20"
-                    data-ai-hint="photo"
-                  />
+                  <div className="w-[60px] h-[60px] relative rounded-md overflow-hidden bg-black">
+                    <Image
+                      src={photo.imageUrl}
+                      alt={photo.title}
+                      fill
+                      className="object-contain"
+                      data-ai-hint="photo"
+                    />
+                  </div>
                 </TableCell>
                 <TableCell className="font-medium truncate max-w-xs">{photo.title}</TableCell>
                 <TableCell className="text-right">₹{photo.price.toFixed(2)}</TableCell>
