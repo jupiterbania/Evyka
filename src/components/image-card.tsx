@@ -340,3 +340,5 @@ export function ImageCard({ photo }: ImageCardProps) {
     </Card>
   );
 }
+
+    
