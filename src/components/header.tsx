@@ -15,11 +15,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { doc, setDoc } from 'firebase/firestore';
+import { useFirestore } from '@/firebase/provider';
 
 export function Header() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
-  
+  const firestore = useFirestore();
+
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
 
   const handleGoogleSignIn = async () => {
@@ -56,7 +59,7 @@ export function Header() {
         <div className="flex-1 flex items-center">
           <Sheet>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
+              <Button variant="ghost" size="icon" className="sm:hidden">
                 <Menu className="h-6 w-6" />
                 <span className="sr-only">Toggle navigation menu</span>
               </Button>
@@ -75,10 +78,16 @@ export function Header() {
               </nav>
             </SheetContent>
           </Sheet>
+          <nav className="hidden sm:flex items-center gap-6 text-sm font-medium">
+             <Logo />
+             <Link href="/" className="text-foreground/60 transition-colors hover:text-foreground/80">Home</Link>
+             <Link href="/#gallery" className="text-foreground/60 transition-colors hover:text-foreground/80">Gallery</Link>
+             {user && user.email === designatedAdminEmail && (
+                <Link href="/admin" className="text-foreground/60 transition-colors hover:text-foreground/80">Admin</Link>
+              )}
+          </nav>
         </div>
-        <div className="flex items-center justify-center">
-           <Logo />
-        </div>
+        
         <div className="flex flex-1 items-center justify-end space-x-2">
           {isUserLoading ? (
             <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
