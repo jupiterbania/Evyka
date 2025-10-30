@@ -52,6 +52,7 @@ import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Textarea } from './ui/textarea';
 import { uploadImage } from '@/ai/flows/upload-image-flow';
+import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { ScrollArea } from './ui/scroll-area';
 
 export function ImageManagement() {
@@ -131,32 +132,30 @@ export function ImageManagement() {
       const photoDataUri = reader.result as string;
 
       try {
-        const result = await uploadImage({ photoDataUri });
-
-        if (!result || !result.imageUrl) {
-          throw new Error(
-            'Image URL was not returned from the upload service.'
-          );
+        // Step 1: Upload the image and get the URL
+        const uploadResult = await uploadImage({ photoDataUri });
+        if (!uploadResult || !uploadResult.imageUrl) {
+          throw new Error('Image URL was not returned from the upload service.');
         }
 
-        const [header, base64Image] = photoDataUri.split(',');
-        const mimeMatch = header.match(/data:(image\/\w+);/);
-        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-        const fileExtension = mimeType.split('/')[1] || 'jpg';
-        const filename = `${newPhoto.title.replace(/\s+/g, '_') || 'upload'}.${fileExtension}`;
+        // Step 2: Extract the dominant color
+        const colorResult = await extractDominantColor({ photoDataUri });
+        const dominantColor = colorResult.dominantColor;
 
-
+        // Step 3: Add document to Firestore with all data
         addDocumentNonBlocking(
           imagesCollection,
           {
             ...newPhoto,
-            imageUrl: result.imageUrl,
-            blurredImageUrl: result.imageUrl, // Using same for now
+            imageUrl: uploadResult.imageUrl,
+            blurredImageUrl: uploadResult.imageUrl, // Using same for now
+            dominantColor: dominantColor,
             uploadDate: serverTimestamp(),
             sales: 0,
           }
         );
 
+        // Reset state and show success toast
         setUploadDialogOpen(false);
         setNewPhoto({ title: '', description: '', price: 0 });
         setImageFile(null);
@@ -234,7 +233,7 @@ export function ImageManagement() {
         </Dialog>
       </div>
 
-      <ScrollArea className="w-full whitespace-nowrap">
+      <div className="relative w-full overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -254,7 +253,10 @@ export function ImageManagement() {
             {!isLoading && photos?.map((photo) => (
               <TableRow key={photo.id}>
                 <TableCell className="px-4">
-                  <div className="w-[60px] h-[60px] relative rounded-md overflow-hidden bg-black">
+                  <div 
+                    className="w-[60px] h-[60px] relative rounded-md overflow-hidden"
+                    style={{ backgroundColor: photo.dominantColor || 'hsl(var(--card))' }}
+                  >
                     <Image
                       src={photo.imageUrl}
                       alt={photo.title}
@@ -293,7 +295,7 @@ export function ImageManagement() {
             ))}
           </TableBody>
         </Table>
-        </ScrollArea>
+        </div>
 
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
             <AlertDialogContent>

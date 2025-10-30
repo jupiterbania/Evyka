@@ -274,7 +274,10 @@ export function ImageCard({ photo }: ImageCardProps) {
       <CardHeader className="p-0">
          <Dialog onOpenChange={(open) => !open && setIsZoomed(false)}>
           <DialogTrigger asChild>
-            <div className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer bg-black">
+            <div 
+              className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer"
+              style={{ backgroundColor: photo.dominantColor || 'hsl(var(--card))' }}
+            >
               <Image
                 src={photo.imageUrl}
                 alt={photo.title}
@@ -302,7 +305,10 @@ export function ImageCard({ photo }: ImageCardProps) {
               onMouseMove={handleMouseMove}
               onMouseUp={handleMouseUp}
               onMouseLeave={handleMouseLeave}
-              style={{ cursor: isLocked ? 'not-allowed' : isZoomed ? 'zoom-out' : 'zoom-in' }}
+              style={{ 
+                cursor: isLocked ? 'not-allowed' : isZoomed ? 'zoom-out' : 'zoom-in',
+                backgroundColor: photo.dominantColor || 'hsl(var(--background))' 
+              }}
             >
               <Image
                 ref={imageRef}

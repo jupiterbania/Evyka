@@ -9,6 +9,7 @@ export type Image = {
   price: number;
   uploadDate: Timestamp;
   sales: number;
+  dominantColor?: string;
 };
 
 export type Purchase = {

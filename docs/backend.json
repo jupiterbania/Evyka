@@ -76,6 +76,10 @@
         "sales": {
           "type": "number",
           "description": "The number of times this image has been sold."
+        },
+        "dominantColor": {
+          "type": "string",
+          "description": "The dominant color of the image as a hex code, used for UI backgrounds."
         }
       },
       "required": [
