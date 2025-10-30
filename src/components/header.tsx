@@ -67,7 +67,9 @@ export function Header() {
               <nav className="grid gap-4 py-4">
                 <Link href="/" className="text-lg font-semibold hover:text-primary">Home</Link>
                 <Link href="/#gallery" className="text-lg font-semibold hover:text-primary">Gallery</Link>
-                <Link href="/admin" className="text-lg font-semibold hover:text-primary">Admin</Link>
+                {user && user.email === 'jupiterbania472@gmail.com' && (
+                  <Link href="/admin" className="text-lg font-semibold hover:text-primary">Admin</Link>
+                )}
               </nav>
             </SheetContent>
           </Sheet>
