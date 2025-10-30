@@ -44,6 +44,7 @@ import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Textarea } from './ui/textarea';
 import { uploadImage } from '@/ai/flows/upload-image-flow';
+import { ScrollArea } from './ui/scroll-area';
 
 export function ImageManagement() {
   const firestore = useFirestore();
@@ -162,7 +163,7 @@ export function ImageManagement() {
               Upload Image
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-[425px]">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Upload New Image</DialogTitle>
               <DialogDescription>
@@ -187,7 +188,7 @@ export function ImageManagement() {
                 <Input id="price" type="number" placeholder="50" value={newPhoto.price} onChange={(e) => setNewPhoto({...newPhoto, price: Number(e.target.value)})} />
               </div>
             </div>
-            <DialogFooter>
+            <DialogFooter className="flex-col-reverse sm:flex-row">
                 <DialogClose asChild>
                     <Button type="button" variant="secondary">Cancel</Button>
                 </DialogClose>
@@ -199,39 +200,39 @@ export function ImageManagement() {
         </Dialog>
       </div>
 
-      <div className="overflow-x-auto">
+      <ScrollArea className="w-full whitespace-nowrap">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[80px]">Image</TableHead>
+              <TableHead className="w-[80px] px-4">Image</TableHead>
               <TableHead>Name</TableHead>
               <TableHead className="text-right">Price</TableHead>
               <TableHead className="text-right">Sales</TableHead>
-              <TableHead className="w-[120px] text-center">Actions</TableHead>
+              <TableHead className="w-[120px] text-center px-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center">Loading images...</TableCell>
+                <TableCell colSpan={5} className="text-center h-24">Loading images...</TableCell>
               </TableRow>
             )}
             {!isLoading && photos?.map((photo) => (
               <TableRow key={photo.id}>
-                <TableCell>
+                <TableCell className="px-4">
                   <Image
                     src={photo.imageUrl}
                     alt={photo.title}
                     width={50}
                     height={70}
-                    className="rounded-md object-cover"
+                    className="rounded-md object-cover aspect-[3/4]"
                     data-ai-hint="photo"
                   />
                 </TableCell>
-                <TableCell className="font-medium">{photo.title}</TableCell>
+                <TableCell className="font-medium truncate max-w-xs">{photo.title}</TableCell>
                 <TableCell className="text-right">₹{photo.price.toFixed(2)}</TableCell>
                 <TableCell className="text-right">{photo.sales}</TableCell>
-                <TableCell className="text-center">
+                <TableCell className="text-center px-4">
                     <div className="flex justify-center gap-2">
                         <Button variant="ghost" size="icon" aria-label="Edit image" onClick={() => handleEditClick(photo)}>
                             <Edit className="h-4 w-4" />
@@ -264,9 +265,9 @@ export function ImageManagement() {
             ))}
           </TableBody>
         </Table>
-        </div>
+        </ScrollArea>
         <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
-            <DialogContent>
+            <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                 <DialogTitle>Edit Image</DialogTitle>
                 <DialogDescription>
@@ -287,7 +288,7 @@ export function ImageManagement() {
                         <Input id="edit-price" type="number" value={selectedPhoto.price} onChange={(e) => setSelectedPhoto(p => p ? {...p, price: Number(e.target.value)} : null)} />
                     </div>
                 </div>}
-                <DialogFooter>
+                <DialogFooter className="flex-col-reverse sm:flex-row">
                     <DialogClose asChild>
                         <Button type="button" variant="secondary" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
                     </DialogClose>
