@@ -25,13 +25,19 @@ const UploadImageOutputSchema = z.object({
 export type UploadImageOutput = z.infer<typeof UploadImageOutputSchema>;
 
 export async function uploadImage(input: UploadImageInput): Promise<UploadImageOutput> {
-  return uploadImageFlow(input);
+  const imageHostingApiKey = process.env.IMAGE_HOSTING_API_KEY;
+  if (!imageHostingApiKey) {
+      throw new Error("IMAGE_HOSTING_API_KEY environment variable is not set.");
+  }
+  return uploadImageFlow({ ...input, apiKey: imageHostingApiKey });
 }
 
 const uploadImageFlow = ai.defineFlow(
   {
     name: 'uploadImageFlow',
-    inputSchema: UploadImageInputSchema,
+    inputSchema: UploadImageInputSchema.extend({
+      apiKey: z.string(),
+    }),
     outputSchema: UploadImageOutputSchema,
   },
   async (input) => {
@@ -40,13 +46,8 @@ const uploadImageFlow = ai.defineFlow(
       throw new Error('Invalid data URI. Could not extract base64 data.');
     }
     
-    const imageHostingApiKey = process.env.IMAGE_HOSTING_API_KEY;
-    if (!imageHostingApiKey) {
-        throw new Error("IMAGE_HOSTING_API_KEY environment variable is not set.");
-    }
-
     const formData = new FormData();
-    formData.append('key', imageHostingApiKey);
+    formData.append('key', input.apiKey);
     formData.append('image', base64Image);
 
     const response = await fetch('https://api.imgbb.com/1/upload', {
@@ -62,7 +63,8 @@ const uploadImageFlow = ai.defineFlow(
     const result = await response.json();
     
     if (!result.success || !result.data || !result.data.url) {
-      throw new Error(result.error?.message || 'Failed to upload image. The hosting service returned an error.');
+      const errorMessage = result?.error?.message || 'Failed to upload image. The hosting service returned an error.';
+      throw new Error(errorMessage);
     }
 
     return {
