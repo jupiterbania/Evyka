@@ -27,13 +27,8 @@ export default function ImagePage() {
   const renderContent = () => {
     if (isPhotoLoading) {
       return (
-        <div className="w-full max-w-5xl mx-auto">
-            <Skeleton className="aspect-video w-full" />
-            <div className="mt-4 space-y-2">
-                <Skeleton className="h-8 w-3/4" />
-                <Skeleton className="h-4 w-full" />
-                <Skeleton className="h-4 w-2/3" />
-            </div>
+        <div className="w-full h-screen flex items-center justify-center">
+            <Skeleton className="w-full h-full" />
         </div>
       );
     }
@@ -51,23 +46,19 @@ export default function ImagePage() {
     }
 
     return (
-      <div className="w-full max-w-5xl mx-auto">
-        <div className="relative aspect-video w-full rounded-lg overflow-hidden border">
+      <div className="w-full flex-grow flex flex-col items-center justify-center p-4">
+        <div className="relative w-full h-full">
           <Image
             src={photo.imageUrl}
             alt={photo.title}
             fill
             className="object-contain"
-            sizes="(max-width: 768px) 100vw, 80vw"
+            sizes="100vw"
           />
         </div>
-        <div className="mt-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-            <div>
-                <h1 className="text-3xl font-bold font-headline">{photo.title}</h1>
-                <p className="text-muted-foreground mt-2 max-w-prose">{photo.description}</p>
-            </div>
-          </div>
+        <div className="mt-6 text-center">
+          <h1 className="text-3xl font-bold font-headline">{photo.title}</h1>
+          <p className="text-muted-foreground mt-2 max-w-prose">{photo.description}</p>
         </div>
       </div>
     );
@@ -76,7 +67,7 @@ export default function ImagePage() {
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
-      <main className="flex-grow container mx-auto px-4 sm:px-6 py-8 sm:py-12 flex items-center justify-center">
+      <main className="flex-grow flex items-stretch justify-center">
         {renderContent()}
       </main>
       <Footer />
