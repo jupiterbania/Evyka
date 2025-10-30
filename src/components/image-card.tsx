@@ -20,6 +20,7 @@ import {
   Edit,
   Trash2,
   Crown,
+  Share2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -392,6 +393,32 @@ export function ImageCard({ photo }: ImageCardProps) {
     setDeleteDialogOpen(false);
   };
 
+  const handleShare = async () => {
+    const shareData = {
+      title: photo.title,
+      text: `Check out this image on EVYKA: ${photo.title}`,
+      url: window.location.origin + '/#gallery' // In a real app, this would be a direct link to the image
+    };
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(shareData.url);
+        toast({
+          title: 'Link Copied',
+          description: 'A shareable link has been copied to your clipboard.',
+        });
+      }
+    } catch (error) {
+      console.error('Share failed:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Share Failed',
+        description: 'Could not share the image at this time.',
+      });
+    }
+  };
+
   const renderPurchaseButton = () => {
     if (isUserLoading || (user && isPurchaseLoading)) {
       return <Button disabled>Loading...</Button>;
@@ -460,16 +487,16 @@ export function ImageCard({ photo }: ImageCardProps) {
 
 
     return (
-        <div className="flex flex-col items-stretch gap-2 w-full">
-            <Button onClick={handlePurchase} disabled={isProcessing} size="sm">
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Purchase
-            </Button>
-            <Button onClick={handleSubscription} disabled={isProcessing} variant="outline" size="sm">
-                <Crown className="mr-2 h-4 w-4 text-amber-400" />
-                Subscribe
-            </Button>
-        </div>
+      <div className="flex w-full flex-col items-stretch gap-2">
+        <Button onClick={handlePurchase} disabled={isProcessing} size="sm">
+          <ShoppingCart className="mr-2 h-4 w-4" />
+          Purchase
+        </Button>
+        <Button onClick={handleSubscription} disabled={isProcessing} variant="outline" size="sm">
+          <Crown className="mr-2 h-4 w-4 text-amber-400" />
+          Subscribe
+        </Button>
+      </div>
     );
   };
 
@@ -538,9 +565,15 @@ export function ImageCard({ photo }: ImageCardProps) {
           </Dialog>
         </CardHeader>
         <CardContent className="p-4 flex-grow">
-          <CardTitle className="text-lg leading-tight mb-1 truncate">
-            {photo.title}
-          </CardTitle>
+          <div className="flex justify-between items-start gap-2">
+            <CardTitle className="text-lg leading-tight mb-1 truncate flex-grow">
+              {photo.title}
+            </CardTitle>
+            <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>
+              <Share2 className="h-4 w-4" />
+              <span className="sr-only">Share</span>
+            </Button>
+          </div>
         </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-between items-center gap-4">
           {!isFree && (
@@ -634,5 +667,7 @@ export function ImageCard({ photo }: ImageCardProps) {
     </>
   );
 }
+
+    
 
     
