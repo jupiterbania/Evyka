@@ -8,6 +8,7 @@ import { AgeGate } from '@/components/age-gate';
 export const metadata: Metadata = {
   title: 'EVYKA',
   description: 'Discover and purchase unique, high-quality images from talented photographers around the world.',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
