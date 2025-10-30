@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Photo } from '@/lib/types';
-import { allPhotos } from '@/lib/placeholder-data';
+import { generateAllPhotos } from '@/lib/placeholder-data';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -41,11 +41,15 @@ import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
 
 export function ImageManagement() {
-  const [photos, setPhotos] = useState<Photo[]>(allPhotos);
+  const [photos, setPhotos] = useState<Photo[]>([]);
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const { toast } = useToast();
+
+  useEffect(() => {
+    setPhotos(generateAllPhotos());
+  }, []);
 
   const handleEditClick = (photo: Photo) => {
     setSelectedPhoto(photo);

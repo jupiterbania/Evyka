@@ -1,8 +1,9 @@
 "use client"
 
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
-import { photoSalesData } from "@/lib/placeholder-data"
+import { generatePhotoSalesData } from "@/lib/placeholder-data"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+import { useEffect, useState } from "react"
 
 const chartConfig = {
   sales: {
@@ -12,10 +13,16 @@ const chartConfig = {
 } satisfies ChartConfig
 
 export function SalesChart() {
+  const [salesData, setSalesData] = useState<any[]>([]);
+
+  useEffect(() => {
+    setSalesData(generatePhotoSalesData());
+  }, []);
+
   return (
     <div className="h-[300px]">
     <ChartContainer config={chartConfig} className="w-full h-full">
-      <BarChart accessibilityLayer data={photoSalesData}>
+      <BarChart accessibilityLayer data={salesData}>
         <XAxis
           dataKey="name"
           stroke="#888888"

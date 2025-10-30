@@ -1,17 +1,19 @@
+'use client';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { ImageCard } from '@/components/image-card';
-import { allPhotos } from '@/lib/placeholder-data';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { generateAllPhotos } from '@/lib/placeholder-data';
 import Image from 'next/image';
+import { useEffect, useState } from 'react';
+import type { Photo } from '@/lib/types';
 
 export default function Home() {
+  const [photos, setPhotos] = useState<Photo[]>([]);
+
+  useEffect(() => {
+    setPhotos(generateAllPhotos());
+  }, []);
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -39,7 +41,7 @@ export default function Home() {
               </h2>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
-              {allPhotos.map(photo => (
+              {photos.map(photo => (
                 <ImageCard key={photo.id} photo={photo} />
               ))}
             </div>
