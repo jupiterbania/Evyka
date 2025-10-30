@@ -42,6 +42,7 @@ import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Textarea } from './ui/textarea';
+import { uploadImage } from '@/ai/flows/upload-image-flow';
 
 export function ImageManagement() {
   const firestore = useFirestore();
@@ -108,32 +109,19 @@ export function ImageManagement() {
     const reader = new FileReader();
     reader.readAsDataURL(imageFile);
     reader.onload = async () => {
-        const base64Image = (reader.result as string).split(',')[1];
-        
-        const formData = new FormData();
-        formData.append('key', '6d207e02198a847aa98d0a2a901485a5');
-        formData.append('action', 'upload');
-        formData.append('source', base64Image);
-        formData.append('format', 'json');
+        const photoDataUri = reader.result as string;
 
         try {
-            const response = await fetch('https://freeimage.host/api/1/upload', {
-                method: 'POST',
-                body: formData,
-            });
+            const result = await uploadImage({ photoDataUri });
 
-            const result = await response.json();
-
-            if (result.status_code !== 200) {
-                throw new Error(result.status_txt || 'Failed to upload image.');
+            if (!result || !result.imageUrl) {
+                throw new Error('Image URL was not returned from the upload service.');
             }
-
-            const imageUrl = result.image.url;
 
             addDocumentNonBlocking(imagesCollection, {
                 ...newPhoto,
-                imageUrl: imageUrl,
-                blurredImageUrl: imageUrl, // Using same for now
+                imageUrl: result.imageUrl,
+                blurredImageUrl: result.imageUrl, // Using same for now
                 uploadDate: serverTimestamp(),
                 sales: 0,
             });
