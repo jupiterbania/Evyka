@@ -42,17 +42,9 @@ const uploadImageFlow = ai.defineFlow(
     if (!header || !base64Image) {
       throw new Error('Invalid data URI. Could not extract base64 data.');
     }
-
-    const mimeMatch = header.match(/data:(image\/\w+);/);
-    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
-    const fileExtension = mimeType.split('/')[1] || 'jpg';
     
     const formData = new FormData();
     formData.append('key', input.apiKey);
-    // Directly append the Base64 string, as required by many APIs expecting base64 input.
-    // Some APIs might require a Blob, which would be:
-    // const imageBlob = new Blob([Buffer.from(base64Image, 'base64')], { type: mimeType });
-    // formData.append('source', imageBlob, `upload.${fileExtension}`);
     formData.append('source', base64Image);
 
 
@@ -64,7 +56,7 @@ const uploadImageFlow = ai.defineFlow(
     if (!response.ok) {
         const errorBody = await response.text();
         console.error('Image upload failed:', errorBody);
-        throw new Error(`Image upload failed with status ${response.status}. Please check the server logs.`);
+        throw new Error(`Image upload failed with status ${response.status}. Response: ${errorBody}`);
     }
 
     const result = await response.json();
