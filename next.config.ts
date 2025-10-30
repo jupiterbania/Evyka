@@ -29,14 +29,14 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
       {
-        protocol: 'http',
+        protocol: 'https',
         hostname: 'freeimage.host',
         port: '',
         pathname: '/**',
       },
-       {
+      {
         protocol: 'https',
-        hostname: 'freeimage.host',
+        hostname: 'i.ibb.co',
         port: '',
         pathname: '/**',
       },
