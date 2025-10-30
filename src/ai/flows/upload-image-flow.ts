@@ -25,6 +25,7 @@ const UploadImageOutputSchema = z.object({
 export type UploadImageOutput = z.infer<typeof UploadImageOutputSchema>;
 
 export async function uploadImage(input: UploadImageInput): Promise<UploadImageOutput> {
+  // Using a publicly available key for iili.io service
   const imageHostingApiKey = '62133-c23d596489574e4fce9ef617300c1e84';
   return uploadImageFlow({ ...input, apiKey: imageHostingApiKey });
 }
@@ -42,14 +43,13 @@ const uploadImageFlow = ai.defineFlow(
     if (!header || !base64Image) {
       throw new Error('Invalid data URI. Could not extract base64 data.');
     }
-    const mimeType = header.match(/:(.*?);/)?.[1];
     
     const formData = new FormData();
     formData.append('key', input.apiKey);
     formData.append('image', base64Image);
 
 
-    const response = await fetch('https://iili.io/api/upload', {
+    const response = await fetch('https://iili.io/api/1/upload', {
       method: 'POST',
       body: formData,
     });
