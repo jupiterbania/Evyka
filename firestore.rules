@@ -1,136 +1,150 @@
 /**
- * @fileoverview Firestore Security Rules for FocusFinds Prototyping.
+ * @fileOverview Security rules for the FocusFinds application.
  *
  * Core Philosophy:
- * This ruleset prioritizes a secure, user-centric data model. Users own their
- * data and can only access their own profile information and purchase history.
- * Images are publicly readable but can only be created, updated, or deleted with proper auth.
- * The DBAC pattern is used on /roles_admin/{userId} for admin privileges.
+ * This ruleset implements a hybrid security model, blending user-specific data access with publicly accessible content where appropriate.
+ * User profiles and purchase history are strictly controlled, while image metadata is publicly readable. Administrative privileges
+ * are managed through a dedicated "roles_admin" collection, leveraging a "Database-Controlled Access Control" (DBAC) pattern based
+ * on document existence rather than content.
  *
  * Data Structure:
- * - /users/{userId}: Stores user profiles, accessible only to the user and admins.
- * - /images/{imageId}: Stores image metadata, publicly readable, owner-only write access (if implemented).
- * - /users/{userId}/purchases/{purchaseId}: Stores user-specific purchase history, accessible only to the user.
- * - /images/{imageId}/purchases/{purchaseId}: Stores image-specific purchase data, accessible only to admins.
- * - /roles_admin/{userId}: Existence determines admin privileges.
+ * - /users/{userId}: User profile information, accessible only to the user and administrators.
+ * - /images/{imageId}: Image metadata, publicly readable.
+ * - /users/{userId}/purchases/{purchaseId}: Purchase history for each user, accessible only to the user.
+ * - /images/{imageId}/purchases/{purchaseId}: Purchase data for an image, not user specific (for admin analytics).
+ * - /roles_admin/{userId}: Document existence grants admin privileges to the user.
  *
  * Key Security Decisions:
- * - User listing is explicitly denied to prevent information harvesting.
- * - Image reads are public, enabling open discovery, but writes are restricted.
- * - Admin privileges are managed through the existence of documents in the /roles_admin collection.
+ * - User listing is explicitly denied to prevent unauthorized data scraping.
+ * - The "images" collection is publicly readable to allow anonymous browsing of available images.
+ * - Data validation is relaxed in this prototype to allow quick iteration. Focus is on authorization.
  *
  * Denormalization for Authorization:
- * - For simplicity and performance, critical authorization data (e.g., ownership) should be stored
- *   directly on the documents being secured. This avoids costly `get()` calls in the rules.
+ * - Admin status is checked by looking up the existence of a document in the `roles_admin` collection, instead of embedding an `isAdmin` flag in the user document.
+ * This design decision simplifies privilege management as the admin role can be granted or revoked by simply creating or deleting a document.
+ * This is known as Database Controlled Access Control (DBAC).
+ *
+ * Structural Segregation:
+ * - User-specific purchases are stored in a subcollection under the user's profile, while anonymous purchase data for images is stored separately. This segregation simplifies security rules and improves query performance.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
     /**
-     * @description Grants access to user profile data.
+     * @description Checks if the current user is signed in.
+     * @returns {boolean} True if the user is signed in, false otherwise.
+     */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /**
+     * @description Checks if the current user is the owner of the resource, based on the provided userId.
+     * @param {string} userId - The user ID to compare against the request's authentication UID.
+     * @returns {boolean} True if the user is the owner, false otherwise.
+     */
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    /**
+     * @description Checks if the current user is an existing owner of the resource.
+     * @param {string} userId - The user ID to compare against the request's authentication UID.
+     * @returns {boolean} True if the user is signed in, is the owner, and the resource exists.
+     */
+    function isExistingOwner(userId) {
+      return isSignedIn() && isOwner(userId) && resource != null;
+    }
+
+    /**
+     * @description Checks if the current user is an admin.
+     * @returns {boolean} True if the user is an admin (has a document in /roles_admin/{userId}), false otherwise.
+     */
+    function isAdmin() {
+      return exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
+    }
+
+    /**
+     * @description Rules for /users/{userId} documents.
      * @path /users/{userId}
-     * @allow (get, update, delete) if the user is the owner of the profile.
-     * @allow (create) if the user's ID matches the document ID.
-     * @deny (create) if the user's ID does not match the document ID.
-     * @deny (list) to prevent user enumeration.
-     * @principle Enforces document ownership for user profiles.
+     * @allow (create) Signed-in user creates their own profile: request.auth.uid == userId
+     * @allow (get, update, delete) Owner accesses their own profile: request.auth.uid == userId
+     * @allow (get) Admin reads user profiles: isAdmin() == true
+     * @deny (create) Non-signed-in user attempts to create a profile: request.auth == null
+     * @deny (update, delete) Non-owner attempts to modify or delete the profile: request.auth.uid != userId
+     * @deny (list) All listing requests
+     * @principle Enforces user-ownership and admin-read for user profiles.  No listing allowed.
      */
     match /users/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
+      // Ownership pattern.
 
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      allow get: if isOwner(userId);
-      allow list: if false;
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if false; // Explicitly prevent listing.
       allow create: if isSignedIn() && isOwner(userId) && request.resource.data.id == userId;
-      allow update: if isSignedIn() && isOwner(userId) && resource.data.id == userId;
-      allow delete: if isSignedIn() && isOwner(userId) && resource.data.id == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id; // Enforce immutability of ID.
+      allow delete: if isExistingOwner(userId);
     }
 
     /**
-     * @description Grants public read access to image metadata and restricts write access to the owner.
+     * @description Rules for /images/{imageId} documents.
      * @path /images/{imageId}
-     * @allow (get, list) to allow public access to images.
-     * @deny (create, update, delete) No owner field exists, writes are not allowed in prototyping
-     * @principle Allows public read access but restricts write access.
+     * @allow (get, list) All users can read image data: if true
+     * @deny (create, update, delete) No one can write image data: if false
+     * @principle Public read access with no write access.
      */
     match /images/{imageId} {
+      // Public read, no writes pattern.
       allow get, list: if true;
-      allow create, update, delete: if false; // TODO: Add owner validation once the schema is updated with an ownership field.
+      allow create, update, delete: if false;
     }
 
     /**
-     * @description Grants access to user-specific purchase history.
+     * @description Rules for /users/{userId}/purchases/{purchaseId} documents.
      * @path /users/{userId}/purchases/{purchaseId}
-     * @allow (get, list, create, update, delete) if the user is the owner.
-     * @deny (get, list, create, update, delete) if the user is not the owner.
-     * @principle Enforces document ownership for purchase history.
+     * @allow (create, get, list, update, delete) Owner accesses their own purchase history: request.auth.uid == userId
+     * @deny (create, get, list, update, delete) Non-owner attempts to access purchase history: request.auth.uid != userId
+     * @principle Enforces user-ownership for purchase history.
      */
     match /users/{userId}/purchases/{purchaseId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isOwner(userId) {
-        return request.auth.uid == userId;
-      }
-
-      allow get: if isSignedIn() && isOwner(userId);
-      allow list: if isSignedIn() && isOwner(userId);
-      allow create: if isSignedIn() && isOwner(userId);
-      allow update: if isSignedIn() && isOwner(userId);
-      allow delete: if isSignedIn() && isOwner(userId);
+      // Ownership pattern.
+      allow get, list: if isOwner(userId);
+      allow create: if isSignedIn() && isOwner(userId) && request.resource.data.userId == userId;
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId; // Enforce immutability of userId.
+      allow delete: if isExistingOwner(userId);
     }
 
-    /**
-     * @description Grants admin access to image-specific purchase data.
-     * @path /images/{imageId}/purchases/{purchaseId}
-     * @allow (get, list, create, update, delete) only for admins.
-     * @deny (get, list, create, update, delete) for non-admins.
-     * @principle Restricts access to sensitive analytics data to admins.
-     */
+     /**
+      * @description Rules for /images/{imageId}/purchases/{purchaseId} documents.
+      * @path /images/{imageId}/purchases/{purchaseId}
+      * @allow (get, list) Admins can read anonymous purchase data.
+      * @allow (create, update, delete) Admins can write purchase data.
+      * @deny (get, list, create, update, delete) Non-admins cannot read or write purchase data.
+      * @principle Admin-only access for image purchase analytics.
+      */
     match /images/{imageId}/purchases/{purchaseId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-     function isAdmin() {
-        return exists(/databases/(default)/documents/roles_admin/$(request.auth.uid));
-      }
-
-      allow get: if isSignedIn() && isAdmin();
-      allow list: if isSignedIn() && isAdmin();
-      allow create: if isSignedIn() && isAdmin();
-      allow update: if isSignedIn() && isAdmin();
-      allow delete: if isSignedIn() && isAdmin();
+       // Roles pattern (admin only).
+      allow get, list: if isAdmin();
+      allow create, update, delete: if isAdmin();
     }
 
     /**
-     * @description Grants admin privileges based on document existence.
+     * @description Rules for /roles_admin/{userId} documents.
      * @path /roles_admin/{userId}
-     * @allow (get, create, update, delete) only for admins.
-     * @deny (get, create, update, delete) for non-admins.
-     * @principle Implements DBAC for admin roles.
+     * @allow (create) Only an existing admin can grant admin priviliges by creating a document in this path.
+     * @allow (delete) Only an existing admin can revoke admin privileges by deleting the document.
+     * @allow (get) Only an existing admin can check the existence of the document.
+     * @deny (get, create, delete) Non-admins cannot manage admin roles.
+     * @deny (list) Listing is not allowed.
+     * @principle DBAC: Existence of a document in this collection grants admin privileges.
      */
     match /roles_admin/{userId} {
-      function isSignedIn() {
-        return request.auth != null;
-      }
-
-      function isAdmin() {
-        return exists(/databases/(default)/documents/roles_admin/$(request.auth.uid));
-      }
-
-      allow get: if isSignedIn() && isAdmin();
+      // Roles pattern (admin only).  DBAC: Document Existence grants permission.
+      allow get: if isAdmin();
       allow list: if false;
-      allow create: if isSignedIn() && isAdmin();
-      allow update: if isSignedIn() && isAdmin();
-      allow delete: if isSignedIn() && isAdmin();
+      allow create: if isAdmin();
+      allow update: if false; //No update allowed to role doc
+      allow delete: if isAdmin();
     }
   }
 }
