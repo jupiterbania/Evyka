@@ -1,3 +1,76 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "1",
+      "description": "A misty mountain range at sunrise.",
+      "imageUrl": "https://images.unsplash.com/photo-1629471197009-c50487351414?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWlzdHklMjBtb3VudGFpbnN8ZW58MHx8fHwxNzYxNzkyMDg2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "misty mountains"
+    },
+    {
+      "id": "2",
+      "description": "A modern architectural building with sharp lines.",
+      "imageUrl": "https://images.unsplash.com/photo-1519662978799-2f05096d3636?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBhcmNoaXRlY3R1cmV8ZW58MHx8fHwxNzYxNzQ0NzY5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "modern architecture"
+    },
+    {
+      "id": "3",
+      "description": "A close-up portrait of an elderly person with expressive eyes.",
+      "imageUrl": "https://images.unsplash.com/photo-1542630994-f2d8bed7de65?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxwb3J0cmFpdCUyMHBlcnNvbnxlbnwwfHx8fDE3NjE3MTUyMzF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "portrait person"
+    },
+    {
+      "id": "4",
+      "description": "An abstract painting with vibrant colors and textures.",
+      "imageUrl": "https://images.unsplash.com/photo-1533208087231-c3618eab623c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxhYnN0cmFjdCUyMHBhaW50aW5nfGVufDB8fHx8MTc2MTczOTUzOHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "abstract painting"
+    },
+    {
+      "id": "5",
+      "description": "A lush green forest with sunlight filtering through the trees.",
+      "imageUrl": "https://images.unsplash.com/photo-1655473479605-e599fe7fcb8c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxncmVlbiUyMGZvcmVzdHxlbnwwfHx8fDE3NjE3NDAzNjJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "green forest"
+    },
+    {
+      "id": "6",
+      "description": "A bustling city street at night with neon lights.",
+      "imageUrl": "https://images.unsplash.com/photo-1588312744377-2adfb7b8578a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxjaXR5JTIwbmlnaHR8ZW58MHx8fHwxNzYxNzI1Mzg0fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "city night"
+    },
+    {
+      "id": "7",
+      "description": "A serene beach with turquoise water and white sand.",
+      "imageUrl": "https://images.unsplash.com/photo-1687357281786-d4d344e0049c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxzZXJlbmUlMjBiZWFjaHxlbnwwfHx8fDE3NjE3NTUzOTF8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "serene beach"
+    },
+    {
+      "id": "8",
+      "description": "A minimalist photo of a single leaf on a clean background.",
+      "imageUrl": "https://images.unsplash.com/photo-1680110761096-dc4b4cfd19bf?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxtaW5pbWFsaXN0JTIwbGVhZnxlbnwwfHx8fDE3NjE3MDU3NDJ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "minimalist leaf"
+    },
+    {
+      "id": "9",
+      "description": "A powerful wildlife shot of a lion.",
+      "imageUrl": "https://images.unsplash.com/photo-1646112139767-d63ef277e25d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHx3aWxkbGlmZSUyMGxpb258ZW58MHx8fHwxNzYxNzQ2NTU5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "wildlife lion"
+    },
+    {
+      "id": "10",
+      "description": "A winding road through a desert landscape.",
+      "imageUrl": "https://images.unsplash.com/photo-1547235001-d703406d3f17?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxkZXNlcnQlMjByb2FkfGVufDB8fHx8MTc2MTc5MjA4Nnww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "desert road"
+    },
+    {
+      "id": "11",
+      "description": "A candid shot of people laughing at a festival.",
+      "imageUrl": "https://images.unsplash.com/photo-1536010305525-f7aa0834e2c7?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cGVvcGxlJTIwbGF1Z2hpbmd8ZW58MHx8fHwxNzYxNjc2MTg1fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "people laughing"
+    },
+    {
+      "id": "12",
+      "description": "A detailed macro shot of a flower.",
+      "imageUrl": "https://images.unsplash.com/photo-1561997896-49c20aba9404?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWFjcm8lMjBmbG93ZXJ8ZW58MHx8fHwxNzYxNzkyMDg2fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "macro flower"
+    }
+  ]
 }
