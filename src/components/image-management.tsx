@@ -251,14 +251,13 @@ export function ImageManagement() {
               <TableRow key={photo.id}>
                 <TableCell className="px-4">
                   <div 
-                    className="w-[60px] h-[60px] relative rounded-md overflow-hidden"
-                    style={{ background: photo.dominantColor ? `radial-gradient(circle, ${photo.dominantColor}, black)` : 'hsl(var(--card))' }}
+                    className="w-[60px] h-[60px] relative rounded-md overflow-hidden bg-card"
                   >
                     <Image
                       src={photo.imageUrl}
                       alt={photo.title}
                       fill
-                      className="object-contain"
+                      className="object-cover"
                       data-ai-hint="photo"
                     />
                   </div>
@@ -346,5 +345,3 @@ export function ImageManagement() {
     </Card>
   );
 }
-
-    

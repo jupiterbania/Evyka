@@ -363,12 +363,6 @@ export function ImageCard({ photo }: ImageCardProps) {
     );
   };
 
-  const cardBackground = photo.dominantColor || 'hsl(var(--card))';
-    
-  const dialogBackground = photo.dominantColor
-    ? `radial-gradient(ellipse at center, ${photo.dominantColor}, black)`
-    : 'hsl(var(--background))';
-
   return (
     <>
       <Card className="group overflow-hidden flex flex-col">
@@ -376,8 +370,7 @@ export function ImageCard({ photo }: ImageCardProps) {
           <Dialog onOpenChange={(open) => !open && setIsZoomed(false)}>
             <DialogTrigger asChild>
               <div
-                className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer"
-                style={{ backgroundColor: cardBackground }}
+                className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer bg-card"
               >
                 <Image
                   src={photo.imageUrl}
@@ -400,7 +393,7 @@ export function ImageCard({ photo }: ImageCardProps) {
             <DialogContent className="max-w-5xl h-auto bg-transparent border-none shadow-none p-0">
               <DialogTitle className="sr-only">{photo.title}</DialogTitle>
               <div
-                className="relative aspect-[3/4] max-h-[90vh] w-full overflow-hidden rounded-lg"
+                className="relative aspect-[3/4] max-h-[90vh] w-full overflow-hidden rounded-lg bg-background"
                 onDoubleClick={handleDoubleClick}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
@@ -412,7 +405,6 @@ export function ImageCard({ photo }: ImageCardProps) {
                     : isZoomed
                     ? 'zoom-out'
                     : 'zoom-in',
-                  background: dialogBackground,
                 }}
               >
                 <Image
@@ -530,5 +522,3 @@ export function ImageCard({ photo }: ImageCardProps) {
     </>
   );
 }
-
-    
