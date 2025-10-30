@@ -43,7 +43,25 @@ import { Card, CardContent } from './ui/card';
 export function ImageManagement() {
   const [photos, setPhotos] = useState<Photo[]>(allPhotos);
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedPhoto, setSelectedPhoto] = useState<Photo | null>(null);
   const { toast } = useToast();
+
+  const handleEditClick = (photo: Photo) => {
+    setSelectedPhoto(photo);
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = () => {
+    if (!selectedPhoto) return;
+    setPhotos(photos.map(p => p.id === selectedPhoto.id ? selectedPhoto : p));
+    toast({
+        title: "Image Updated",
+        description: "The image details have been successfully updated.",
+    });
+    setEditDialogOpen(false);
+    setSelectedPhoto(null);
+  }
 
   const handleDelete = (photoId: string) => {
     setPhotos(photos.filter(p => p.id !== photoId));
@@ -134,7 +152,7 @@ export function ImageManagement() {
                 <TableCell className="text-right">{photo.sales}</TableCell>
                 <TableCell className="text-center">
                     <div className="flex justify-center gap-2">
-                        <Button variant="ghost" size="icon" aria-label="Edit image">
+                        <Button variant="ghost" size="icon" aria-label="Edit image" onClick={() => handleEditClick(photo)}>
                             <Edit className="h-4 w-4" />
                         </Button>
                         <AlertDialog>
@@ -166,6 +184,40 @@ export function ImageManagement() {
           </TableBody>
         </Table>
         </div>
+        <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
+            <DialogContent>
+                <DialogHeader>
+                <DialogTitle>Edit Image</DialogTitle>
+                <DialogDescription>
+                    Update the details for this image.
+                </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="edit-name" className="text-right">Name</Label>
+                        <Input id="edit-name" value={selectedPhoto?.name || ''} onChange={(e) => setSelectedPhoto(p => p ? {...p, name: e.target.value} : null)} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="edit-price" className="text-right">Price ($)</Label>
+                        <Input id="edit-price" type="number" value={selectedPhoto?.price || 0} onChange={(e) => setSelectedPhoto(p => p ? {...p, price: Number(e.target.value)} : null)} className="col-span-3" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="edit-artist" className="text-right">Artist</Label>
+                        <Input id="edit-artist" value={selectedPhoto?.artist || ''} onChange={(e) => setSelectedPhoto(p => p ? {...p, artist: e.target.value} : null)} className="col-span-3" />
+                    </div>
+                     <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="edit-category" className="text-right">Category</Label>
+                        <Input id="edit-category" value={selectedPhoto?.category || ''} onChange={(e) => setSelectedPhoto(p => p ? {...p, category: e.target.value} : null)} className="col-span-3" />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={handleSaveEdit}>Save Changes</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
