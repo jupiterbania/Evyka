@@ -217,7 +217,7 @@ export function ImageManagement() {
         </Dialog>
       </div>
 
-      <ScrollArea className="w-full whitespace-nowrap">
+      <div className="relative w-full overflow-auto">
         <Table>
           <TableHeader>
             <TableRow>
@@ -275,7 +275,7 @@ export function ImageManagement() {
             ))}
           </TableBody>
         </Table>
-        </ScrollArea>
+        </div>
 
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
             <AlertDialogContent>
