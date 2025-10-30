@@ -27,7 +27,7 @@ export default function ImagePage() {
   const renderContent = () => {
     if (isPhotoLoading) {
       return (
-        <div className="w-full max-w-4xl mx-auto">
+        <div className="w-full max-w-5xl mx-auto">
             <Skeleton className="aspect-video w-full" />
             <div className="mt-4 space-y-2">
                 <Skeleton className="h-8 w-3/4" />
@@ -51,13 +51,13 @@ export default function ImagePage() {
     }
 
     return (
-      <div className="w-full max-w-4xl mx-auto">
+      <div className="w-full max-w-5xl mx-auto">
         <div className="relative aspect-video w-full rounded-lg overflow-hidden border">
           <Image
             src={photo.imageUrl}
             alt={photo.title}
             fill
-            className="object-contain"
+            className="object-cover"
             sizes="(max-width: 768px) 100vw, 80vw"
           />
         </div>
