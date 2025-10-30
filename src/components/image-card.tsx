@@ -19,6 +19,7 @@ import {
   MoreVertical,
   Edit,
   Trash2,
+  Crown,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -56,7 +57,7 @@ import {
   doc,
 } from 'firebase/firestore';
 import { Badge } from './ui/badge';
-import { createOrder, verifyPayment } from '@/lib/razorpay';
+import { createOrder, verifyPayment, createSubscription, verifySubscription } from '@/lib/razorpay';
 import type { Order } from 'razorpay/dist/types/orders';
 import {
   addDocumentNonBlocking,
@@ -163,6 +164,83 @@ export function ImageCard({ photo }: ImageCardProps) {
       e.currentTarget.style.cursor = 'zoom-out';
     }
   };
+  
+  const handleSubscription = async () => {
+    if (!firestore || !user) {
+      toast({
+        variant: 'destructive',
+        title: 'Authentication Error',
+        description: 'You must be logged in to subscribe.',
+      });
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      const subscription = await createSubscription();
+
+      if (!subscription) {
+        throw new Error('Could not create a subscription plan.');
+      }
+
+      const options = {
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        subscription_id: subscription.id,
+        name: 'EVYKA Pro',
+        description: `Monthly Subscription`,
+        handler: async function (response: any) {
+          const verificationResult = await verifySubscription({
+            razorpay_payment_id: response.razorpay_payment_id,
+            razorpay_subscription_id: response.razorpay_subscription_id,
+            razorpay_signature: response.razorpay_signature,
+          });
+
+          if (verificationResult.isSignatureValid) {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            const endDate = new Date();
+            endDate.setMonth(endDate.getMonth() + 1);
+
+            updateDocumentNonBlocking(userDocRef, {
+              subscriptionStatus: 'active',
+              subscriptionId: response.razorpay_subscription_id,
+              subscriptionEndDate: endDate,
+            });
+
+            toast({
+              title: 'Subscription Successful!',
+              description: 'Welcome to Pro! All images are now unlocked.',
+            });
+          } else {
+            toast({
+              variant: 'destructive',
+              title: 'Payment Failed',
+              description: 'Your payment could not be verified. Please contact support.',
+            });
+          }
+        },
+        prefill: {
+          name: user.displayName,
+          email: user.email,
+        },
+        theme: {
+          color: '#3399cc',
+        },
+      };
+
+      const rzp = new window.Razorpay(options);
+      rzp.open();
+    } catch (error: any) {
+      toast({
+        variant: 'destructive',
+        title: 'Subscription Error',
+        description: error.message || 'Something went wrong. Please try again.',
+      });
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
 
   const handlePurchase = async () => {
     if (!firestore) {
@@ -373,15 +451,16 @@ export function ImageCard({ photo }: ImageCardProps) {
     }
 
     return (
-      <Button onClick={handlePurchase} disabled={isProcessing}>
-        {isProcessing ? (
-          'Processing...'
-        ) : (
-          <>
-            <ShoppingCart className="mr-2 h-4 w-4" /> Purchase
-          </>
-        )}
-      </Button>
+        <div className="flex items-center gap-2">
+            <Button onClick={handlePurchase} disabled={isProcessing} size="sm">
+                <ShoppingCart className="mr-2 h-4 w-4" />
+                Purchase
+            </Button>
+             <Button onClick={handleSubscription} disabled={isProcessing} size="sm" variant="outline">
+                <Crown className="mr-2 h-4 w-4 text-amber-400" />
+                Subscribe
+            </Button>
+        </div>
     );
   };
 
@@ -431,7 +510,7 @@ export function ImageCard({ photo }: ImageCardProps) {
               >
                 <Image
                   ref={imageRef}
-                  src={isLocked ? photo.blurredImageUrl : photo.imageUrl}
+                  src={photo.imageUrl}
                   alt={photo.title}
                   fill
                   className={cn(
