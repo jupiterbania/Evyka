@@ -4,7 +4,7 @@ import { Logo } from './logo';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from './ui/sheet';
 import { Menu, User as UserIcon, LogOut, LogIn } from 'lucide-react';
-import { useUser, useAuth } from '@/firebase';
+import { useUser, useAuth, useFirestore } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import {
   DropdownMenu,
@@ -15,10 +15,23 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { doc } from 'firebase/firestore';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { useEffect } from 'react';
 
 export function Header() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
+
+  const designatedAdminEmail = 'jupiterbania472@gmail.com';
+
+  useEffect(() => {
+    if (user && user.email === designatedAdminEmail && firestore) {
+      const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+      setDocumentNonBlocking(adminRoleRef, { isAdmin: true }, { merge: true });
+    }
+  }, [user, firestore]);
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
@@ -67,7 +80,7 @@ export function Header() {
               <nav className="grid gap-4 py-4">
                 <Link href="/" className="text-lg font-semibold hover:text-primary">Home</Link>
                 <Link href="/#gallery" className="text-lg font-semibold hover:text-primary">Gallery</Link>
-                {user && user.email === 'jupiterbania472@gmail.com' && (
+                {user && user.email === designatedAdminEmail && (
                   <Link href="/admin" className="text-lg font-semibold hover:text-primary">Admin</Link>
                 )}
               </nav>
