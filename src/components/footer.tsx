@@ -1,3 +1,4 @@
+
 import Link from "next/link";
 import { Logo } from "./logo";
 
@@ -13,7 +14,7 @@ export function Footer() {
           <Link href="/privacy-policy" className="text-sm font-medium hover:text-primary">Privacy Policy</Link>
           <Link href="/shipping-policy" className="text-sm font-medium hover:text-primary">Shipping Policy</Link>
           <Link href="/cancellations-and-refunds" className="text-sm font-medium hover:text-primary">Cancellations & Refunds</Link>
-          <Link href="https://www.instagram.com/heyeveyka" target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:text-primary">Contact Us</Link>
+          <Link href="https://www.instagram.com/heyevyka" target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:text-primary">Contact Us</Link>
         </div>
         <p className="text-center text-sm text-muted-foreground">
           © {new Date().getFullYear()} EVYKA Inc. All rights reserved.
