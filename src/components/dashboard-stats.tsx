@@ -2,36 +2,17 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { DollarSign, ShoppingCart, ImageIcon } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, getDocs, query } from "firebase/firestore";
-import { useEffect, useState } from "react";
-import type { Image, Purchase } from "@/lib/types";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
+import { collection } from "firebase/firestore";
+import type { Image } from "@/lib/types";
 
 export function DashboardStats() {
     const firestore = useFirestore();
     
-    // Memoize the 'images' collection query
-    const imagesQuery = useMemoFirebase(() => query(collection(firestore, 'images')), [firestore]);
+    const imagesQuery = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
     const { data: images, isLoading: imagesLoading, error: imagesError } = useCollection<Image>(imagesQuery);
 
-    const [totalRevenue, setTotalRevenue] = useState(0);
-    const [totalSales, setTotalSales] = useState(0);
-
-    useEffect(() => {
-        if (images) {
-            let revenue = 0;
-            let sales = 0;
-            images.forEach(image => {
-                // Each image now tracks its own sales count
-                const imageSales = image.sales || 0;
-                sales += imageSales;
-                revenue += imageSales * image.price;
-            });
-            setTotalRevenue(revenue);
-            setTotalSales(sales);
-        }
-    }, [images]);
+    const totalRevenue = images?.reduce((acc, image) => acc + (image.sales || 0) * image.price, 0) ?? 0;
+    const totalSales = images?.reduce((acc, image) => acc + (image.sales || 0), 0) ?? 0;
 
     const statsError = imagesError ? "You don't have permission to view all image statistics." : null;
 

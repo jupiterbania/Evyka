@@ -3,12 +3,10 @@
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from "recharts"
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
 import { useEffect, useState } from "react"
-import { useFirestore, useUser } from "@/firebase";
-import { collection, getDocs } from "firebase/firestore";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
+import { collection, getDocs, query, Timestamp } from "firebase/firestore";
 import type { Purchase } from "@/lib/types";
 import { format } from "date-fns";
-import { errorEmitter } from "@/firebase/error-emitter";
-import { FirestorePermissionError } from "@/firebase/errors";
 
 const chartConfig = {
   sales: {
@@ -19,27 +17,28 @@ const chartConfig = {
 
 export function SalesChart() {
   const [salesData, setSalesData] = useState<any[]>([]);
-  const [error, setError] = useState<string | null>(null);
   const firestore = useFirestore();
-  const { user } = useUser();
+
+  const imagesQuery = useMemoFirebase(() => query(collection(firestore, 'images')), [firestore]);
+  const { data: images, isLoading: imagesLoading, error: imagesError } = useCollection<any>(imagesQuery);
 
   useEffect(() => {
-    const fetchSalesData = async () => {
-        if (!firestore || !user) return;
+    const processSalesData = async () => {
+        if (!firestore || !images) return;
+
         const monthlySales: { [key: string]: number } = {};
 
         try {
-            const imagesCollectionRef = collection(firestore, 'images');
-            const imagesSnapshot = await getDocs(imagesCollectionRef);
-
-            for (const imageDoc of imagesSnapshot.docs) {
+            for (const imageDoc of images) {
                 const purchasesCollectionRef = collection(firestore, 'images', imageDoc.id, 'purchases');
                 const purchasesSnapshot = await getDocs(purchasesCollectionRef);
                 
                 purchasesSnapshot.forEach(purchaseDoc => {
                     const purchase = purchaseDoc.data() as Purchase;
-                    if (purchase.purchaseDate && purchase.purchaseDate.toDate) {
-                        const month = format(purchase.purchaseDate.toDate(), 'MMM');
+                    // Check for Timestamp and convert to Date
+                    if (purchase.purchaseDate && 'toDate' in purchase.purchaseDate) {
+                        const purchaseDate = (purchase.purchaseDate as Timestamp).toDate();
+                        const month = format(purchaseDate, 'MMM');
                         monthlySales[month] = (monthlySales[month] || 0) + 1;
                     }
                 });
@@ -50,30 +49,25 @@ export function SalesChart() {
             const chartData = monthOrder.map(month => ({
                 name: month,
                 sales: monthlySales[month] || 0
-            })).filter(d => d.sales > 0); 
+            })).slice(0, new Date().getMonth() + 1); // Only show up to the current month
 
             setSalesData(chartData);
         } catch (err: any) {
-            console.log("Caught error in sales chart, creating contextual error.");
-            
-            // For this component, the error is likely happening on either `getDocs(imagesCollectionRef)`
-            // or `getDocs(purchasesCollectionRef)`. We will report the more likely restrictive one, which
-            // is iterating through all images. A more robust solution might check permissions individually.
-            const permissionError = new FirestorePermissionError({
-                path: 'images',
-                operation: 'list',
-            });
-            
-            errorEmitter.emit('permission-error', permissionError);
-            setError("You don't have permission to view sales data.");
+            console.error("Error processing sales data:", err);
+            // This error is now less likely to be a permissions error on the top-level collection
+            // but could still occur on subcollections if rules are misconfigured.
         }
     };
 
-    fetchSalesData();
-  }, [firestore, user]);
+    processSalesData();
+  }, [firestore, images]);
+  
+  if (imagesError) {
+    return <div className="h-[300px] flex items-center justify-center text-destructive">You don't have permission to view sales data.</div>
+  }
 
-  if (error) {
-    return <div className="h-[300px] flex items-center justify-center text-destructive">{error}</div>
+  if (isLoading) {
+    return <div className="h-[300px] flex items-center justify-center text-muted-foreground">Loading chart data...</div>
   }
 
   if (!salesData.length) {
