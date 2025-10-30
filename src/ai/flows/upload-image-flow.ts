@@ -66,7 +66,7 @@ const uploadImageFlow = ai.defineFlow(
       throw new Error(errorMessage);
     }
 
-    // Use the display_url for embedding, which is more stable.
+    // Use the display_url and enforce HTTPS for security and compatibility.
     const imageUrl = result.image.display_url.replace('http://', 'https://');
 
     return {
