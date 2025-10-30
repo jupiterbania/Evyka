@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Image as ImageType, Purchase, User } from '@/lib/types';
+import type { Image as ImageType, Purchase, User, SiteSettings } from '@/lib/types';
 import Image from 'next/image';
 import { useState, MouseEvent, useRef } from 'react';
 import {
@@ -98,6 +98,9 @@ export function ImageCard({ photo }: ImageCardProps) {
   const { data: userData } = useDoc<User>(userDocRef);
   const isSubscribed = userData?.subscriptionStatus === 'active';
 
+  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'main'), [firestore]);
+  const { data: settings } = useDoc<SiteSettings>(settingsDocRef);
+
   const purchasesCollection = useMemoFirebase(
     () =>
       user
@@ -178,7 +181,12 @@ export function ImageCard({ photo }: ImageCardProps) {
     setIsProcessing(true);
 
     try {
-      const subscription = await createSubscription();
+      const price = settings?.subscriptionPrice;
+      if (price === undefined || price <= 0) {
+        throw new Error('Subscription price is not set correctly.');
+      }
+      
+      const subscription = await createSubscription({ price });
 
       if (!subscription) {
         throw new Error('Could not create a subscription plan.');
@@ -228,7 +236,7 @@ export function ImageCard({ photo }: ImageCardProps) {
         },
       };
 
-      const rzp = new window.Razorpay(options);
+      const rzp = new (window as any).Razorpay(options);
       rzp.open();
     } catch (error: any) {
       toast({
@@ -303,7 +311,7 @@ export function ImageCard({ photo }: ImageCardProps) {
         },
       };
 
-      const rzp = new window.Razorpay(options);
+      const rzp = new (window as any).Razorpay(options);
       rzp.open();
     } catch (error: any) {
       toast({
@@ -439,12 +447,25 @@ export function ImageCard({ photo }: ImageCardProps) {
 
     if (isFree) {
         return (
+          <div className="flex justify-between items-center w-full">
+            <span>Free</span>
             <Badge variant="secondary">Free</Badge>
+          </div>
         );
     }
 
+    if (!user) { // Guest user
+      return (
+        <Button onClick={handlePurchase} disabled={isProcessing} className="w-full">
+            <ShoppingCart className="mr-2 h-4 w-4" />
+            Purchase
+        </Button>
+      );
+    }
+
+
     return (
-        <div className="flex flex-col items-stretch gap-2">
+        <div className="flex flex-col items-stretch gap-2 w-full">
             <Button onClick={handlePurchase} disabled={isProcessing} size="sm">
                 <ShoppingCart className="mr-2 h-4 w-4" />
                 Purchase
@@ -464,8 +485,7 @@ export function ImageCard({ photo }: ImageCardProps) {
           <Dialog onOpenChange={(open) => !open && setIsZoomed(false)}>
             <DialogTrigger asChild>
               <div
-                className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer"
-                style={{ backgroundColor: photo.dominantColor ? photo.dominantColor : 'transparent' }}
+                className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer bg-card"
               >
                 <Image
                   src={photo.imageUrl}
@@ -488,7 +508,7 @@ export function ImageCard({ photo }: ImageCardProps) {
             <DialogContent className="max-w-5xl h-auto bg-transparent border-none shadow-none p-0">
               <DialogTitle className="sr-only">{photo.title}</DialogTitle>
               <div
-                className="relative aspect-[3/4] max-h-[90vh] w-full overflow-hidden rounded-lg"
+                className="relative aspect-[3/4] max-h-[90vh] w-full overflow-hidden rounded-lg bg-background"
                 onDoubleClick={handleDoubleClick}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
@@ -500,7 +520,6 @@ export function ImageCard({ photo }: ImageCardProps) {
                     : isZoomed
                     ? 'zoom-out'
                     : 'zoom-in',
-                  background: `radial-gradient(circle, ${photo.dominantColor || 'hsl(var(--background))'} 40%, hsl(var(--background)) 100%)`
                 }}
               >
                 <Image
@@ -529,9 +548,11 @@ export function ImageCard({ photo }: ImageCardProps) {
           </CardTitle>
         </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-between items-center gap-4">
-          <p className="text-lg font-bold text-primary">
-            {isFree ? 'Free' : `₹${photo.price}`}
-          </p>
+          {!isFree && (
+            <p className="text-lg font-bold text-primary">
+              ₹{photo.price}
+            </p>
+          )}
           {renderPurchaseButton()}
         </CardFooter>
       </Card>

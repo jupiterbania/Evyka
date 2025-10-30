@@ -5,7 +5,7 @@ import { ImageCard } from '@/components/image-card';
 import Image from 'next/image';
 import type { Image as ImageType, SiteSettings, User } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
-import { collection, doc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, updateDoc } from 'firebase/firestore';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { useMemo, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -24,10 +24,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Upload, Crown } from 'lucide-react';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadImage } from '@/ai/flows/upload-image-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
-import { createSubscription } from '@/lib/razorpay';
+import { createSubscription, verifySubscription } from '@/lib/razorpay';
 
 
 export default function Home() {
@@ -82,7 +82,12 @@ export default function Home() {
     setIsProcessing(true);
 
     try {
-      const subscription = await createSubscription();
+      const price = settings?.subscriptionPrice;
+      if (price === undefined || price <= 0) {
+        throw new Error('Subscription price is not set correctly.');
+      }
+      
+      const subscription = await createSubscription({ price });
 
       if (!subscription) {
         throw new Error('Could not create a subscription plan.');
@@ -132,7 +137,7 @@ export default function Home() {
         },
       };
 
-      const rzp = new window.Razorpay(options);
+      const rzp = new (window as any).Razorpay(options);
       rzp.open();
     } catch (error: any) {
       toast({
@@ -177,8 +182,7 @@ export default function Home() {
           {
             ...newPhoto,
             imageUrl: uploadResult.imageUrl,
-            blurredImageUrl: uploadResult.imageUrl,
-            dominantColor: dominantColor,
+            blurredImageUrl: uploadResult.imageUrl, // Using same for now
             uploadDate: serverTimestamp(),
             sales: 0,
           }

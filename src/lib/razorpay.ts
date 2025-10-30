@@ -5,9 +5,6 @@ import crypto from 'crypto';
 import { z } from 'zod';
 import type { Order } from 'razorpay/dist/types/orders';
 import type { Subscription } from 'razorpay/dist/types/subscription';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { getFirestore, doc, getDoc } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
 
 
 const CreateOrderInputSchema = z.object({
@@ -19,6 +16,10 @@ const VerifyPaymentInputSchema = z.object({
     razorpay_order_id: z.string(),
     razorpay_payment_id: z.string(),
     razorpay_signature: z.string(),
+});
+
+const CreateSubscriptionInputSchema = z.object({
+    price: z.number().min(1, { message: 'Price must be at least 1' }),
 });
 
 const VerifySubscriptionInputSchema = z.object({
@@ -89,14 +90,14 @@ export async function verifyPayment(input: z.infer<typeof VerifyPaymentInputSche
     }
 }
 
-export async function createSubscription(): Promise<Subscription | null> {
+export async function createSubscription(input: z.infer<typeof CreateSubscriptionInputSchema>): Promise<Subscription | null> {
     try {
-        const { firestore } = initializeFirebase();
-        const settingsRef = doc(firestore, 'settings', 'main');
-        const settingsSnap = await getDoc(settingsRef);
-        const settings = settingsSnap.data();
-
-        const subscriptionPrice = settings?.subscriptionPrice || 79; // Default to 79 INR if not set
+        const validation = CreateSubscriptionInputSchema.safeParse(input);
+        if (!validation.success) {
+            throw new Error(validation.error.issues.map(i => i.message).join(', '));
+        }
+        
+        const { price } = validation.data;
 
         // Step 1: Check if plan exists
         let planId = process.env.RAZORPAY_PLAN_ID;
@@ -107,7 +108,7 @@ export async function createSubscription(): Promise<Subscription | null> {
                 interval: 1,
                 item: {
                     name: 'EVYKA Pro Monthly',
-                    amount: subscriptionPrice * 100, // Amount in paise
+                    amount: price * 100, // Amount in paise
                     currency: 'INR',
                     description: 'Monthly subscription for EVYKA Pro access.'
                 },
