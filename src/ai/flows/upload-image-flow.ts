@@ -26,7 +26,7 @@ export type UploadImageOutput = z.infer<typeof UploadImageOutputSchema>;
 
 export async function uploadImage(input: UploadImageInput): Promise<UploadImageOutput> {
   // Using a publicly available key for iili.io service
-  const imageHostingApiKey = '62133-c23d596489574e4fce9ef617300c1e84';
+  const imageHostingApiKey = 'fb2d319e75505b33f6d534579f134548';
   return uploadImageFlow({ ...input, apiKey: imageHostingApiKey });
 }
 
@@ -49,7 +49,7 @@ const uploadImageFlow = ai.defineFlow(
     formData.append('image', base64Image);
 
 
-    const response = await fetch('https://iili.io/api/1/upload', {
+    const response = await fetch('https://freeimage.host/api/1/upload', {
       method: 'POST',
       body: formData,
     });
