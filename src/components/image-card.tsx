@@ -3,7 +3,7 @@
 
 import type { Image as ImageType, Purchase } from '@/lib/types';
 import Image from 'next/image';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, MouseEvent } from 'react';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from './ui/button';
 import { cn } from '@/lib/utils';
@@ -44,6 +44,50 @@ export function ImageCard({ photo }: ImageCardProps) {
   const isPurchased = (purchases?.length ?? 0) > 0;
   const isFree = photo.price === 0;
   const isLocked = !isPurchased && !isFree;
+
+  const [isZoomed, setIsZoomed] = useState(false);
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const imageRef = useRef<HTMLImageElement>(null);
+
+  const handleDoubleClick = () => {
+    if (isLocked) return;
+    setIsZoomed(!isZoomed);
+    if (isZoomed) {
+      setPosition({ x: 0, y: 0 });
+    }
+  };
+
+  const handleMouseDown = (e: MouseEvent<HTMLDivElement>) => {
+    if (isZoomed) {
+      setIsDragging(true);
+      setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
+      e.currentTarget.style.cursor = 'grabbing';
+    }
+  };
+
+  const handleMouseMove = (e: MouseEvent<HTMLDivElement>) => {
+    if (isDragging && isZoomed) {
+      const newX = e.clientX - dragStart.x;
+      const newY = e.clientY - dragStart.y;
+      setPosition({ x: newX, y: newY });
+    }
+  };
+
+  const handleMouseUp = (e: MouseEvent<HTMLDivElement>) => {
+    setIsDragging(false);
+    if(isZoomed) {
+      e.currentTarget.style.cursor = 'zoom-out';
+    }
+  };
+  
+  const handleMouseLeave = (e: MouseEvent<HTMLDivElement>) => {
+    setIsDragging(false);
+     if(isZoomed) {
+      e.currentTarget.style.cursor = 'zoom-out';
+    }
+  };
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
@@ -159,7 +203,7 @@ export function ImageCard({ photo }: ImageCardProps) {
   return (
     <Card className="group overflow-hidden flex flex-col">
       <CardHeader className="p-0">
-        <Dialog>
+        <Dialog onOpenChange={(open) => !open && setIsZoomed(false)}>
           <DialogTrigger asChild>
             <div className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer">
               <Image
@@ -181,14 +225,30 @@ export function ImageCard({ photo }: ImageCardProps) {
             </div>
           </DialogTrigger>
           <DialogContent className="max-w-5xl h-auto bg-transparent border-none shadow-none p-0">
-             <div className="relative aspect-[3/4] max-h-[90vh] w-full">
+            <div 
+              className="relative aspect-[3/4] max-h-[90vh] w-full overflow-hidden rounded-lg"
+              onDoubleClick={handleDoubleClick}
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+              style={{ cursor: isLocked ? 'not-allowed' : isZoomed ? 'zoom-out' : 'zoom-in' }}
+            >
               <Image
+                ref={imageRef}
                 src={isLocked ? photo.blurredImageUrl : photo.imageUrl}
                 alt={photo.title}
                 fill
-                className={cn("object-contain rounded-lg", isLocked && 'blur-xl')}
+                className={cn(
+                  "object-contain transition-transform duration-300 ease-in-out",
+                  isLocked && 'blur-xl'
+                )}
+                style={{
+                  transform: isZoomed ? `scale(2) translate(${position.x}px, ${position.y}px)` : 'scale(1)',
+                  transformOrigin: 'center center',
+                }}
               />
-             </div>
+            </div>
           </DialogContent>
         </Dialog>
       </CardHeader>
