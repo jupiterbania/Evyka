@@ -38,15 +38,23 @@ const uploadImageFlow = ai.defineFlow(
     outputSchema: UploadImageOutputSchema,
   },
   async (input) => {
-    const base64Image = input.photoDataUri.split(',')[1];
-    if (!base64Image) {
+    const [header, base64Image] = input.photoDataUri.split(',');
+    if (!header || !base64Image) {
       throw new Error('Invalid data URI. Could not extract base64 data.');
     }
+
+    const mimeMatch = header.match(/data:(image\/\w+);/);
+    const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+    const fileExtension = mimeType.split('/')[1] || 'jpg';
     
     const formData = new FormData();
     formData.append('key', input.apiKey);
+    // Directly append the Base64 string, as required by many APIs expecting base64 input.
+    // Some APIs might require a Blob, which would be:
+    // const imageBlob = new Blob([Buffer.from(base64Image, 'base64')], { type: mimeType });
+    // formData.append('source', imageBlob, `upload.${fileExtension}`);
     formData.append('source', base64Image);
-    formData.append('action', 'upload');
+
 
     const response = await fetch('https://freeimage.host/api/1/upload', {
       method: 'POST',
@@ -55,13 +63,15 @@ const uploadImageFlow = ai.defineFlow(
 
     if (!response.ok) {
         const errorBody = await response.text();
-        throw new Error(`Image upload failed with status ${response.status}: ${errorBody}`);
+        console.error('Image upload failed:', errorBody);
+        throw new Error(`Image upload failed with status ${response.status}. Please check the server logs.`);
     }
 
     const result = await response.json();
     
     if (result.status_code !== 200 || !result.image || !result.image.url) {
       const errorMessage = result?.error?.message || 'Failed to upload image. The hosting service returned an unexpected response.';
+      console.error('Image hosting service error:', result);
       throw new Error(errorMessage);
     }
     
