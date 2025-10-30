@@ -14,7 +14,15 @@ export function DashboardStats() {
     const analyticsDocRef = useMemoFirebase(() => doc(firestore, 'analytics', 'sales'), [firestore]);
     const { data: analytics, isLoading: analyticsLoading, error: analyticsError } = useDoc<Analytics>(analyticsDocRef);
 
-    const statsError = analyticsError ? "You don't have permission to view statistics." : null;
+    const getErrorMessage = (error: any) => {
+        if (!error) return null;
+        if (error.name === 'FirebaseError' && error.message.includes('denied')) {
+            return "Permission denied to view statistics.";
+        }
+        return "An error occurred fetching statistics.";
+    }
+
+    const statsError = getErrorMessage(analyticsError);
 
     const stats = [
         {
