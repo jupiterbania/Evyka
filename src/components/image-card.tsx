@@ -378,7 +378,7 @@ export function ImageCard({ photo }: ImageCardProps) {
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                   className={cn(
-                    'object-cover transition-all duration-300 ease-in-out group-hover:scale-105',
+                    'object-contain transition-all duration-300 ease-in-out group-hover:scale-105',
                     isLocked && 'blur-lg group-hover:blur-md'
                   )}
                   data-ai-hint="photo"
