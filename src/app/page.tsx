@@ -37,20 +37,6 @@ export default function Home() {
               <h2 className="text-3xl font-bold tracking-tight font-headline">
                 Explore Gallery
               </h2>
-              <div className="flex items-center gap-4">
-                <Select defaultValue="all">
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Categories</SelectItem>
-                    <SelectItem value="nature">Nature</SelectItem>
-                    <SelectItem value="architecture">Architecture</SelectItem>
-                    <SelectItem value="people">People</SelectItem>
-                    <SelectItem value="abstract">Abstract</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
               {allPhotos.map(photo => (
