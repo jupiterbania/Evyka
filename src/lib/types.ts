@@ -13,7 +13,7 @@ export type Image = {
 
 export type Purchase = {
     id: string;
-    userId: string;
+    userId?: string;
     imageId: string;
     purchaseDate: Timestamp;
     price: number;

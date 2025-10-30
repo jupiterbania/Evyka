@@ -114,11 +114,11 @@ export function ImageCard({ photo }: ImageCardProps) {
   };
 
   const handlePurchase = async () => {
-    if (!user || !firestore) {
+    if (!firestore) {
       toast({
         variant: 'destructive',
-        title: 'Authentication Required',
-        description: 'You must be signed in to purchase an image.',
+        title: 'Service Unavailable',
+        description: 'The payment service is temporarily unavailable. Please try again later.',
       });
       return;
     }
@@ -150,7 +150,7 @@ export function ImageCard({ photo }: ImageCardProps) {
             });
 
             if (verificationResult.isSignatureValid) {
-                await finalizePurchase(user.uid, photo.id, photo.price);
+                await finalizePurchase(user?.uid, photo.id, photo.price);
                 toast({
                     title: 'Purchase Successful!',
                     description: `You can now view "${photo.title}" without blur.`,
@@ -164,8 +164,8 @@ export function ImageCard({ photo }: ImageCardProps) {
             }
         },
         prefill: {
-            name: user.displayName,
-            email: user.email,
+            name: user?.displayName,
+            email: user?.email,
         },
         theme: {
             color: '#3399cc'
@@ -186,22 +186,24 @@ export function ImageCard({ photo }: ImageCardProps) {
     }
   };
 
-  const finalizePurchase = async (userId: string, imageId: string, price: number) => {
+  const finalizePurchase = async (userId: string | undefined, imageId: string, price: number) => {
     if (!firestore) return;
 
-    // Add to user's personal purchase history
-    const userPurchaseCollectionRef = collection(firestore, 'users', userId, 'purchases');
-    addDocumentNonBlocking(userPurchaseCollectionRef, {
-        imageId: imageId,
-        price: price,
-        purchaseDate: serverTimestamp(),
-        userId: userId,
-    });
+    // Add to user's personal purchase history only if the user is logged in
+    if (userId) {
+        const userPurchaseCollectionRef = collection(firestore, 'users', userId, 'purchases');
+        addDocumentNonBlocking(userPurchaseCollectionRef, {
+            imageId: imageId,
+            price: price,
+            purchaseDate: serverTimestamp(),
+            userId: userId,
+        });
+    }
 
     // Add a record to the image's purchase subcollection for admin tracking
     const imagePurchaseCollectionRef = collection(firestore, 'images', imageId, 'purchases');
      addDocumentNonBlocking(imagePurchaseCollectionRef, {
-        userId: userId,
+        userId: userId || 'anonymous', // Mark as anonymous if no user
         price: price,
         purchaseDate: serverTimestamp()
     });
@@ -223,7 +225,7 @@ export function ImageCard({ photo }: ImageCardProps) {
   }
   
   const renderPurchaseButton = () => {
-    if (isUserLoading || isPurchaseLoading) {
+    if (isUserLoading || (user && isPurchaseLoading)) {
       return <Button disabled>Loading...</Button>;
     }
     
@@ -233,15 +235,6 @@ export function ImageCard({ photo }: ImageCardProps) {
 
     if (isFree) {
         return <Badge variant="secondary">Free</Badge>;
-    }
-
-    if (!user) {
-      return (
-        <Button onClick={handleGoogleSignIn}>
-          <LogIn className="mr-2 h-4 w-4" />
-          Sign in to Purchase
-        </Button>
-      );
     }
 
     return (
@@ -254,7 +247,7 @@ export function ImageCard({ photo }: ImageCardProps) {
   return (
     <Card className="group overflow-hidden flex flex-col">
       <CardHeader className="p-0">
-        <Dialog onOpenChange={(open) => !open && setIsZoomed(false)}>
+         <Dialog onOpenChange={(open) => !open && setIsZoomed(false)}>
           <DialogTrigger asChild>
             <div className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer">
               <Image
@@ -276,7 +269,7 @@ export function ImageCard({ photo }: ImageCardProps) {
             </div>
           </DialogTrigger>
           <DialogContent className="max-w-5xl h-auto bg-transparent border-none shadow-none p-0">
-            <DialogTitle className="sr-only">{photo.title}</DialogTitle>
+             <DialogTitle className="sr-only">{photo.title}</DialogTitle>
             <div 
               className="relative aspect-[3/4] max-h-[90vh] w-full overflow-hidden rounded-lg"
               onDoubleClick={handleDoubleClick}
