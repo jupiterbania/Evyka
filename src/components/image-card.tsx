@@ -268,6 +268,14 @@ export function ImageCard({ photo }: ImageCardProps) {
       </Button>
     );
   };
+  
+  const cardBackground = photo.dominantColor
+    ? `radial-gradient(circle, ${photo.dominantColor} 0%, black 100%)`
+    : 'hsl(var(--card))';
+    
+  const dialogBackground = photo.dominantColor
+    ? `radial-gradient(circle, ${photo.dominantColor} 0%, black 100%)`
+    : 'hsl(var(--background))';
 
   return (
     <Card className="group overflow-hidden flex flex-col">
@@ -276,7 +284,7 @@ export function ImageCard({ photo }: ImageCardProps) {
           <DialogTrigger asChild>
             <div 
               className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer"
-              style={{ backgroundColor: photo.dominantColor || 'hsl(var(--card))' }}
+              style={{ background: cardBackground }}
             >
               <Image
                 src={photo.imageUrl}
@@ -307,7 +315,7 @@ export function ImageCard({ photo }: ImageCardProps) {
               onMouseLeave={handleMouseLeave}
               style={{ 
                 cursor: isLocked ? 'not-allowed' : isZoomed ? 'zoom-out' : 'zoom-in',
-                backgroundColor: photo.dominantColor || 'hsl(var(--background))' 
+                background: dialogBackground
               }}
             >
               <Image
@@ -340,5 +348,7 @@ export function ImageCard({ photo }: ImageCardProps) {
     </Card>
   );
 }
+
+    
 
     
