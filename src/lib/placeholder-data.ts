@@ -1,7 +1,6 @@
 import type { Photo } from '@/lib/types';
 import imageData from '@/lib/placeholder-images.json';
 
-const artists = ['Alex Drop', 'Ben Kolde', 'Casey Horner', 'David Marcu'];
 const categories = ['Nature', 'Architecture', 'People', 'Abstract'];
 
 const getRandomItem = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
@@ -11,7 +10,6 @@ const getRandomNumber = (max: number): number => Math.floor(Math.random() * max)
 export const allPhotos: Photo[] = imageData.placeholderImages.map((img, index) => ({
   id: img.id,
   name: img.description,
-  artist: getRandomItem(artists),
   category: categories[index % categories.length],
   price: Math.floor(Math.random() * 90) + 10,
   imageUrl: img.imageUrl,

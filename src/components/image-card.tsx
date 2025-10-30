@@ -60,7 +60,7 @@ export function ImageCard({ photo }: ImageCardProps) {
       </CardHeader>
       <CardContent className="p-4 flex-grow">
         <CardTitle className="text-lg leading-tight mb-1 truncate">{photo.name}</CardTitle>
-        <p className="text-sm text-muted-foreground">by {photo.artist}</p>
+        <p className="text-sm text-muted-foreground">{photo.category}</p>
       </CardContent>
       <CardFooter className="p-4 pt-0 flex justify-between items-center">
         <p className="text-lg font-bold text-primary">${photo.price}</p>
