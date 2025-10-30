@@ -14,7 +14,7 @@ const UploadImageInputSchema = z.object({
   photoDataUri: z
     .string()
     .describe(
-      "A photo to be uploaded, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
+      "A photo to be uploaded, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'"
     ),
 });
 export type UploadImageInput = z.infer<typeof UploadImageInputSchema>;
@@ -46,9 +46,10 @@ const uploadImageFlow = ai.defineFlow(
     
     const formData = new FormData();
     formData.append('key', input.apiKey);
-    formData.append('image', base64Image);
+    formData.append('source', base64Image);
+    formData.append('format', 'json');
 
-    const response = await fetch('https://api.imgbb.com/1/upload', {
+    const response = await fetch('https://freeimage.host/api/1/upload', {
       method: 'POST',
       body: formData,
     });
@@ -60,13 +61,13 @@ const uploadImageFlow = ai.defineFlow(
 
     const result = await response.json();
     
-    if (!result.success || !result.data || !result.data.url) {
-      const errorMessage = result?.error?.message || 'Failed to upload image. The hosting service returned an error.';
+    if (result.status_code !== 200 || !result.image || !result.image.url) {
+      const errorMessage = result?.error?.message || 'Failed to upload image. The hosting service returned an unexpected response.';
       throw new Error(errorMessage);
     }
 
     return {
-      imageUrl: result.data.url,
+      imageUrl: result.image.url,
     };
   }
 );
