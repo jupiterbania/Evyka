@@ -1,3 +1,4 @@
+
 "use client";
 
 import type { Image as ImageType, Purchase } from '@/lib/types';
@@ -273,14 +274,14 @@ export function ImageCard({ photo }: ImageCardProps) {
       <CardHeader className="p-0">
          <Dialog onOpenChange={(open) => !open && setIsZoomed(false)}>
           <DialogTrigger asChild>
-            <div className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer">
+            <div className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer bg-muted/20">
               <Image
                 src={photo.imageUrl}
                 alt={photo.title}
                 width={600}
                 height={800}
                 className={cn(
-                  "object-cover transition-all duration-300 ease-in-out group-hover:scale-105",
+                  "object-contain transition-all duration-300 ease-in-out group-hover:scale-105 w-full h-full",
                   isLocked && "blur-lg group-hover:blur-md"
                 )}
                 data-ai-hint="photo"

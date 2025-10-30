@@ -115,59 +115,76 @@ export function ImageManagement() {
   
   const handleUpload = async () => {
     if (!firestore || !imageFile) {
-        toast({
-            variant: "destructive",
-            title: "Upload Error",
-            description: "Please select an image file to upload.",
-        });
-        return;
+      toast({
+        variant: 'destructive',
+        title: 'Upload Error',
+        description: 'Please select an image file to upload.',
+      });
+      return;
     }
-    
+
     setIsUploading(true);
 
     const reader = new FileReader();
     reader.readAsDataURL(imageFile);
     reader.onload = async () => {
-        const photoDataUri = reader.result as string;
+      const photoDataUri = reader.result as string;
 
-        try {
-            const result = await uploadImage({ photoDataUri });
+      try {
+        const result = await uploadImage({ photoDataUri });
 
-            if (!result || !result.imageUrl) {
-                throw new Error('Image URL was not returned from the upload service.');
-            }
-
-            addDocumentNonBlocking(imagesCollection, {
-                ...newPhoto,
-                imageUrl: result.imageUrl,
-                blurredImageUrl: result.imageUrl, // Using same for now
-                uploadDate: serverTimestamp(),
-                sales: 0,
-            });
-
-            setUploadDialogOpen(false);
-            setNewPhoto({ title: '', description: '', price: 0 });
-            setImageFile(null);
-            toast({title: "Image Uploaded!", description: "The new image is now live in the gallery."});
-        } catch (error: any) {
-            toast({
-                variant: "destructive",
-                title: "Upload Failed",
-                description: error.message || "An unknown error occurred during image upload.",
-            });
-        } finally {
-            setIsUploading(false);
+        if (!result || !result.imageUrl) {
+          throw new Error(
+            'Image URL was not returned from the upload service.'
+          );
         }
+
+        const [header, base64Image] = photoDataUri.split(',');
+        const mimeMatch = header.match(/data:(image\/\w+);/);
+        const mimeType = mimeMatch ? mimeMatch[1] : 'image/jpeg';
+        const fileExtension = mimeType.split('/')[1] || 'jpg';
+        const filename = `${newPhoto.title.replace(/\s+/g, '_') || 'upload'}.${fileExtension}`;
+
+
+        addDocumentNonBlocking(
+          imagesCollection,
+          {
+            ...newPhoto,
+            imageUrl: result.imageUrl,
+            blurredImageUrl: result.imageUrl, // Using same for now
+            uploadDate: serverTimestamp(),
+            sales: 0,
+          }
+        );
+
+        setUploadDialogOpen(false);
+        setNewPhoto({ title: '', description: '', price: 0 });
+        setImageFile(null);
+        toast({
+          title: 'Image Uploaded!',
+          description: 'The new image is now live in the gallery.',
+        });
+      } catch (error: any) {
+        console.error('Upload process failed:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Upload Failed',
+          description:
+            error.message || 'An unknown error occurred during image upload.',
+        });
+      } finally {
+        setIsUploading(false);
+      }
     };
     reader.onerror = (error) => {
-        toast({
-            variant: "destructive",
-            title: "File Read Error",
-            description: "Could not read the selected file.",
-        });
-        setIsUploading(false);
+      toast({
+        variant: 'destructive',
+        title: 'File Read Error',
+        description: 'Could not read the selected file.',
+      });
+      setIsUploading(false);
     };
-  }
+  };
 
   return (
     <Card>
@@ -217,7 +234,7 @@ export function ImageManagement() {
         </Dialog>
       </div>
 
-      <div className="relative w-full overflow-auto">
+      <ScrollArea className="w-full whitespace-nowrap">
         <Table>
           <TableHeader>
             <TableRow>
@@ -242,7 +259,7 @@ export function ImageManagement() {
                     alt={photo.title}
                     width={60}
                     height={80}
-                    className="rounded-md object-cover aspect-[3/4]"
+                    className="rounded-md object-contain aspect-square bg-muted/20"
                     data-ai-hint="photo"
                   />
                 </TableCell>
@@ -275,7 +292,7 @@ export function ImageManagement() {
             ))}
           </TableBody>
         </Table>
-        </div>
+        </ScrollArea>
 
         <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
             <AlertDialogContent>
