@@ -1,14 +1,15 @@
 "use client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { DollarSign, ShoppingCart, ImageIcon } from "lucide-react";
-import { useCollection, useFirestore } from "@/firebase";
+import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection, getDocs } from "firebase/firestore";
 import { useEffect, useState } from "react";
 import type { Image, Purchase } from "@/lib/types";
 
 export function DashboardStats() {
     const firestore = useFirestore();
-    const { data: images, isLoading: imagesLoading } = useCollection<Image>(collection(firestore, 'images'));
+    const imagesCollection = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
+    const { data: images, isLoading: imagesLoading } = useCollection<Image>(imagesCollection);
     const [totalRevenue, setTotalRevenue] = useState(0);
     const [totalSales, setTotalSales] = useState(0);
 
