@@ -153,6 +153,10 @@
          "heroImageHint": {
           "type": "string",
           "description": "The AI hint for the hero image."
+        },
+        "subscriptionPrice": {
+          "type": "number",
+          "description": "The monthly subscription price in the base currency unit (e.g., INR)."
         }
       }
     }

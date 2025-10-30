@@ -24,6 +24,7 @@ export type SiteSettings = {
     id?: string;
     heroImageUrl?: string;
     heroImageHint?: string;
+    subscriptionPrice?: number;
 }
 
 export type User = {

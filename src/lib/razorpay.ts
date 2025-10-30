@@ -6,6 +6,9 @@ import { z } from 'zod';
 import type { Order } from 'razorpay/dist/types/orders';
 import type { Subscription } from 'razorpay/dist/types/subscription';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { getFirestore, doc, getDoc } from 'firebase/firestore';
+import { initializeFirebase } from '@/firebase';
+
 
 const CreateOrderInputSchema = z.object({
   amount: z.number().min(1, { message: 'Amount must be at least 1' }),
@@ -88,6 +91,13 @@ export async function verifyPayment(input: z.infer<typeof VerifyPaymentInputSche
 
 export async function createSubscription(): Promise<Subscription | null> {
     try {
+        const { firestore } = initializeFirebase();
+        const settingsRef = doc(firestore, 'settings', 'main');
+        const settingsSnap = await getDoc(settingsRef);
+        const settings = settingsSnap.data();
+
+        const subscriptionPrice = settings?.subscriptionPrice || 79; // Default to 79 INR if not set
+
         // Step 1: Check if plan exists
         let planId = process.env.RAZORPAY_PLAN_ID;
         if (!planId) {
@@ -97,7 +107,7 @@ export async function createSubscription(): Promise<Subscription | null> {
                 interval: 1,
                 item: {
                     name: 'EVYKA Pro Monthly',
-                    amount: 7900, // 79 INR in paise
+                    amount: subscriptionPrice * 100, // Amount in paise
                     currency: 'INR',
                     description: 'Monthly subscription for EVYKA Pro access.'
                 },
