@@ -61,13 +61,16 @@ const uploadImageFlow = ai.defineFlow(
 
     const result = await response.json();
     
-    if (result.status_code !== 200 || !result.image || !result.image.url) {
+    if (result.status_code !== 200 || !result.image || !result.image.display_url) {
       const errorMessage = result?.error?.message || 'Failed to upload image. The hosting service returned an unexpected response.';
       throw new Error(errorMessage);
     }
 
+    // Use the display_url for embedding, which is more stable.
+    const imageUrl = result.image.display_url.replace('http://', 'https://');
+
     return {
-      imageUrl: result.image.url,
+      imageUrl: imageUrl,
     };
   }
 );
