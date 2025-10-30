@@ -16,9 +16,6 @@ export default function Home() {
                 <h1 className="text-4xl font-bold tracking-tighter font-headline">
                   WELCOME TO MY EXCLUSIVE CONTENT
                 </h1>
-                <p className="mx-auto max-w-[700px] text-muted-foreground text-lg">
-                  Discover and purchase unique, high-quality images from talented photographers around the world.
-                </p>
               </div>
             </div>
           </div>
