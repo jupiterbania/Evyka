@@ -39,9 +39,14 @@ const uploadImageFlow = ai.defineFlow(
     if (!base64Image) {
       throw new Error('Invalid data URI. Could not extract base64 data.');
     }
+    
+    const imageHostingApiKey = process.env.IMAGE_HOSTING_API_KEY;
+    if (!imageHostingApiKey) {
+        throw new Error("IMAGE_HOSTING_API_KEY environment variable is not set.");
+    }
 
     const formData = new FormData();
-    formData.append('key', '6d207e02198a847aa98d0a2a901485a5');
+    formData.append('key', imageHostingApiKey);
     formData.append('action', 'upload');
     formData.append('source', base64Image);
     formData.append('format', 'json');
