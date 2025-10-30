@@ -7,7 +7,7 @@ import type { Image as ImageType, SiteSettings } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { placeholderImages } from '@/lib/placeholder-images';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,6 +36,17 @@ export default function Home() {
   
   const imagesCollection = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
   const { data: photos, isLoading } = useCollection<ImageType>(imagesCollection);
+
+  const sortedPhotos = useMemo(() => {
+    if (!photos) return [];
+    return [...photos].sort((a, b) => {
+      if (a.price === 0 && b.price !== 0) return -1;
+      if (a.price !== 0 && b.price === 0) return 1;
+      // You can add secondary sort criteria here, e.g., by date
+      // For now, we'll just keep the original order for items with the same price status.
+      return 0;
+    });
+  }, [photos]);
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'main'), [firestore]);
   const { data: settings } = useDoc<SiteSettings>(settingsDocRef);
@@ -132,6 +143,7 @@ export default function Home() {
             className="object-cover"
             data-ai-hint={heroImageHint}
             priority
+            sizes="100vw"
           />
           <div className="absolute inset-0 bg-black/50" />
           <div className="relative z-10 p-4">
@@ -195,10 +207,10 @@ export default function Home() {
               {isLoading && Array.from({ length: 9 }).map((_, i) => (
                 <div key={i} className="aspect-[3/4] bg-muted animate-pulse rounded-lg" />
               ))}
-              {!isLoading && photos?.length === 0 && (
+              {!isLoading && sortedPhotos.length === 0 && (
                 <p className="col-span-full text-center text-muted-foreground">No images have been uploaded yet.</p>
               )}
-              {photos?.map(photo => (
+              {sortedPhotos.map(photo => (
                 <ImageCard key={photo.id} photo={photo} />
               ))}
             </div>
