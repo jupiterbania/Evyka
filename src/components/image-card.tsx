@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Image as ImageType, Purchase, User } from '@/lib/types';
@@ -219,8 +220,8 @@ export function ImageCard({ photo }: ImageCardProps) {
           }
         },
         prefill: {
-          name: user.displayName,
-          email: user.email,
+          name: user.displayName || 'Guest User',
+          email: user.email || undefined,
         },
         theme: {
           color: '#3399cc',
@@ -248,15 +249,6 @@ export function ImageCard({ photo }: ImageCardProps) {
         title: 'Service Unavailable',
         description:
           'The payment service is temporarily unavailable. Please try again later.',
-      });
-      return;
-    }
-     if (!user) {
-      toast({
-        variant: 'destructive',
-        title: 'Please Sign In',
-        description:
-          'You need to sign in to purchase an image.',
       });
       return;
     }
@@ -303,8 +295,8 @@ export function ImageCard({ photo }: ImageCardProps) {
           }
         },
         prefill: {
-          name: user?.displayName,
-          email: user?.email,
+          name: user?.displayName || 'Guest User',
+          email: user?.email || undefined,
         },
         theme: {
           color: '#3399cc',
@@ -472,7 +464,8 @@ export function ImageCard({ photo }: ImageCardProps) {
           <Dialog onOpenChange={(open) => !open && setIsZoomed(false)}>
             <DialogTrigger asChild>
               <div
-                className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer bg-card"
+                className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer"
+                style={{ backgroundColor: photo.dominantColor ? photo.dominantColor : 'transparent' }}
               >
                 <Image
                   src={photo.imageUrl}
@@ -495,7 +488,7 @@ export function ImageCard({ photo }: ImageCardProps) {
             <DialogContent className="max-w-5xl h-auto bg-transparent border-none shadow-none p-0">
               <DialogTitle className="sr-only">{photo.title}</DialogTitle>
               <div
-                className="relative aspect-[3/4] max-h-[90vh] w-full overflow-hidden rounded-lg bg-background"
+                className="relative aspect-[3/4] max-h-[90vh] w-full overflow-hidden rounded-lg"
                 onDoubleClick={handleDoubleClick}
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
@@ -507,6 +500,7 @@ export function ImageCard({ photo }: ImageCardProps) {
                     : isZoomed
                     ? 'zoom-out'
                     : 'zoom-in',
+                  background: `radial-gradient(circle, ${photo.dominantColor || 'hsl(var(--background))'} 40%, hsl(var(--background)) 100%)`
                 }}
               >
                 <Image
@@ -624,3 +618,5 @@ export function ImageCard({ photo }: ImageCardProps) {
     </>
   );
 }
+
+    
