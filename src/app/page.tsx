@@ -72,6 +72,7 @@ export default function Home() {
   const [currentPage, setCurrentPage] = useState(1);
   const imagesPerPage = 8;
   const totalPages = Math.ceil((sortedPhotos?.length || 0) / imagesPerPage);
+  const maxPageNumbersToShow = 4;
 
   const paginatedPhotos = useMemo(() => {
     const startIndex = (currentPage - 1) * imagesPerPage;
@@ -90,6 +91,41 @@ export default function Home() {
 
   const goToPreviousPage = () => {
     goToPage(Math.max(currentPage - 1, 1));
+  };
+  
+  const getPaginationGroup = () => {
+    if (totalPages <= maxPageNumbersToShow) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+
+    let startPage = Math.max(2, currentPage - 1);
+    let endPage = startPage + maxPageNumbersToShow - 3;
+
+    if (currentPage === 1) {
+        startPage = 1;
+        endPage = maxPageNumbersToShow -1;
+    }
+
+    if (endPage > totalPages -1) {
+        endPage = totalPages -1;
+        startPage = endPage - (maxPageNumbersToShow-3);
+    }
+
+    const pages: (number | string)[] = [1];
+    if (startPage > 2) {
+      pages.push('...');
+    }
+    
+    for (let i = startPage; i <= endPage; i++) {
+        if(i > 1 && i < totalPages) pages.push(i);
+    }
+    
+    if (endPage < totalPages - 1) {
+        pages.push('...');
+    }
+
+    if(totalPages > 1) pages.push(totalPages);
+    return pages;
   };
 
 
@@ -309,19 +345,25 @@ export default function Home() {
                   Previous
                 </Button>
                 <nav className="flex items-center gap-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                    <Button
-                      key={page}
-                      onClick={() => goToPage(page)}
-                      variant={currentPage === page ? 'default' : 'outline'}
-                      className={cn(
-                        'h-9 w-9 p-0',
-                        currentPage === page && 'pointer-events-none'
-                      )}
-                    >
-                      {page}
-                    </Button>
-                  ))}
+                  {getPaginationGroup().map((item, index) =>
+                    typeof item === 'number' ? (
+                      <Button
+                        key={index}
+                        onClick={() => goToPage(item)}
+                        variant={currentPage === item ? 'default' : 'outline'}
+                        className={cn(
+                          'h-9 w-9 p-0',
+                          currentPage === item && 'pointer-events-none'
+                        )}
+                      >
+                        {item}
+                      </Button>
+                    ) : (
+                      <span key={index} className="px-2">
+                        {item}
+                      </span>
+                    )
+                  )}
                 </nav>
                 <Button onClick={goToNextPage} disabled={currentPage === totalPages} variant="outline">
                   Next
