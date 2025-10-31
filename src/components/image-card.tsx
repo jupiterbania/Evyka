@@ -61,6 +61,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 type ImageCardProps = {
   photo: ImageType;
@@ -70,6 +71,7 @@ export function ImageCard({ photo }: ImageCardProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const router = useRouter();
 
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
   const isAdmin = user?.email === designatedAdminEmail;
@@ -78,6 +80,15 @@ export function ImageCard({ photo }: ImageCardProps) {
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editedPhoto, setEditedPhoto] = useState<ImageType | null>(null);
+
+  const handleCardClick = () => {
+    if (photo.isAdGated) {
+      sessionStorage.setItem(`unlocking_${photo.id}`, 'true');
+      window.location.href = `https://www.effectivegatecpm.com/rqgi4kseb?key=7466724a8386072866c53caa673b3d9f`;
+    } else {
+      router.push(`/image/${photo.id}`);
+    }
+  };
 
   const handleEditClick = () => {
     setEditedPhoto(photo);
@@ -184,7 +195,7 @@ export function ImageCard({ photo }: ImageCardProps) {
     <>
       <Card className="group overflow-hidden flex flex-col">
         <CardHeader className="p-0">
-          <Link href={`/image/${photo.id}`} className="block">
+          <div onClick={handleCardClick} className="block">
               <div
                 className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer bg-card"
               >
@@ -203,14 +214,14 @@ export function ImageCard({ photo }: ImageCardProps) {
                     </div>
                 )}
               </div>
-          </Link>
+          </div>
         </CardHeader>
         <CardContent className="p-4 flex-grow">
-          <Link href={`/image/${photo.id}`} className="flex-grow">
-            <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline">
+          <div onClick={handleCardClick} className="flex-grow">
+            <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline cursor-pointer">
               {photo.title}
             </CardTitle>
-          </Link>
+          </div>
         </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-end items-center">
             <div className="flex-grow"></div>
