@@ -40,7 +40,11 @@ export default function Home() {
 
   const sortedPhotos = useMemo(() => {
     if (!photos) return [];
-    return [...photos].sort((a, b) => b.uploadDate.toMillis() - a.uploadDate.toMillis());
+    return [...photos].sort((a, b) => {
+      const timeA = a.uploadDate?.toMillis() || 0;
+      const timeB = b.uploadDate?.toMillis() || 0;
+      return timeB - timeA;
+    });
   }, [photos]);
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'main'), [firestore]);
