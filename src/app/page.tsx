@@ -64,6 +64,26 @@ export default function Home() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
   
+  // State for pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const imagesPerPage = 8;
+  const totalPages = Math.ceil((sortedPhotos?.length || 0) / imagesPerPage);
+
+  const paginatedPhotos = useMemo(() => {
+    const startIndex = (currentPage - 1) * imagesPerPage;
+    const endIndex = startIndex + imagesPerPage;
+    return sortedPhotos.slice(startIndex, endIndex);
+  }, [sortedPhotos, currentPage, imagesPerPage]);
+
+  const goToNextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
+  const goToPreviousPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+
   const resetUploadForm = () => {
     setNewPhoto({ title: '', description: '' });
     setImageFile(null);
@@ -239,29 +259,35 @@ export default function Home() {
                 )}
               </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 sm:gap-6">
-              {isLoading && Array.from({ length: 9 }).map((_, i) => (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+              {isLoading && Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="aspect-[3/4] bg-muted animate-pulse rounded-lg" />
               ))}
-              {!isLoading && sortedPhotos.length === 0 && (
+              {!isLoading && paginatedPhotos.length === 0 && (
                 <p className="col-span-full text-center text-muted-foreground">No images have been uploaded yet.</p>
               )}
-              {sortedPhotos.slice(0, 4).map(photo => (
+              {paginatedPhotos.map(photo => (
                 <ImageCard key={photo.id} photo={photo} />
               ))}
-              {sortedPhotos.length > 4 && (
-                <>
-                  <AdBanner />
-                  {sortedPhotos.slice(4).map(photo => (
-                    <ImageCard key={photo.id} photo={photo} />
-                  ))}
-                </>
-              )}
+              {/* Ad might be placed here if logic is added */}
             </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 mt-8 sm:mt-12">
+                <Button onClick={goToPreviousPage} disabled={currentPage === 1} variant="outline">
+                  Previous
+                </Button>
+                <span className="text-sm font-medium">
+                  Page {currentPage} of {totalPages}
+                </span>
+                <Button onClick={goToNextPage} disabled={currentPage === totalPages} variant="outline">
+                  Next
+                </Button>
+              </div>
+            )}
           </div>
         </section>
       </main>
       <Footer />
     </div>
   );
-}
