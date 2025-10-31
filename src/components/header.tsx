@@ -16,12 +16,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { doc, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
 import { createSubscription, verifySubscription } from '@/lib/razorpay';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 declare global {
   interface Window {
@@ -33,9 +33,36 @@ declare global {
 export function Header() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const { toast } = useToast();
 
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
+
+  useEffect(() => {
+    const setupAdminRole = async () => {
+      if (user && user.email === designatedAdminEmail && firestore) {
+        const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
+        const adminRoleSnap = await getDoc(adminRoleRef);
+        if (!adminRoleSnap.exists()) {
+          try {
+            // Use setDoc to create the role document.
+            // This is a one-time setup, so we can await it.
+            await setDoc(adminRoleRef, {
+              email: user.email,
+              grantedAt: serverTimestamp(),
+            });
+            console.log('Admin role granted for user:', user.email);
+          } catch (error) {
+            console.error('Error granting admin role:', error);
+          }
+        }
+      }
+    };
+
+    if (!isUserLoading) {
+      setupAdminRole();
+    }
+  }, [user, isUserLoading, firestore]);
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
