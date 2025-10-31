@@ -82,33 +82,6 @@
         "uploadDate"
       ]
     },
-    "Message": {
-      "title": "Message",
-      "description": "Represents a message sent from a user to an admin.",
-      "type": "object",
-      "properties": {
-        "id": { "type": "string" },
-        "name": { "type": "string", "description": "Sender's name (for anonymous users)." },
-        "userId": { "type": "string", "description": "Sender's user ID (if logged in)." },
-        "email": { "type": "string", "description": "Sender's email (if logged in)." },
-        "message": { "type": "string", "description": "The content of the message." },
-        "isRead": { "type": "boolean", "description": "True if the admin has read the message." },
-        "createdAt": { "type": "string", "format": "date-time" }
-      },
-      "required": ["name", "message", "createdAt"]
-    },
-    "Reply": {
-        "title": "Reply",
-        "description": "Represents a reply from an admin to a user message.",
-        "type": "object",
-        "properties": {
-            "id": { "type": "string" },
-            "message": { "type": "string" },
-            "sentAt": { "type": "string", "format": "date-time" },
-            "isFromAdmin": { "type": "boolean" }
-        },
-        "required": ["message", "sentAt", "isFromAdmin"]
-    },
     "SiteSettings": {
       "title": "SiteSettings",
       "description": "A singleton document to store site-wide settings.",
@@ -162,27 +135,6 @@
               "name": "imageId",
               "description": "The unique identifier of the image."
             }
-          ]
-        }
-      },
-      {
-        "path": "/messages/{messageId}",
-        "definition": {
-          "entityName": "Message",
-          "schema": { "$ref": "#/backend/entities/Message" },
-          "description": "Stores messages sent by users.",
-          "params": [{ "name": "messageId", "description": "The unique ID of the message." }]
-        }
-      },
-      {
-        "path": "/messages/{messageId}/replies/{replyId}",
-        "definition": {
-          "entityName": "Reply",
-          "schema": { "$ref": "#/backend/entities/Reply" },
-          "description": "Stores replies to a specific message.",
-          "params": [
-            { "name": "messageId", "description": "The ID of the parent message." },
-            { "name": "replyId", "description": "The unique ID of the reply." }
           ]
         }
       },

@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Logo } from './logo';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from './ui/sheet';
-import { Menu, User as UserIcon, LogOut, LogIn, Crown } from 'lucide-react';
+import { Menu, LogIn, LogOut } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import {
@@ -19,16 +19,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
-import { createSubscription, verifySubscription } from '@/lib/razorpay';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { useState, useEffect } from 'react';
-
-declare global {
-  interface Window {
-    Razorpay: any;
-  }
-}
-
+import { useEffect } from 'react';
 
 export function Header() {
   const { user, isUserLoading } = useUser();
@@ -37,6 +28,7 @@ export function Header() {
   const { toast } = useToast();
 
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
+  const isAdmin = user?.email === designatedAdminEmail;
 
   useEffect(() => {
     const setupAdminRole = async () => {
@@ -45,8 +37,6 @@ export function Header() {
         const adminRoleSnap = await getDoc(adminRoleRef);
         if (!adminRoleSnap.exists()) {
           try {
-            // Use setDoc to create the role document.
-            // This is a one-time setup, so we can await it.
             await setDoc(adminRoleRef, {
               email: user.email,
               grantedAt: serverTimestamp(),
@@ -116,7 +106,7 @@ export function Header() {
               <nav className="grid gap-4 py-4">
                 <Link href="/" className="text-lg font-semibold hover:text-primary">Home</Link>
                 <Link href="/#gallery" className="text-lg font-semibold hover:text-primary">Gallery</Link>
-                {user && user.email === designatedAdminEmail && (
+                {isAdmin && (
                   <Link href="/admin" className="text-lg font-semibold hover:text-primary">Admin</Link>
                 )}
               </nav>
@@ -125,7 +115,7 @@ export function Header() {
           <nav className="hidden sm:flex items-center gap-6 text-sm font-medium">
              <Link href="/" className="text-foreground/60 transition-colors hover:text-foreground/80">Home</Link>
              <Link href="/#gallery" className="text-foreground/60 transition-colors hover:text-foreground/80">Gallery</Link>
-             {user && user.email === designatedAdminEmail && (
+             {isAdmin && (
                 <Link href="/admin" className="text-foreground/60 transition-colors hover:text-foreground/80">Admin</Link>
               )}
           </nav>
@@ -139,6 +129,7 @@ export function Header() {
           {isUserLoading ? (
             <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
           ) : user ? (
+            <>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
@@ -162,6 +153,7 @@ export function Header() {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            </>
           ) : (
             <Button onClick={handleGoogleSignIn}>
               <LogIn className="mr-2 h-4 w-4" />

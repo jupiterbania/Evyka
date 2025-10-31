@@ -21,8 +21,14 @@ import { useFirestore, useUser } from '@/firebase';
 import { collection, serverTimestamp } from 'firebase/firestore';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { MessageSquare } from 'lucide-react';
+import { Slot } from '@radix-ui/react-slot';
 
-export function MessageDialog() {
+
+type MessageDialogProps = {
+  trigger?: React.ReactElement;
+};
+
+export function MessageDialog({ trigger }: MessageDialogProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -86,12 +92,18 @@ export function MessageDialog() {
     }
   };
 
+  const Trigger = trigger ? Slot : 'button';
+  const triggerProps = trigger ? { children: trigger } : {};
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <button className="text-sm font-medium hover:text-primary">
-          Message Us
-        </button>
+        <Trigger
+          className="text-sm font-medium hover:text-primary"
+          {...triggerProps}
+        >
+          {trigger ? undefined : 'Message Us'}
+        </Trigger>
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

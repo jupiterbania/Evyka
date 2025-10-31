@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { Logo } from './logo';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from './ui/sheet';
-import { Menu, LayoutGrid, Image as ImageIcon, Home, MessageSquare } from 'lucide-react';
+import { Menu, LayoutGrid, Image as ImageIcon, Home } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 
 export function AdminHeader() {
@@ -13,7 +13,6 @@ export function AdminHeader() {
   const menuItems = [
     { href: '/admin', label: 'Dashboard', icon: LayoutGrid },
     { href: '/admin/images', label: 'Images', icon: ImageIcon },
-    { href: '/admin/messages', label: 'Messages', icon: MessageSquare },
   ];
 
   return (
