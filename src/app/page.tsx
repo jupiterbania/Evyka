@@ -155,6 +155,8 @@ export default function Home() {
       try {
         if (imageFiles && imageFiles.length > 0) {
           const totalFiles = imageFiles.length;
+          const isMultiple = totalFiles > 1;
+
           for (let i = 0; i < totalFiles; i++) {
             const file = imageFiles[i];
             const reader = await new Promise<string>((resolve, reject) => {
@@ -177,7 +179,7 @@ export default function Home() {
             addDocumentNonBlocking(
               imagesCollection,
               {
-                title: newPhoto.title || originalFileName,
+                title: isMultiple ? '' : newPhoto.title || originalFileName,
                 description: newPhoto.description,
                 imageUrl: uploadResult.imageUrl,
                 blurredImageUrl: uploadResult.imageUrl,
@@ -223,6 +225,8 @@ export default function Home() {
 
     performUpload();
   };
+
+  const showTitleInput = !imageFiles || imageFiles.length <= 1;
 
 
   return (
@@ -298,11 +302,12 @@ export default function Home() {
                             disabled={!!imageFiles?.length}
                           />
                         </div>
-                        <div className="grid w-full items-center gap-1.5 mt-4">
-                          <Label htmlFor="title">Title</Label>
-                          <Input id="title" type="text" placeholder="A beautiful landscape (optional)" value={newPhoto.title} onChange={(e) => setNewPhoto({...newPhoto, title: e.target.value})} />
-                          <p className='text-xs text-muted-foreground'>If uploading multiple files, this title will be ignored. The original filename will be used as the title.</p>
-                        </div>
+                        {showTitleInput && (
+                            <div className="grid w-full items-center gap-1.5 mt-4">
+                                <Label htmlFor="title">Title</Label>
+                                <Input id="title" type="text" placeholder="A beautiful landscape (optional)" value={newPhoto.title} onChange={(e) => setNewPhoto({...newPhoto, title: e.target.value})} />
+                            </div>
+                        )}
                         <div className="grid w-full items-center gap-1.5">
                           <Label htmlFor="description">Description</Label>
                           <Textarea id="description" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
