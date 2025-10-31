@@ -28,6 +28,7 @@ import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadImage } from '@/ai/flows/upload-image-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { AdBanner } from '@/components/ad-banner';
+import { cn } from '@/lib/utils';
 
 
 export default function Home() {
@@ -76,14 +77,17 @@ export default function Home() {
     return sortedPhotos.slice(startIndex, endIndex);
   }, [sortedPhotos, currentPage, imagesPerPage]);
 
-  const goToNextPage = () => {
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  const goToPage = (page: number) => {
+    setCurrentPage(page);
     galleryRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const goToNextPage = () => {
+    goToPage(Math.min(currentPage + 1, totalPages));
+  };
+
   const goToPreviousPage = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1));
-    galleryRef.current?.scrollIntoView({ behavior: 'smooth' });
+    goToPage(Math.max(currentPage - 1, 1));
   };
 
 
@@ -278,13 +282,25 @@ export default function Home() {
             </div>
 
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-4 mt-8 sm:mt-12">
+              <div className="flex items-center justify-center gap-2 mt-8 sm:mt-12">
                 <Button onClick={goToPreviousPage} disabled={currentPage === 1} variant="outline">
                   Previous
                 </Button>
-                <span className="text-sm font-medium">
-                  Page {currentPage} of {totalPages}
-                </span>
+                <nav className="flex items-center gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <Button
+                      key={page}
+                      onClick={() => goToPage(page)}
+                      variant={currentPage === page ? 'default' : 'outline'}
+                      className={cn(
+                        'h-9 w-9 p-0',
+                        currentPage === page && 'pointer-events-none'
+                      )}
+                    >
+                      {page}
+                    </Button>
+                  ))}
+                </nav>
                 <Button onClick={goToNextPage} disabled={currentPage === totalPages} variant="outline">
                   Next
                 </Button>
@@ -296,7 +312,4 @@ export default function Home() {
       <Footer />
     </div>
   );
-
-    
-
-    
+}
