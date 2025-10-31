@@ -62,7 +62,6 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import Link from 'next/link';
-import { cn } from '@/lib/utils';
 
 type ImageCardProps = {
   media: MediaType;
@@ -79,6 +78,8 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editedMedia, setEditedMedia] = useState<MediaType | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -186,34 +187,65 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
 
   const isVideo = mediaItem.mediaType === 'video';
   const displayUrl = isVideo ? mediaItem.thumbnailUrl || mediaItem.mediaUrl : mediaItem.mediaUrl;
-  const linkHref = isVideo ? mediaItem.mediaUrl : `/image/${mediaItem.id}`;
-  const linkTarget = isVideo ? "_blank" : "_self";
+  const linkHref = `/image/${mediaItem.id}`;
+  const linkTarget = "_self";
 
+
+  const renderMedia = () => {
+    if (isVideo) {
+      if (isPlaying) {
+        return (
+          <video
+            src={mediaItem.mediaUrl}
+            controls
+            autoPlay
+            className="w-full h-full object-cover"
+            onEnded={() => setIsPlaying(false)}
+            onClick={(e) => e.preventDefault()}
+          />
+        );
+      }
+      return (
+        <div onClick={() => setIsPlaying(true)} className="cursor-pointer h-full">
+          <Image
+            src={displayUrl!}
+            alt={mediaItem.title}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover transition-all duration-300 ease-in-out group-hover:scale-105"
+            data-ai-hint="video thumbnail"
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+            <PlayCircle className="h-16 w-16 text-white" />
+          </div>
+        </div>
+      );
+    }
+
+    return (
+        <Link href={linkHref} className="block cursor-pointer h-full">
+            <Image
+                src={displayUrl!}
+                alt={mediaItem.title}
+                fill
+                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                className="object-cover transition-all duration-300 ease-in-out group-hover:scale-105"
+                data-ai-hint="photo"
+            />
+        </Link>
+    );
+  }
 
   return (
     <>
       <Card className="group overflow-hidden flex flex-col">
-        <Link href={linkHref} target={linkTarget} rel="noopener noreferrer" className="block cursor-pointer">
-            <CardHeader className="p-0">
-                <div
-                    className="relative aspect-[3/4] w-full overflow-hidden bg-card"
-                >
-                    <Image
-                    src={displayUrl!}
-                    alt={mediaItem.title}
-                    fill
-                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className="object-cover transition-all duration-300 ease-in-out group-hover:scale-105"
-                    data-ai-hint="photo"
-                    />
-                    {isVideo && (
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <PlayCircle className="h-16 w-16 text-white" />
-                        </div>
-                    )}
-                </div>
-            </CardHeader>
-        </Link>
+        <CardHeader className="p-0">
+            <div
+                className="relative aspect-[3/4] w-full overflow-hidden bg-card"
+            >
+                {renderMedia()}
+            </div>
+        </CardHeader>
         <CardContent className="p-4 flex-grow flex flex-col">
             <div className="flex-grow">
                 <Link href={linkHref} target={linkTarget} rel="noopener noreferrer" className="block cursor-pointer">
@@ -244,7 +276,7 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                 {isAdmin && renderAdminMenu()}
             </div>
         </CardFooter>
-      </Card>>
+      </Card>
 
       {/* Admin Modals */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -315,3 +347,5 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
     </>
   );
 }
+
+    
