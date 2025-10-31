@@ -186,7 +186,7 @@ export default function Home() {
                           Select an image file and set its details to add it to the gallery.
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="grid gap-4 py-4">
+                      <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
                         <div className="grid w-full items-center gap-1.5">
                           <Label htmlFor="imageFile">Image File</Label>
                           <Input id="imageFile" type="file" accept="image/*" 
@@ -229,7 +229,7 @@ export default function Home() {
                             <Label htmlFor="ad-gated-switch">Ad-Gated</Label>
                         </div>
                       </div>
-                      <DialogFooter className="flex-col-reverse sm:flex-row">
+                      <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
                           <DialogClose asChild>
                               <Button type="button" variant="secondary" onClick={resetUploadForm}>Cancel</Button>
                           </DialogClose>

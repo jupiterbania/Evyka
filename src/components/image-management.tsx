@@ -216,7 +216,7 @@ export function ImageManagement() {
                 Select an image file, provide a URL, and set details to add it to the gallery.
               </DialogDescription>
             </DialogHeader>
-            <div className="grid gap-4 py-4">
+            <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
               <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="imageFile-admin">Image File</Label>
                 <Input id="imageFile-admin" type="file" accept="image/*" 
@@ -259,7 +259,7 @@ export function ImageManagement() {
                   <Label htmlFor="ad-gated-switch-upload">Ad-Gated</Label>
               </div>
             </div>
-            <DialogFooter className="flex-col-reverse sm:flex-row">
+            <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
                 <DialogClose asChild>
                     <Button type="button" variant="secondary" onClick={resetUploadForm}>Cancel</Button>
                 </DialogClose>
@@ -378,7 +378,7 @@ export function ImageManagement() {
                         <Label htmlFor="ad-gated-switch-edit">Ad-Gated</Label>
                     </div>
                 </div>}
-                <DialogFooter className="flex-col-reverse sm:flex-row">
+                <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
                     <DialogClose asChild>
                         <Button type="button" variant="secondary" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
                     </DialogClose>
