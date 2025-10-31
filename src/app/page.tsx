@@ -42,7 +42,7 @@ export default function Home() {
   useEffect(() => {
     // This effect runs once on the client after the page loads.
     // It checks if the user has just returned from the ad provider.
-    const newUnlocked = new Set<string>();
+    const newUnlocked = new Set<string>(unlockedImages);
     let changed = false;
 
     // Check for a pending unlock from this session

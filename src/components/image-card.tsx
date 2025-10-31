@@ -85,7 +85,7 @@ export function ImageCard({ photo, isUnlocked = false }: ImageCardProps) {
   const isEffectivelyAdGated = photo.isAdGated && !isUnlocked;
 
   const handleCardClick = () => {
-    // If the image is gated, the button will handle the redirect.
+    // If ad-gated, do nothing on the general card click, as the button will handle it.
     // If it's free, clicking anywhere on the card will navigate to the detail page.
     if (!isEffectivelyAdGated) {
       router.push(`/image/${photo.id}`);
@@ -94,8 +94,9 @@ export function ImageCard({ photo, isUnlocked = false }: ImageCardProps) {
 
   const handleAdRedirect = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent card click from firing
-    sessionStorage.setItem(`unlocking_${photo.id}`, 'true');
-    window.location.href = `https://www.effectivegatecpm.com/rqgi4kseb?key=7466724a8386072866c53caa673b3d9f`;
+    // We navigate to the detail page, which will then handle the ad redirect.
+    // This ensures the user returns to the correct context.
+    router.push(`/image/${photo.id}`);
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
