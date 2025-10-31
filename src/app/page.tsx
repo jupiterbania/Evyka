@@ -7,7 +7,7 @@ import type { Image as ImageType, SiteSettings } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { placeholderImages } from '@/lib/placeholder-images';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -37,6 +37,42 @@ export default function Home() {
   
   const imagesCollection = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
   const { data: photos, isLoading } = useCollection<ImageType>(imagesCollection);
+  const [unlockedImages, setUnlockedImages] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    // This effect runs on the client after the page loads.
+    // It checks if the user has just returned from the ad provider.
+    const newUnlocked = new Set(unlockedImages);
+    let changed = false;
+
+    // 1. Finalize any pending unlocks from this session
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith('unlocking_')) {
+        const imageId = key.replace('unlocking_', '');
+        sessionStorage.removeItem(key); // Remove temp flag
+        sessionStorage.setItem(`unlocked_${imageId}`, 'true'); // Set permanent session flag
+        newUnlocked.add(imageId);
+        changed = true;
+      }
+    }
+
+    // 2. Load any images that were already unlocked in this session
+    for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('unlocked_')) {
+            const imageId = key.replace('unlocked_', '');
+            if (!newUnlocked.has(imageId)) {
+                newUnlocked.add(imageId);
+                changed = true;
+            }
+        }
+    }
+
+    if (changed) {
+      setUnlockedImages(newUnlocked);
+    }
+  }, []); // Empty array means this runs once on mount
 
   const sortedPhotos = useMemo(() => {
     if (!photos) return [];
@@ -254,7 +290,7 @@ export default function Home() {
                 <p className="col-span-full text-center text-muted-foreground">No images have been uploaded yet.</p>
               )}
               {sortedPhotos.map(photo => (
-                <ImageCard key={photo.id} photo={photo} />
+                <ImageCard key={photo.id} photo={photo} isUnlocked={unlockedImages.has(photo.id)} />
               ))}
             </div>
           </div>

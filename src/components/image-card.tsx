@@ -65,9 +65,10 @@ import { useRouter } from 'next/navigation';
 
 type ImageCardProps = {
   photo: ImageType;
+  isUnlocked?: boolean;
 };
 
-export function ImageCard({ photo }: ImageCardProps) {
+export function ImageCard({ photo, isUnlocked = false }: ImageCardProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -81,8 +82,20 @@ export function ImageCard({ photo }: ImageCardProps) {
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editedPhoto, setEditedPhoto] = useState<ImageType | null>(null);
 
+  const isEffectivelyAdGated = photo.isAdGated && !isUnlocked;
+
   const handleCardClick = () => {
-    router.push(`/image/${photo.id}`);
+    // If the image is gated, the button will handle the redirect.
+    // If it's free, clicking anywhere on the card will navigate to the detail page.
+    if (!isEffectivelyAdGated) {
+      router.push(`/image/${photo.id}`);
+    }
+  };
+
+  const handleAdRedirect = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card click from firing
+    sessionStorage.setItem(`unlocking_${photo.id}`, 'true');
+    window.location.href = `https://www.effectivegatecpm.com/rqgi4kseb?key=7466724a8386072866c53caa673b3d9f`;
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -192,40 +205,40 @@ export function ImageCard({ photo }: ImageCardProps) {
   return (
     <>
       <Card className="group overflow-hidden flex flex-col">
-        <CardHeader className="p-0">
-          <div onClick={handleCardClick} className="block cursor-pointer">
-              <div
-                className="relative aspect-[3/4] w-full overflow-hidden bg-card"
-              >
-                <Image
-                  src={photo.imageUrl}
-                  alt={photo.title}
-                  fill
-                  sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className={`object-cover transition-all duration-300 ease-in-out group-hover:scale-105 ${photo.isAdGated ? 'blur-md' : ''}`}
-                  data-ai-hint="photo"
-                />
-                {photo.isAdGated && (
-                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center p-4 text-center text-white">
-                        <Video className="w-8 h-8 mb-2" />
-                        <span className="font-semibold text-sm">Watch ad to unlock image</span>
-                        <p className="text-xs mt-1 opacity-80 mb-4">This content is available for free after a short ad.</p>
-                        <Button onClick={(e) => { e.stopPropagation(); handleCardClick(); }} variant="secondary" size="sm">
-                            Watch Ad
-                        </Button>
-                    </div>
-                )}
-              </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 flex-grow" onClick={handleCardClick}>
-          <div className="flex-grow">
-            <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline cursor-pointer">
-              {photo.title}
-            </CardTitle>
-          </div>
-        </CardContent>
-        <CardFooter className="p-4 pt-0 flex justify-end items-center">
+        <div onClick={handleCardClick} className={`block ${isEffectivelyAdGated ? 'cursor-default' : 'cursor-pointer'}`}>
+            <CardHeader className="p-0">
+                <div
+                    className="relative aspect-[3/4] w-full overflow-hidden bg-card"
+                >
+                    <Image
+                    src={photo.imageUrl}
+                    alt={photo.title}
+                    fill
+                    sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className={`object-cover transition-all duration-300 ease-in-out group-hover:scale-105 ${isEffectivelyAdGated ? 'blur-md' : ''}`}
+                    data-ai-hint="photo"
+                    />
+                    {isEffectivelyAdGated && (
+                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center p-4 text-center text-white">
+                            <Video className="w-8 h-8 mb-2" />
+                            <span className="font-semibold text-sm">Watch ad to unlock image</span>
+                            <p className="text-xs mt-1 opacity-80 mb-4">This content is available for free after a short ad.</p>
+                            <Button onClick={handleAdRedirect} variant="secondary" size="sm">
+                                Watch Ad
+                            </Button>
+                        </div>
+                    )}
+                </div>
+            </CardHeader>
+            <CardContent className="p-4 flex-grow">
+                <div className="flex-grow">
+                    <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline">
+                    {photo.title}
+                    </CardTitle>
+                </div>
+            </CardContent>
+        </div>
+        <CardFooter className="p-4 pt-0 flex justify-end items-center mt-auto">
             <div className="flex-grow"></div>
             <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>
               <Share2 className="h-4 w-4" />
