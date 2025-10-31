@@ -211,17 +211,18 @@ export function ImageCard({ photo }: ImageCardProps) {
             </CardContent>
         </Link>
         <CardFooter className="p-4 pt-0 flex justify-end items-center mt-auto">
-            <div className="flex-grow"></div>
-             {!isAdmin && (
-              <MessageDialog
-                trigger={
-                  <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
-                    <MessageSquare className="h-4 w-4" />
-                    <span className="sr-only">Message</span>
-                  </Button>
-                }
-              />
-            )}
+            <div className="flex-grow">
+              {!isAdmin && (
+                <MessageDialog
+                  trigger={
+                    <Button variant="outline" size="sm">
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Message
+                    </Button>
+                  }
+                />
+              )}
+            </div>
             <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>
               <Share2 className="h-4 w-4" />
               <span className="sr-only">Share</span>
