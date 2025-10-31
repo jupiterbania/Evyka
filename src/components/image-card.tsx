@@ -16,7 +16,6 @@ import {
   Edit,
   Trash2,
   Share2,
-  Video,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -61,18 +60,15 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 
 type ImageCardProps = {
   photo: ImageType;
-  isUnlocked?: boolean;
 };
 
-export function ImageCard({ photo, isUnlocked = false }: ImageCardProps) {
+export function ImageCard({ photo }: ImageCardProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
-  const router = useRouter();
 
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
   const isAdmin = user?.email === designatedAdminEmail;
@@ -81,23 +77,6 @@ export function ImageCard({ photo, isUnlocked = false }: ImageCardProps) {
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editedPhoto, setEditedPhoto] = useState<ImageType | null>(null);
-
-  const isEffectivelyAdGated = photo.isAdGated && !isUnlocked;
-
-  const handleCardClick = () => {
-    // If ad-gated, do nothing on the general card click, as the button will handle it.
-    // If it's free, clicking anywhere on the card will navigate to the detail page.
-    if (!isEffectivelyAdGated) {
-      router.push(`/image/${photo.id}`);
-    }
-  };
-
-  const handleAdRedirect = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent card click from firing
-    // We navigate to the detail page, which will then handle the ad redirect.
-    // This ensures the user returns to the correct context.
-    router.push(`/image/${photo.id}`);
-  };
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -206,7 +185,7 @@ export function ImageCard({ photo, isUnlocked = false }: ImageCardProps) {
   return (
     <>
       <Card className="group overflow-hidden flex flex-col">
-        <div onClick={handleCardClick} className={`block ${isEffectivelyAdGated ? 'cursor-default' : 'cursor-pointer'}`}>
+        <Link href={`/image/${photo.id}`} className="block cursor-pointer">
             <CardHeader className="p-0">
                 <div
                     className="relative aspect-[3/4] w-full overflow-hidden bg-card"
@@ -216,19 +195,9 @@ export function ImageCard({ photo, isUnlocked = false }: ImageCardProps) {
                     alt={photo.title}
                     fill
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    className={`object-cover transition-all duration-300 ease-in-out group-hover:scale-105 ${isEffectivelyAdGated ? 'blur-md' : ''}`}
+                    className="object-cover transition-all duration-300 ease-in-out group-hover:scale-105"
                     data-ai-hint="photo"
                     />
-                    {isEffectivelyAdGated && (
-                        <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center p-4 text-center text-white">
-                            <Video className="w-8 h-8 mb-2" />
-                            <span className="font-semibold text-sm">Watch ad to unlock image</span>
-                            <p className="text-xs mt-1 opacity-80 mb-4">This content is available for free after a short ad.</p>
-                            <Button onClick={handleAdRedirect} variant="secondary" size="sm">
-                                Watch Ad
-                            </Button>
-                        </div>
-                    )}
                 </div>
             </CardHeader>
             <CardContent className="p-4 flex-grow">
@@ -238,7 +207,7 @@ export function ImageCard({ photo, isUnlocked = false }: ImageCardProps) {
                     </CardTitle>
                 </div>
             </CardContent>
-        </div>
+        </Link>
         <CardFooter className="p-4 pt-0 flex justify-end items-center mt-auto">
             <div className="flex-grow"></div>
             <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>

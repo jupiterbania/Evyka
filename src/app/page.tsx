@@ -7,7 +7,7 @@ import type { Image as ImageType, SiteSettings } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { placeholderImages } from '@/lib/placeholder-images';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,7 +27,6 @@ import { Upload } from 'lucide-react';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadImage } from '@/ai/flows/upload-image-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
-import { Switch } from '@/components/ui/switch';
 
 
 export default function Home() {
@@ -37,29 +36,6 @@ export default function Home() {
   
   const imagesCollection = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
   const { data: photos, isLoading } = useCollection<ImageType>(imagesCollection);
-  const [unlockedImages, setUnlockedImages] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    // This effect runs once on the client after the page loads.
-    // It checks if the user has just returned from the ad provider.
-    const newUnlocked = new Set<string>(unlockedImages);
-    let changed = false;
-
-    // Check for a pending unlock from this session
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i);
-      if (key && key.startsWith('unlocking_')) {
-        const imageId = key.replace('unlocking_', '');
-        sessionStorage.removeItem(key); // Remove temp flag immediately after reading
-        newUnlocked.add(imageId);
-        changed = true;
-      }
-    }
-
-    if (changed) {
-      setUnlockedImages(newUnlocked);
-    }
-  }, []); // Empty array means this runs once on mount
 
   const sortedPhotos = useMemo(() => {
     if (!photos) return [];
@@ -86,13 +62,11 @@ export default function Home() {
   const [newPhoto, setNewPhoto] = useState({ title: '', description: '' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
-  const [isAdGated, setIsAdGated] = useState(false);
   
   const resetUploadForm = () => {
     setNewPhoto({ title: '', description: '' });
     setImageFile(null);
     setImageUrl('');
-    setIsAdGated(false);
     setUploadDialogOpen(false);
   };
   
@@ -147,7 +121,6 @@ export default function Home() {
           blurredImageUrl: finalImageUrl,
           uploadDate: serverTimestamp(),
           dominantColor: dominantColor,
-          isAdGated: isAdGated,
         }
       );
 
@@ -251,10 +224,6 @@ export default function Home() {
                           <Label htmlFor="description">Description</Label>
                           <Textarea id="description" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
                         </div>
-                        <div className="flex items-center space-x-2 mt-2">
-                            <Switch id="ad-gated-switch" checked={isAdGated} onCheckedChange={setIsAdGated} />
-                            <Label htmlFor="ad-gated-switch">Ad-Gated</Label>
-                        </div>
                       </div>
                       <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
                           <DialogClose asChild>
@@ -277,7 +246,7 @@ export default function Home() {
                 <p className="col-span-full text-center text-muted-foreground">No images have been uploaded yet.</p>
               )}
               {sortedPhotos.map(photo => (
-                <ImageCard key={photo.id} photo={photo} isUnlocked={unlockedImages.has(photo.id)} />
+                <ImageCard key={photo.id} photo={photo} />
               ))}
             </div>
           </div>

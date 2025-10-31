@@ -11,14 +11,11 @@ import { Footer } from '@/components/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 
 export default function ImagePage() {
   const { id } = useParams();
   const imageId = Array.isArray(id) ? id[0] : id;
-  const [hasUnlocked, setHasUnlocked] = useState(false);
-  const [isRedirecting, setIsRedirecting] = useState(false);
 
   const firestore = useFirestore();
 
@@ -28,48 +25,16 @@ export default function ImagePage() {
   );
   const { data: photo, isLoading: isPhotoLoading } = useDoc<ImageType>(imageDocRef);
 
-  useEffect(() => {
-    if (isPhotoLoading || !imageId || !photo) return;
-    
-    // 1. Check if user is returning from the ad URL
-    const isUnlocking = sessionStorage.getItem(`unlocking_${imageId}`);
-    if (isUnlocking === 'true') {
-        sessionStorage.removeItem(`unlocking_${imageId}`);
-        sessionStorage.setItem(`unlocked_${imageId}`, 'true');
-        setHasUnlocked(true);
-        return; 
-    }
-    
-    // 2. Check for existing unlock status in the session
-    const isUnlocked = sessionStorage.getItem(`unlocked_${imageId}`);
-    if (isUnlocked === 'true') {
-      setHasUnlocked(true);
-      return;
-    }
-
-    // 3. If ad-gated and not unlocked, redirect to the ad
-    if (photo.isAdGated && !isUnlocked) {
-        setIsRedirecting(true);
-        sessionStorage.setItem(`unlocking_${imageId}`, 'true');
-        window.location.href = `https://www.effectivegatecpm.com/rqgi4kseb?key=7466724a8386072866c53caa673b3d9f`;
-    }
-
-  }, [imageId, photo, isPhotoLoading]);
-  
   const renderContent = () => {
-    // If we are loading the photo data, or about to redirect, show a loader.
-    if (isPhotoLoading || isRedirecting) {
+    if (isPhotoLoading) {
       return (
         <div className="flex-grow flex flex-col items-center justify-center p-4 text-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
-            <p className="text-muted-foreground mt-4">
-                {isRedirecting ? "Redirecting to our partner..." : "Loading image..."}
-            </p>
+            <p className="text-muted-foreground mt-4">Loading image...</p>
         </div>
       );
     }
 
-    // If no photo is found after loading, show an error message.
     if (!photo) {
       return (
           <div className="flex-grow flex items-center justify-center text-center">
@@ -84,20 +49,6 @@ export default function ImagePage() {
       );
     }
 
-    // If the photo is ad-gated and has not been unlocked yet, show a loader.
-    // This handles the brief moment before the redirect or after returning.
-    if (photo.isAdGated && !hasUnlocked) {
-         return (
-            <div className="flex-grow flex flex-col items-center justify-center p-4 text-center">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="text-muted-foreground mt-4">
-                    Preparing content...
-                </p>
-            </div>
-        );
-    }
-
-    // If we've passed all checks, show the unlocked image.
     return (
       <div className="flex-grow flex flex-col items-center justify-start p-4 pt-8">
         <div className="relative w-full h-[75vh] max-w-7xl">
