@@ -31,23 +31,23 @@ export default function ImagePage() {
   useEffect(() => {
     if (!imageId || !photo) return;
 
-    // Check if user is returning from the ad URL
+    // 1. Check if user is returning from the ad URL
     const isUnlocking = sessionStorage.getItem(`unlocking_${imageId}`);
     if (isUnlocking === 'true') {
         sessionStorage.removeItem(`unlocking_${imageId}`); // Clean up the flag
         sessionStorage.setItem(`unlocked_${imageId}`, 'true'); // Set permanent unlock
         setHasUnlocked(true);
-        return;
+        return; // Stop further execution to show the unlocked image
     }
     
-    // Check for existing unlock status
+    // 2. Check for existing unlock status in the session
     const isUnlocked = sessionStorage.getItem(`unlocked_${imageId}`);
     if (isUnlocked === 'true') {
       setHasUnlocked(true);
       return;
     }
 
-    // If ad-gated and not unlocked, redirect immediately
+    // 3. If ad-gated and not unlocked, redirect to the ad
     if (photo.isAdGated && !isUnlocked) {
         handleWatchAd();
     }
@@ -65,6 +65,7 @@ export default function ImagePage() {
   };
   
   const renderContent = () => {
+    // If we are loading the photo data, or about to redirect, show a loader.
     if (isPhotoLoading || isRedirecting) {
       return (
         <div className="flex-grow flex flex-col items-center justify-center p-4 text-center">
@@ -76,6 +77,7 @@ export default function ImagePage() {
       );
     }
 
+    // If no photo is found after loading, show an error message.
     if (!photo) {
       return (
           <div className="flex-grow flex items-center justify-center text-center">
@@ -90,7 +92,8 @@ export default function ImagePage() {
       );
     }
 
-    // If ad-gated and still not unlocked (e.g., redirect is pending), show loading.
+    // If the photo is ad-gated and has not been unlocked yet, show a loader.
+    // This handles the brief moment before the redirect or after returning.
     if (photo.isAdGated && !hasUnlocked) {
          return (
             <div className="flex-grow flex flex-col items-center justify-center p-4 text-center">
@@ -102,6 +105,7 @@ export default function ImagePage() {
         );
     }
 
+    // If we've passed all checks, show the unlocked image.
     return (
       <div className="flex-grow flex flex-col items-center justify-start p-4 pt-8">
         <div className="relative w-full h-[75vh] max-w-7xl">
