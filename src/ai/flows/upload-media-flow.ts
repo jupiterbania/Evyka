@@ -73,9 +73,12 @@ const uploadMediaFlow = ai.defineFlow(
         throw new Error('ImageKit response did not include a URL.');
       }
       
+      // Handle cases where video thumbnail is in a metadata object
+      const thumbnailUrl = response.thumbnailUrl || (response.metadata as any)?.thumbnailUrl;
+
       return {
         mediaUrl: response.url,
-        thumbnailUrl: response.thumbnailUrl,
+        thumbnailUrl: thumbnailUrl,
       };
 
     } catch (error: any) {
