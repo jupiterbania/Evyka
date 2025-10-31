@@ -2,20 +2,21 @@
   "name": "EVYKA",
   "short_name": "EVYKA",
   "description": "Discover and purchase unique, high-quality images from talented photographers around the world.",
-  "start_url": "/",
-  "display": "standalone",
-  "background_color": "#121212",
-  "theme_color": "#8b5cf6",
   "icons": [
     {
-      "src": "icon-192x192.svg",
+      "src": "/icon-192x192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/png"
     },
     {
-      "src": "icon-512x512.svg",
+      "src": "/icon-512x512.png",
       "sizes": "512x512",
-      "type": "image/svg+xml"
+      "type": "image/png"
     }
-  ]
+  ],
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait"
 }
