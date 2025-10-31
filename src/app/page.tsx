@@ -7,7 +7,7 @@ import type { Image as ImageType, SiteSettings } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { placeholderImages } from '@/lib/placeholder-images';
-import { useMemo, useState, useRef } from 'react';
+import { useMemo, useState, useRef, Fragment } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -270,10 +270,10 @@ export default function Home() {
                 <p className="col-span-full text-center text-muted-foreground">No images have been uploaded yet.</p>
               )}
               {paginatedPhotos.map((photo, index) => (
-                <>
-                  <ImageCard key={photo.id} photo={photo} />
+                <Fragment key={photo.id}>
+                  <ImageCard photo={photo} />
                   {index === 3 && <AdBanner />}
-                </>
+                </Fragment>
               ))}
             </div>
 
@@ -296,5 +296,7 @@ export default function Home() {
       <Footer />
     </div>
   );
+
+    
 
     
