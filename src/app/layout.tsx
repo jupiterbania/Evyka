@@ -4,6 +4,8 @@ import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import Script from 'next/script';
+import { AdScriptHead } from '@/components/ad-script-head';
+import { AdScriptBody } from '@/components/ad-script-body';
 
 export const metadata: Metadata = {
   title: 'EVYKA',
@@ -31,15 +33,15 @@ export default function RootLayout({
           crossOrigin="anonymous"
           strategy="lazyOnload"
         />
-        <script type='text/javascript' src='//pl27958404.effectivegatecpm.com/47/2e/54/472e5469e9a7e3864565f60e6138e84e.js'></script>
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
+          <AdScriptHead />
           <FirebaseErrorListener />
           {children}
           <Toaster />
+          <AdScriptBody />
         </FirebaseClientProvider>
-        <script type='text/javascript' src='//pl27958400.effectivegatecpm.com/12/55/62/1255623bad89bb132fff6306d12044ad.js'></script>
       </body>
     </html>
   );
