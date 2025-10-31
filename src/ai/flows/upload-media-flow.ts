@@ -60,16 +60,10 @@ const uploadMediaFlow = ai.defineFlow(
         useUniqueFileName: true,
       };
 
-      if (input.isVideo) {
-        // For videos, ask ImageKit to generate a thumbnail
-        uploadOptions.transformation = {
-            pre: "media-thumbnail-generator"
-        };
-      }
-
       const response = await imagekit.upload(uploadOptions);
 
       if (!response.url) {
+        console.error('ImageKit full response on failure:', JSON.stringify(response, null, 2));
         throw new Error('ImageKit response did not include a URL.');
       }
       
