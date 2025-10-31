@@ -29,6 +29,7 @@ import { uploadImage } from '@/ai/flows/upload-image-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { AdBanner } from '@/components/ad-banner';
 import { cn } from '@/lib/utils';
+import { Progress } from '@/components/ui/progress';
 
 
 export default function Home() {
@@ -62,6 +63,7 @@ export default function Home() {
   // State for upload dialog
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const [newPhoto, setNewPhoto] = useState({ title: '', description: '' });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imageUrl, setImageUrl] = useState('');
@@ -98,7 +100,7 @@ export default function Home() {
     setUploadDialogOpen(false);
   };
   
-  const handleUpload = async () => {
+  const handleUpload = () => {
     if (!firestore) return;
     if (!imageFile && !imageUrl) {
       toast({
@@ -108,66 +110,78 @@ export default function Home() {
       });
       return;
     }
-
+    
+    // Close dialog and start background upload
+    setUploadDialogOpen(false);
     setIsUploading(true);
+    setUploadProgress(0);
 
-    try {
-      let finalImageUrl: string;
-      let photoDataUriForColor: string | undefined;
+    const performUpload = async () => {
+      try {
+        let finalImageUrl: string;
+        let photoDataUriForColor: string | undefined;
 
-      if (imageFile) {
-        // Upload from file
-        const reader = await new Promise<string>((resolve, reject) => {
-          const fileReader = new FileReader();
-          fileReader.readAsDataURL(imageFile);
-          fileReader.onload = () => resolve(fileReader.result as string);
-          fileReader.onerror = (error) => reject(error);
+        if (imageFile) {
+          setUploadProgress(10);
+          const reader = await new Promise<string>((resolve, reject) => {
+            const fileReader = new FileReader();
+            fileReader.readAsDataURL(imageFile);
+            fileReader.onload = () => resolve(fileReader.result as string);
+            fileReader.onerror = (error) => reject(error);
+          });
+          
+          setUploadProgress(25);
+          photoDataUriForColor = reader;
+          const uploadResult = await uploadImage({ photoDataUri: reader });
+          if (!uploadResult || !uploadResult.imageUrl) {
+            throw new Error('Image URL was not returned from the upload service.');
+          }
+          finalImageUrl = uploadResult.imageUrl;
+          setUploadProgress(50);
+        } else {
+          finalImageUrl = imageUrl;
+          setUploadProgress(50);
+        }
+
+        let dominantColor = '#F0F4F8'; // Default background color
+        if (photoDataUriForColor) {
+          const colorResult = await extractDominantColor({ photoDataUri: photoDataUriForColor });
+          dominantColor = colorResult.dominantColor;
+        }
+        setUploadProgress(75);
+
+        addDocumentNonBlocking(
+          imagesCollection,
+          {
+            ...newPhoto,
+            imageUrl: finalImageUrl,
+            blurredImageUrl: finalImageUrl,
+            uploadDate: serverTimestamp(),
+            dominantColor: dominantColor,
+          }
+        );
+
+        setUploadProgress(100);
+        setTimeout(() => setIsUploading(false), 1000); // Hide progress bar after a short delay
+
+        resetUploadForm();
+        toast({
+          title: 'Image Added!',
+          description: 'The new image is now live in the gallery.',
         });
-
-        photoDataUriForColor = reader;
-        const uploadResult = await uploadImage({ photoDataUri: reader });
-        if (!uploadResult || !uploadResult.imageUrl) {
-          throw new Error('Image URL was not returned from the upload service.');
-        }
-        finalImageUrl = uploadResult.imageUrl;
-      } else {
-        // Use direct URL
-        finalImageUrl = imageUrl;
+      } catch (error: any) {
+        console.error('Upload process failed:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Upload Failed',
+          description:
+            error.message || 'An unknown error occurred during image processing.',
+        });
+        setIsUploading(false); // Hide progress on failure
       }
+    };
 
-      let dominantColor = '#F0F4F8'; // Default background color
-      if (photoDataUriForColor) {
-        const colorResult = await extractDominantColor({ photoDataUri: photoDataUriForColor });
-        dominantColor = colorResult.dominantColor;
-      }
-
-      addDocumentNonBlocking(
-        imagesCollection,
-        {
-          ...newPhoto,
-          imageUrl: finalImageUrl,
-          blurredImageUrl: finalImageUrl,
-          uploadDate: serverTimestamp(),
-          dominantColor: dominantColor,
-        }
-      );
-
-      resetUploadForm();
-      toast({
-        title: 'Image Added!',
-        description: 'The new image is now live in the gallery.',
-      });
-    } catch (error: any) {
-      console.error('Upload process failed:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Upload Failed',
-        description:
-          error.message || 'An unknown error occurred during image processing.',
-      });
-    } finally {
-      setIsUploading(false);
-    }
+    performUpload();
   };
 
 
@@ -257,8 +271,8 @@ export default function Home() {
                           <DialogClose asChild>
                               <Button type="button" variant="secondary" onClick={resetUploadForm}>Cancel</Button>
                           </DialogClose>
-                          <Button type="submit" onClick={handleUpload} disabled={isUploading}>
-                              {isUploading ? 'Uploading...' : 'Upload'}
+                          <Button type="submit" onClick={handleUpload}>
+                              Upload
                           </Button>
                       </DialogFooter>
                     </DialogContent>
@@ -266,6 +280,14 @@ export default function Home() {
                 )}
               </div>
             </div>
+
+            {isUploading && (
+              <div className="mb-4">
+                <Progress value={uploadProgress} className="w-full" />
+                <p className="text-sm text-center mt-2 text-muted-foreground">Uploading image...</p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {isLoading && Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="aspect-[3/4] bg-muted animate-pulse rounded-lg" />

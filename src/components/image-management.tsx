@@ -53,6 +53,7 @@ import { Textarea } from './ui/textarea';
 import { uploadImage } from '@/ai/flows/upload-image-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { Badge } from './ui/badge';
+import { Progress } from './ui/progress';
 
 export function ImageManagement() {
   const firestore = useFirestore();
@@ -62,6 +63,7 @@ export function ImageManagement() {
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   
   const [newPhoto, setNewPhoto] = useState({ title: '', description: '' });
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -118,7 +120,7 @@ export function ImageManagement() {
     setUploadDialogOpen(false);
   };
 
-  const handleUpload = async () => {
+  const handleUpload = () => {
     if (!firestore) return;
     if (!imageFile && !imageUrl) {
       toast({
@@ -129,68 +131,78 @@ export function ImageManagement() {
       return;
     }
   
+    setUploadDialogOpen(false);
     setIsUploading(true);
-  
-    try {
-      let finalImageUrl: string;
-      let photoDataUriForColor: string | undefined;
-  
-      if (imageFile) {
-        // Upload from file
-        const reader = await new Promise<string>((resolve, reject) => {
-          const fileReader = new FileReader();
-          fileReader.readAsDataURL(imageFile);
-          fileReader.onload = () => resolve(fileReader.result as string);
-          fileReader.onerror = (error) => reject(error);
+    setUploadProgress(0);
+
+    const performUpload = async () => {
+      try {
+        let finalImageUrl: string;
+        let photoDataUriForColor: string | undefined;
+    
+        if (imageFile) {
+          setUploadProgress(10);
+          const reader = await new Promise<string>((resolve, reject) => {
+            const fileReader = new FileReader();
+            fileReader.readAsDataURL(imageFile);
+            fileReader.onload = () => resolve(fileReader.result as string);
+            fileReader.onerror = (error) => reject(error);
+          });
+    
+          setUploadProgress(25);
+          photoDataUriForColor = reader;
+          const uploadResult = await uploadImage({ photoDataUri: reader });
+          if (!uploadResult || !uploadResult.imageUrl) {
+            throw new Error('Image URL was not returned from the upload service.');
+          }
+          finalImageUrl = uploadResult.imageUrl;
+          setUploadProgress(50);
+        } else {
+          finalImageUrl = imageUrl;
+          setUploadProgress(50);
+        }
+    
+        let dominantColor = '#F0F4F8'; // Default background color
+        if (photoDataUriForColor) {
+          try {
+            const colorResult = await extractDominantColor({ photoDataUri: photoDataUriForColor });
+            dominantColor = colorResult.dominantColor;
+          } catch (colorError) {
+            console.warn("Could not extract color, using default.", colorError);
+          }
+        }
+        setUploadProgress(75);
+    
+        addDocumentNonBlocking(
+          imagesCollection,
+          {
+            ...newPhoto,
+            imageUrl: finalImageUrl,
+            blurredImageUrl: finalImageUrl,
+            dominantColor: dominantColor,
+            uploadDate: serverTimestamp(),
+          }
+        );
+        
+        setUploadProgress(100);
+        setTimeout(() => setIsUploading(false), 1000);
+    
+        resetUploadForm();
+        toast({
+          title: 'Image Uploaded!',
+          description: 'The new image is now live in the gallery.',
         });
-  
-        photoDataUriForColor = reader;
-        const uploadResult = await uploadImage({ photoDataUri: reader });
-        if (!uploadResult || !uploadResult.imageUrl) {
-          throw new Error('Image URL was not returned from the upload service.');
-        }
-        finalImageUrl = uploadResult.imageUrl;
-      } else {
-        // Use direct URL
-        finalImageUrl = imageUrl;
+      } catch (error: any) {
+        console.error('Upload process failed:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Upload Failed',
+          description: error.message || 'An unknown error occurred during image upload.',
+        });
+        setIsUploading(false);
       }
-  
-      let dominantColor = '#F0F4F8'; // Default background color
-      if (photoDataUriForColor) {
-        try {
-          const colorResult = await extractDominantColor({ photoDataUri: photoDataUriForColor });
-          dominantColor = colorResult.dominantColor;
-        } catch (colorError) {
-          console.warn("Could not extract color, using default.", colorError);
-        }
-      }
-  
-      addDocumentNonBlocking(
-        imagesCollection,
-        {
-          ...newPhoto,
-          imageUrl: finalImageUrl,
-          blurredImageUrl: finalImageUrl,
-          dominantColor: dominantColor,
-          uploadDate: serverTimestamp(),
-        }
-      );
-  
-      resetUploadForm();
-      toast({
-        title: 'Image Uploaded!',
-        description: 'The new image is now live in the gallery.',
-      });
-    } catch (error: any) {
-      console.error('Upload process failed:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Upload Failed',
-        description: error.message || 'An unknown error occurred during image upload.',
-      });
-    } finally {
-      setIsUploading(false);
-    }
+    };
+    performUpload();
   };
 
   return (
@@ -254,13 +266,20 @@ export function ImageManagement() {
                 <DialogClose asChild>
                     <Button type="button" variant="secondary" onClick={resetUploadForm}>Cancel</Button>
                 </DialogClose>
-                <Button type="submit" onClick={handleUpload} disabled={isUploading}>
-                    {isUploading ? 'Uploading...' : 'Upload'}
+                <Button type="submit" onClick={handleUpload}>
+                    Upload
                 </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
       </div>
+
+      {isUploading && (
+        <div className="p-4 border-b">
+            <Progress value={uploadProgress} className="w-full" />
+            <p className="text-sm text-center mt-2 text-muted-foreground">Uploading image...</p>
+        </div>
+        )}
 
       <div className="relative w-full overflow-auto">
         <Table>
