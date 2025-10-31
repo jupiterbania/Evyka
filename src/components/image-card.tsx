@@ -78,7 +78,6 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editedMedia, setEditedMedia] = useState<MediaType | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
 
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -193,32 +192,15 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
 
   const renderMedia = () => {
     if (isVideo) {
-      if (isPlaying) {
-        return (
+      return (
           <video
             src={mediaItem.mediaUrl}
+            poster={mediaItem.thumbnailUrl}
             controls
-            autoPlay
+            playsInline
             className="w-full h-full object-cover"
-            onEnded={() => setIsPlaying(false)}
             onClick={(e) => e.preventDefault()}
           />
-        );
-      }
-      return (
-        <div onClick={() => setIsPlaying(true)} className="cursor-pointer h-full">
-          <Image
-            src={displayUrl!}
-            alt={mediaItem.title}
-            fill
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-            className="object-cover transition-all duration-300 ease-in-out group-hover:scale-105"
-            data-ai-hint="video thumbnail"
-          />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
-            <PlayCircle className="h-16 w-16 text-white" />
-          </div>
-        </div>
       );
     }
 
@@ -347,5 +329,3 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
     </>
   );
 }
-
-    
