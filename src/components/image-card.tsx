@@ -3,7 +3,7 @@
 
 import type { Media as MediaType } from '@/lib/types';
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -78,6 +78,9 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editedMedia, setEditedMedia] = useState<MediaType | null>(null);
+
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [isHovering, setIsHovering] = useState(false);
 
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -185,39 +188,68 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
   };
 
   const isVideo = mediaItem.mediaType === 'video';
-  const displayUrl = isVideo ? mediaItem.thumbnailUrl || mediaItem.mediaUrl : mediaItem.mediaUrl;
   const linkHref = `/image/${mediaItem.id}`;
+
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    if (isHovering) {
+      video.play().catch(error => {
+        // Autoplay was prevented.
+        console.error("Video autoplay failed:", error);
+      });
+    } else {
+      video.pause();
+    }
+  }, [isHovering]);
 
 
   const renderMedia = () => {
+    if (isVideo) {
+      return (
+        <>
+          <video
+            ref={videoRef}
+            src={mediaItem.mediaUrl}
+            poster={mediaItem.thumbnailUrl || undefined}
+            muted
+            loop
+            playsInline
+            className="object-cover w-full h-full transition-all duration-300 ease-in-out"
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity">
+            <PlayCircle className="h-16 w-16 text-white/90" />
+          </div>
+        </>
+      );
+    }
+
     return (
-      <Link href={linkHref} className="block cursor-pointer h-full">
         <Image
-          src={displayUrl!}
+          src={mediaItem.mediaUrl}
           alt={mediaItem.title}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="object-cover transition-all duration-300 ease-in-out group-hover:scale-105"
           data-ai-hint="photo"
         />
-        {isVideo && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity">
-            <PlayCircle className="h-16 w-16 text-white/90" />
-          </div>
-        )}
-      </Link>
     );
   };
 
   return (
     <>
-      <Card className="group overflow-hidden flex flex-col">
+      <Card 
+        className="group overflow-hidden flex flex-col"
+        onMouseEnter={() => isVideo && setIsHovering(true)}
+        onMouseLeave={() => isVideo && setIsHovering(false)}
+      >
         <CardHeader className="p-0">
-            <div
-                className="relative aspect-[3/4] w-full overflow-hidden bg-card"
-            >
-                {renderMedia()}
-            </div>
+            <Link href={linkHref} className="block cursor-pointer">
+              <div className="relative aspect-[3/4] w-full overflow-hidden bg-card">
+                  {renderMedia()}
+              </div>
+            </Link>
         </CardHeader>
         <CardContent className="p-4 flex-grow flex flex-col">
             <div className="flex-grow">
