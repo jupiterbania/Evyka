@@ -81,8 +81,18 @@ export function ImageCard({ photo }: ImageCardProps) {
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editedPhoto, setEditedPhoto] = useState<ImageType | null>(null);
 
+  const handleWatchAdClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent any parent click handlers from firing
+    sessionStorage.setItem(`unlocking_${photo.id}`, 'true');
+    window.location.href = `https://www.effectivegatecpm.com/rqgi4kseb?key=7466724a8386072866c53caa673b3d9f`;
+  };
+
   const handleCardClick = () => {
     if (photo.isAdGated) {
+      // Intentionally do nothing on card click for ad-gated images,
+      // as the button is the explicit action.
+      // Or, we could trigger the ad redirect here as well for better UX.
+      // Let's redirect for now.
       sessionStorage.setItem(`unlocking_${photo.id}`, 'true');
       window.location.href = `https://www.effectivegatecpm.com/rqgi4kseb?key=7466724a8386072866c53caa673b3d9f`;
     } else {
@@ -90,7 +100,8 @@ export function ImageCard({ photo }: ImageCardProps) {
     }
   };
 
-  const handleEditClick = () => {
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setEditedPhoto(photo);
     setEditDialogOpen(true);
   };
@@ -110,7 +121,8 @@ export function ImageCard({ photo }: ImageCardProps) {
     setEditedPhoto(null);
   };
 
-  const handleDeleteClick = () => {
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
     setDeleteDialogOpen(true);
   };
 
@@ -126,7 +138,8 @@ export function ImageCard({ photo }: ImageCardProps) {
     setDeleteDialogOpen(false);
   };
 
-  const handleShare = async () => {
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     const shareData = {
       title: photo.title,
       text: `Check out this image on EVYKA: ${photo.title}`,
@@ -168,7 +181,7 @@ export function ImageCard({ photo }: ImageCardProps) {
     return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
+            <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={(e) => e.stopPropagation()}>
               <MoreVertical className="h-5 w-5" />
             </Button>
           </DropdownMenuTrigger>
@@ -195,9 +208,9 @@ export function ImageCard({ photo }: ImageCardProps) {
     <>
       <Card className="group overflow-hidden flex flex-col">
         <CardHeader className="p-0">
-          <div onClick={handleCardClick} className="block">
+          <div onClick={handleCardClick} className="block cursor-pointer">
               <div
-                className="relative aspect-[3/4] w-full overflow-hidden cursor-pointer bg-card"
+                className="relative aspect-[3/4] w-full overflow-hidden bg-card"
               >
                 <Image
                   src={photo.imageUrl}
@@ -211,14 +224,17 @@ export function ImageCard({ photo }: ImageCardProps) {
                     <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center p-4 text-center text-white">
                         <Video className="w-8 h-8 mb-2" />
                         <span className="font-semibold text-sm">Watch ad to unlock image</span>
-                        <p className="text-xs mt-1 opacity-80">This content is available for free after a short ad.</p>
+                        <p className="text-xs mt-1 opacity-80 mb-4">This content is available for free after a short ad.</p>
+                        <Button onClick={handleWatchAdClick} variant="secondary" size="sm">
+                            Watch Ad
+                        </Button>
                     </div>
                 )}
               </div>
           </div>
         </CardHeader>
-        <CardContent className="p-4 flex-grow">
-          <div onClick={handleCardClick} className="flex-grow">
+        <CardContent className="p-4 flex-grow" onClick={handleCardClick}>
+          <div className="flex-grow">
             <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline cursor-pointer">
               {photo.title}
             </CardTitle>
