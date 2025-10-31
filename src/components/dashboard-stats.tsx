@@ -1,10 +1,10 @@
 
 "use client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, MessageSquare } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection } from "firebase/firestore";
-import type { Image } from "@/lib/types";
+import { collection, query, where } from "firebase/firestore";
+import type { Image, Message } from "@/lib/types";
 
 export function DashboardStats() {
     const firestore = useFirestore();
@@ -12,12 +12,25 @@ export function DashboardStats() {
     const imagesQuery = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
     const { data: images, isLoading: imagesLoading } = useCollection<Image>(imagesQuery);
 
+    const messagesQuery = useMemoFirebase(() => collection(firestore, 'messages'), [firestore]);
+    const { data: messages, isLoading: messagesLoading } = useCollection<Message>(messagesQuery);
+    
+    const unreadMessagesQuery = useMemoFirebase(() => query(collection(firestore, 'messages'), where('isRead', '==', false)), [firestore]);
+    const { data: unreadMessages, isLoading: unreadLoading } = useCollection<Message>(unreadMessagesQuery);
+
+
     const stats = [
         {
             title: "Total Images",
             value: imagesLoading ? '...' : (images?.length ?? 0).toLocaleString(),
             icon: ImageIcon,
             description: "Total number of images in the gallery."
+        },
+        {
+            title: "Unread Messages",
+            value: unreadLoading ? '...' : (unreadMessages?.length ?? 0).toLocaleString(),
+            icon: MessageSquare,
+            description: "Number of new messages from users."
         }
     ]
   return (
