@@ -16,6 +16,7 @@ import {
   Edit,
   Trash2,
   Share2,
+  MessageSquare,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -60,6 +61,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import Link from 'next/link';
+import { MessageDialog } from './message-dialog';
 
 type ImageCardProps = {
   photo: ImageType;
@@ -210,6 +212,16 @@ export function ImageCard({ photo }: ImageCardProps) {
         </Link>
         <CardFooter className="p-4 pt-0 flex justify-end items-center mt-auto">
             <div className="flex-grow"></div>
+             {!isAdmin && (
+              <MessageDialog
+                trigger={
+                  <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8">
+                    <MessageSquare className="h-4 w-4" />
+                    <span className="sr-only">Message</span>
+                  </Button>
+                }
+              />
+            )}
             <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>
               <Share2 className="h-4 w-4" />
               <span className="sr-only">Share</span>
