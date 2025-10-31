@@ -50,7 +50,7 @@ export default function Home() {
       const key = sessionStorage.key(i);
       if (key && key.startsWith('unlocking_')) {
         const imageId = key.replace('unlocking_', '');
-        sessionStorage.removeItem(key); // Remove temp flag
+        sessionStorage.removeItem(key); // Remove temp flag immediately after reading
         newUnlocked.add(imageId);
         changed = true;
       }
