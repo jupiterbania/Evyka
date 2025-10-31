@@ -182,21 +182,24 @@ export default function Home() {
               const colorResult = await extractDominantColor({ photoDataUri: reader });
               dominantColor = colorResult.dominantColor || '#F0F4F8';
             }
-
-            const originalFileName = file.name.substring(0, file.name.lastIndexOf('.'));
             
-            addDocumentNonBlocking(
-              mediaCollection,
-              {
-                title: isMultiple ? '' : newMedia.title || originalFileName,
-                description: newMedia.description,
-                mediaUrl: uploadResult.mediaUrl,
-                thumbnailUrl: uploadResult.thumbnailUrl,
-                mediaType: mediaType,
-                uploadDate: serverTimestamp(),
-                dominantColor: mediaType === 'image' ? dominantColor : undefined,
-              }
-            );
+            const docData: any = {
+              title: isMultiple ? '' : newMedia.title,
+              description: newMedia.description,
+              mediaUrl: uploadResult.mediaUrl,
+              mediaType: mediaType,
+              uploadDate: serverTimestamp(),
+            };
+
+            if (uploadResult.thumbnailUrl) {
+                docData.thumbnailUrl = uploadResult.thumbnailUrl;
+            }
+
+            if (mediaType === 'image') {
+                docData.dominantColor = dominantColor;
+            }
+            
+            addDocumentNonBlocking(mediaCollection, docData);
             setUploadProgress(((i + 1) / totalFiles) * 100);
           }
         } else if (mediaUrl) {
@@ -416,5 +419,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

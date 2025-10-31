@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -176,20 +175,23 @@ export function ImageManagement() {
               }
             }
 
-            const originalFileName = file.name.substring(0, file.name.lastIndexOf('.'));
-            
-            addDocumentNonBlocking(
-              mediaCollection,
-              {
-                title: isMultiple ? '' : newMedia.title || originalFileName,
+            const docData: any = {
+                title: isMultiple ? '' : newMedia.title,
                 description: newMedia.description,
                 mediaUrl: uploadResult.mediaUrl,
-                thumbnailUrl: uploadResult.thumbnailUrl,
                 mediaType: mediaType,
                 uploadDate: serverTimestamp(),
-                dominantColor: mediaType === 'image' ? dominantColor : undefined,
-              }
-            );
+            };
+
+            if (uploadResult.thumbnailUrl) {
+                docData.thumbnailUrl = uploadResult.thumbnailUrl;
+            }
+
+            if (mediaType === 'image') {
+                docData.dominantColor = dominantColor;
+            }
+
+            addDocumentNonBlocking(mediaCollection, docData);
             setUploadProgress(((i + 1) / totalFiles) * 100);
           }
         } else if (mediaUrl) {
