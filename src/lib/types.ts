@@ -1,12 +1,13 @@
 
 import { Timestamp } from "firebase/firestore";
 
-export type Image = {
+export type Media = {
   id: string;
   title: string;
   description: string;
-  imageUrl: string;
-  blurredImageUrl: string;
+  mediaUrl: string;
+  thumbnailUrl?: string; // For videos
+  mediaType: 'image' | 'video';
   uploadDate: Timestamp;
   dominantColor?: string;
 };

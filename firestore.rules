@@ -7,13 +7,13 @@
  *
  * Data Structure:
  * - /users/{userId}: Stores user profiles, accessible only to the user and admins.
- * - /images/{imageId}: Stores image metadata, publicly readable but writable only by admins.
+ * - /media/{mediaId}: Stores media metadata, publicly readable but writable only by admins.
  * - /roles_admin/{userId}: Indicates admin privileges; presence of document grants access.
  * - /settings/main: A singleton document for site-wide settings, writeable only by admins.
  *
  * Key Security Decisions:
  * - Users can only read and write their own profile data.
- * - Image metadata is publicly readable to enable browsing. Write access is restricted to admins.
+ * - Media metadata is publicly readable to enable browsing. Write access is restricted to admins.
  * - The existence of a document in `/roles_admin/{userId}` grants the user admin privileges.
  * - The `settings/main` document is writeable by admins only, allowing for global site settings management.
  * - No user listing is allowed to prevent data scraping.
@@ -46,7 +46,7 @@ service cloud.firestore {
       allow delete: if isExistingOwner(userId);
     }
 
-    match /images/{imageId} {
+    match /media/{mediaId} {
       allow get, list: if true;
       allow create, update, delete: if isAdmin();
     }

@@ -36,49 +36,54 @@
         "username"
       ]
     },
-    "Image": {
+    "Media": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Image",
+      "title": "Media",
       "type": "object",
-      "description": "Represents an image available on the FocusFinds platform.",
+      "description": "Represents an image or video on the platform.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the image."
+          "description": "Unique identifier for the media."
         },
         "title": {
           "type": "string",
-          "description": "Title of the image."
+          "description": "Title of the media."
         },
         "description": {
           "type": "string",
-          "description": "Description of the image."
+          "description": "Description of the media."
         },
-        "imageUrl": {
+        "mediaUrl": {
           "type": "string",
-          "description": "URL of the original, high-resolution image.",
+          "description": "URL of the original media file.",
           "format": "uri"
         },
-        "blurredImageUrl": {
+        "thumbnailUrl": {
           "type": "string",
-          "description": "URL of the blurred version of the image.",
+          "description": "URL of the media thumbnail (especially for videos).",
           "format": "uri"
+        },
+        "mediaType": {
+          "type": "string",
+          "description": "The type of media.",
+          "enum": ["image", "video"]
         },
         "uploadDate": {
           "type": "string",
-          "description": "Date and time when the image was uploaded.",
+          "description": "Date and time when the media was uploaded.",
           "format": "date-time"
         },
         "dominantColor": {
           "type": "string",
-          "description": "The dominant color of the image as a hex code, used for UI backgrounds."
+          "description": "The dominant color of an image, used for UI theming."
         }
       },
       "required": [
         "id",
         "title",
-        "imageUrl",
-        "blurredImageUrl",
+        "mediaUrl",
+        "mediaType",
         "uploadDate"
       ]
     },
@@ -123,17 +128,17 @@
         }
       },
       {
-        "path": "/images/{imageId}",
+        "path": "/media/{mediaId}",
         "definition": {
-          "entityName": "Image",
+          "entityName": "Media",
           "schema": {
-            "$ref": "#/backend/entities/Image"
+            "$ref": "#/backend/entities/Media"
           },
-          "description": "Stores image metadata.",
+          "description": "Stores media (image/video) metadata.",
           "params": [
             {
-              "name": "imageId",
-              "description": "The unique identifier of the image."
+              "name": "mediaId",
+              "description": "The unique identifier of the media."
             }
           ]
         }

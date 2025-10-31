@@ -1,24 +1,34 @@
 
 "use client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ImageIcon } from "lucide-react";
+import { Film, ImageIcon } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
 import { collection } from "firebase/firestore";
-import type { Image } from "@/lib/types";
+import type { Media } from "@/lib/types";
+import { useMemo } from "react";
 
 export function DashboardStats() {
     const firestore = useFirestore();
     
-    const imagesQuery = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
-    const { data: images, isLoading: imagesLoading } = useCollection<Image>(imagesQuery);
+    const mediaQuery = useMemoFirebase(() => collection(firestore, 'media'), [firestore]);
+    const { data: mediaItems, isLoading: mediaLoading } = useCollection<Media>(mediaQuery);
+
+    const imageCount = useMemo(() => mediaItems?.filter(i => i.mediaType === 'image').length ?? 0, [mediaItems]);
+    const videoCount = useMemo(() => mediaItems?.filter(i => i.mediaType === 'video').length ?? 0, [mediaItems]);
 
 
     const stats = [
         {
             title: "Total Images",
-            value: imagesLoading ? '...' : (images?.length ?? 0).toLocaleString(),
+            value: mediaLoading ? '...' : imageCount.toLocaleString(),
             icon: ImageIcon,
             description: "Total number of images in the gallery."
+        },
+        {
+            title: "Total Videos",
+            value: mediaLoading ? '...' : videoCount.toLocaleString(),
+            icon: Film,
+            description: "Total number of videos in the gallery."
         },
     ]
   return (

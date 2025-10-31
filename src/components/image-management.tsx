@@ -2,7 +2,7 @@
 "use client";
 
 import { useState } from 'react';
-import type { Image as ImageType } from '@/lib/types';
+import type { Media as MediaType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -43,90 +43,90 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
-import { Upload, Edit, Trash2, MoreHorizontal } from 'lucide-react';
+import { Upload, Edit, Trash2, MoreHorizontal, Film, ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Textarea } from './ui/textarea';
-import { uploadImage } from '@/ai/flows/upload-image-flow';
+import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 
 export function ImageManagement() {
   const firestore = useFirestore();
-  const imagesCollection = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
-  const { data: photos, isLoading } = useCollection<ImageType>(imagesCollection);
+  const mediaCollection = useMemoFirebase(() => collection(firestore, 'media'), [firestore]);
+  const { data: mediaItems, isLoading } = useCollection<MediaType>(mediaCollection);
 
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   
-  const [newPhoto, setNewPhoto] = useState({ title: '', description: '' });
-  const [imageFiles, setImageFiles] = useState<FileList | null>(null);
-  const [imageUrl, setImageUrl] = useState('');
+  const [newMedia, setNewMedia] = useState({ title: '', description: '' });
+  const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
+  const [mediaUrl, setMediaUrl] = useState('');
   
-  const [selectedPhoto, setSelectedPhoto] = useState<ImageType | null>(null);
-  const [photoToDelete, setPhotoToDelete] = useState<ImageType | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<MediaType | null>(null);
+  const [mediaToDelete, setMediaToDelete] = useState<MediaType | null>(null);
 
   const { toast } = useToast();
 
-  const handleEditClick = (photo: ImageType) => {
-    setSelectedPhoto(photo);
+  const handleEditClick = (media: MediaType) => {
+    setSelectedMedia(media);
     setEditDialogOpen(true);
   };
 
   const handleSaveEdit = () => {
-    if (!selectedPhoto || !firestore) return;
+    if (!selectedMedia || !firestore) return;
 
-    const docRef = doc(firestore, 'images', selectedPhoto.id);
+    const docRef = doc(firestore, 'media', selectedMedia.id);
     updateDocumentNonBlocking(docRef, {
-        title: selectedPhoto.title,
-        description: selectedPhoto.description,
+        title: selectedMedia.title,
+        description: selectedMedia.description,
     });
     
     toast({
-        title: "Image Updated",
-        description: "The image details have been successfully updated.",
+        title: "Media Updated",
+        description: "The media details have been successfully updated.",
     });
     setEditDialogOpen(false);
-    setSelectedPhoto(null);
+    setSelectedMedia(null);
   }
 
-  const handleDeleteClick = (photo: ImageType) => {
-    setPhotoToDelete(photo);
+  const handleDeleteClick = (media: MediaType) => {
+    setMediaToDelete(media);
   };
 
   const confirmDelete = () => {
-    if (!photoToDelete || !firestore) return;
-    const docRef = doc(firestore, 'images', photoToDelete.id);
+    if (!mediaToDelete || !firestore) return;
+    const docRef = doc(firestore, 'media', mediaToDelete.id);
     deleteDocumentNonBlocking(docRef);
 
     toast({
-        title: "Image Deleted",
-        description: "The image has been successfully removed.",
+        title: "Media Deleted",
+        description: "The media has been successfully removed.",
         variant: "destructive",
       });
-    setPhotoToDelete(null);
+    setMediaToDelete(null);
   }
   
   const resetUploadForm = () => {
-    setNewPhoto({ title: '', description: '' });
-    setImageFiles(null);
-    setImageUrl('');
+    setNewMedia({ title: '', description: '' });
+    setMediaFiles(null);
+    setMediaUrl('');
     setUploadDialogOpen(false);
   };
 
   const handleUpload = () => {
     if (!firestore) return;
-    if (!imageFiles?.length && !imageUrl) {
+    if (!mediaFiles?.length && !mediaUrl) {
       toast({
         variant: 'destructive',
         title: 'Upload Error',
-        description: 'Please select an image file or provide a direct URL.',
+        description: 'Please select a file or provide a direct URL.',
       });
       return;
     }
@@ -137,12 +137,21 @@ export function ImageManagement() {
 
     const performUpload = async () => {
       try {
-        if (imageFiles && imageFiles.length > 0) {
-          const totalFiles = imageFiles.length;
+        if (mediaFiles && mediaFiles.length > 0) {
+          const totalFiles = mediaFiles.length;
           const isMultiple = totalFiles > 1;
 
           for (let i = 0; i < totalFiles; i++) {
-            const file = imageFiles[i];
+            const file = mediaFiles[i];
+            if (file.size > 99 * 1024 * 1024) {
+              toast({
+                variant: 'destructive',
+                title: 'File Too Large',
+                description: `"${file.name}" is larger than the 99MB limit.`
+              });
+              continue;
+            }
+
             const reader = await new Promise<string>((resolve, reject) => {
               const fileReader = new FileReader();
               fileReader.readAsDataURL(file);
@@ -150,42 +159,47 @@ export function ImageManagement() {
               fileReader.onerror = (error) => reject(error);
             });
 
-            const uploadResult = await uploadImage({ photoDataUri: reader });
-            if (!uploadResult || !uploadResult.imageUrl) {
-              throw new Error('Image URL was not returned from the upload service.');
+            const isVideo = file.type.startsWith('video/');
+            const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo });
+            if (!uploadResult || !uploadResult.mediaUrl) {
+              throw new Error('Media URL was not returned from the upload service.');
             }
             
+            const mediaType = isVideo ? 'video' : 'image';
             let dominantColor = '#F0F4F8';
-            try {
-              const colorResult = await extractDominantColor({ photoDataUri: reader });
-              dominantColor = colorResult.dominantColor || '#F0F4F8';
-            } catch (colorError) {
-              console.warn("Could not extract color, using default.", colorError);
+            if (mediaType === 'image') {
+              try {
+                const colorResult = await extractDominantColor({ photoDataUri: reader });
+                dominantColor = colorResult.dominantColor || '#F0F4F8';
+              } catch (colorError) {
+                console.warn("Could not extract color, using default.", colorError);
+              }
             }
 
             const originalFileName = file.name.substring(0, file.name.lastIndexOf('.'));
             
             addDocumentNonBlocking(
-              imagesCollection,
+              mediaCollection,
               {
-                title: isMultiple ? '' : newPhoto.title || originalFileName,
-                description: newPhoto.description,
-                imageUrl: uploadResult.imageUrl,
-                blurredImageUrl: uploadResult.imageUrl,
+                title: isMultiple ? '' : newMedia.title || originalFileName,
+                description: newMedia.description,
+                mediaUrl: uploadResult.mediaUrl,
+                thumbnailUrl: uploadResult.thumbnailUrl,
+                mediaType: mediaType,
                 uploadDate: serverTimestamp(),
-                dominantColor: dominantColor,
+                dominantColor: mediaType === 'image' ? dominantColor : undefined,
               }
             );
             setUploadProgress(((i + 1) / totalFiles) * 100);
           }
-        } else if (imageUrl) {
+        } else if (mediaUrl) {
           setUploadProgress(50);
           addDocumentNonBlocking(
-            imagesCollection,
+            mediaCollection,
             {
-              ...newPhoto,
-              imageUrl: imageUrl,
-              blurredImageUrl: imageUrl,
+              ...newMedia,
+              mediaUrl: mediaUrl,
+              mediaType: 'image',
               uploadDate: serverTimestamp(),
               dominantColor: '#F0F4F8',
             }
@@ -197,15 +211,15 @@ export function ImageManagement() {
     
         resetUploadForm();
         toast({
-          title: imageFiles && imageFiles.length > 1 ? `${imageFiles.length} Images Uploaded!` : 'Image Uploaded!',
-          description: 'The new images are now live in the gallery.',
+          title: mediaFiles && mediaFiles.length > 1 ? `Upload Complete!` : 'Media Uploaded!',
+          description: 'The new media is now live in the gallery.',
         });
       } catch (error: any) {
         console.error('Upload process failed:', error);
         toast({
           variant: 'destructive',
           title: 'Upload Failed',
-          description: error.message || 'An unknown error occurred during image upload.',
+          description: error.message || 'An unknown error occurred during upload.',
         });
         setIsUploading(false);
       }
@@ -213,7 +227,7 @@ export function ImageManagement() {
     performUpload();
   };
 
-  const showTitleInput = !imageFiles || imageFiles.length <= 1;
+  const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
 
   return (
     <Card>
@@ -223,25 +237,25 @@ export function ImageManagement() {
           <DialogTrigger asChild>
             <Button>
               <Upload className="mr-2 h-4 w-4" />
-              Upload Image(s)
+              Upload Media
             </Button>
           </DialogTrigger>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
-              <DialogTitle>Upload New Image(s)</DialogTitle>
+              <DialogTitle>Upload New Media</DialogTitle>
               <DialogDescription>
-                 Select one or more image files to add to the gallery. You can also provide a URL for a single image.
+                 Select image or video files to add. Max size is 99MB. You can also provide a URL for a single image.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
               <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="imageFile-admin">Image File(s)</Label>
-                <Input id="imageFile-admin" type="file" accept="image/*" multiple
+                <Label htmlFor="mediaFile-admin">Media File(s)</Label>
+                <Input id="mediaFile-admin" type="file" accept="image/*,video/mp4,video/quicktime" multiple
                     onChange={(e) => {
-                        setImageFiles(e.target.files);
-                        if (e.target.files?.length) setImageUrl('');
+                        setMediaFiles(e.target.files);
+                        if (e.target.files?.length) setMediaUrl('');
                     }}
-                    disabled={!!imageUrl}
+                    disabled={!!mediaUrl}
                 />
               </div>
               <div className="relative my-2">
@@ -253,25 +267,25 @@ export function ImageManagement() {
                   </div>
               </div>
               <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="imageUrl-admin">Image URL</Label>
-                <Input id="imageUrl-admin" type="text" placeholder="https://example.com/image.png" 
-                  value={imageUrl} 
+                <Label htmlFor="mediaUrl-admin">Image URL</Label>
+                <Input id="mediaUrl-admin" type="text" placeholder="https://example.com/image.png" 
+                  value={mediaUrl} 
                   onChange={(e) => {
-                      setImageUrl(e.target.value);
-                      if (e.target.value) setImageFiles(null);
+                      setMediaUrl(e.target.value);
+                      if (e.target.value) setMediaFiles(null);
                   }}
-                  disabled={!!imageFiles?.length}
+                  disabled={!!mediaFiles?.length}
                 />
               </div>
               {showTitleInput && (
                 <div className="grid w-full items-center gap-1.5 mt-4">
                     <Label htmlFor="title-admin">Title</Label>
-                    <Input id="title-admin" type="text" placeholder="A beautiful landscape (optional)" value={newPhoto.title} onChange={(e) => setNewPhoto({...newPhoto, title: e.target.value})} />
+                    <Input id="title-admin" type="text" placeholder="A beautiful landscape (optional)" value={newMedia.title} onChange={(e) => setNewMedia({...newMedia, title: e.target.value})} />
                 </div>
               )}
               <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="description-admin">Description</Label>
-                <Textarea id="description-admin" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
+                <Textarea id="description-admin" placeholder="A detailed description of the media." value={newMedia.description} onChange={(e) => setNewMedia({...newMedia, description: e.target.value})}/>
               </div>
             </div>
             <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
@@ -289,7 +303,7 @@ export function ImageManagement() {
       {isUploading && (
         <div className="p-4 border-b">
             <Progress value={uploadProgress} className="w-full" />
-            <p className="text-sm text-center mt-2 text-muted-foreground">Uploading images... ({Math.round(uploadProgress)}%)</p>
+            <p className="text-sm text-center mt-2 text-muted-foreground">Uploading media... ({Math.round(uploadProgress)}%)</p>
         </div>
         )}
 
@@ -297,36 +311,38 @@ export function ImageManagement() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[80px] px-4">Image</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead className="w-[80px] px-4">Thumbnail</TableHead>
+              <TableHead>Title</TableHead>
+              <TableHead>Type</TableHead>
               <TableHead className="w-[120px] text-center px-4">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center h-24">Loading images...</TableCell>
+                <TableCell colSpan={4} className="text-center h-24">Loading media...</TableCell>
               </TableRow>
             )}
-            {!isLoading && photos?.map((photo) => (
-              <TableRow key={photo.id}>
+            {!isLoading && mediaItems?.map((media) => (
+              <TableRow key={media.id}>
                 <TableCell className="px-4">
                   <div 
                     className="w-[60px] h-[60px] relative rounded-md overflow-hidden bg-card"
                   >
                     <Image
-                      src={photo.imageUrl}
-                      alt={photo.title}
+                      src={media.thumbnailUrl || media.mediaUrl}
+                      alt={media.title}
                       fill
                       className="object-cover"
-                      data-ai-hint="photo"
                     />
                   </div>
                 </TableCell>
-                <TableCell className="font-medium truncate max-w-xs">{photo.title}</TableCell>
+                <TableCell className="font-medium truncate max-w-xs">{media.title}</TableCell>
                 <TableCell>
-                  <Badge variant="secondary">Free</Badge>
+                  <Badge variant={media.mediaType === 'video' ? 'default' : 'secondary'} className="capitalize">
+                    {media.mediaType === 'video' ? <Film className="mr-1.5 h-3.5 w-3.5" /> : <ImageIcon className="mr-1.5 h-3.5 w-3.5" />}
+                    {media.mediaType}
+                  </Badge>
                 </TableCell>
                 <TableCell className="text-center px-4">
                     <DropdownMenu>
@@ -338,12 +354,12 @@ export function ImageManagement() {
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                        <DropdownMenuItem onClick={() => handleEditClick(photo)}>
+                        <DropdownMenuItem onClick={() => handleEditClick(media)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => handleDeleteClick(photo)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
+                        <DropdownMenuItem onClick={() => handleDeleteClick(media)} className="text-destructive focus:text-destructive focus:bg-destructive/10">
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete
                         </DropdownMenuItem>
@@ -356,17 +372,17 @@ export function ImageManagement() {
         </Table>
         </div>
 
-        <AlertDialog open={!!photoToDelete} onOpenChange={(open) => !open && setPhotoToDelete(null)}>
+        <AlertDialog open={!!mediaToDelete} onOpenChange={(open) => !open && setMediaToDelete(null)}>
             <AlertDialogContent>
             <AlertDialogHeader>
                 <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                 <AlertDialogDescription>
-                    This action cannot be undone. This will permanently delete the image
+                    This action cannot be undone. This will permanently delete the media
                     and remove its data from our servers.
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setPhotoToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogCancel onClick={() => setMediaToDelete(null)}>Cancel</AlertDialogCancel>
                 <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
                 Delete
                 </AlertDialogAction>
@@ -377,19 +393,19 @@ export function ImageManagement() {
         <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                <DialogTitle>Edit Image</DialogTitle>
+                <DialogTitle>Edit Media</DialogTitle>
                 <DialogDescription>
-                    Update the details for this image.
+                    Update the details for this media item.
                 </DialogDescription>
                 </DialogHeader>
-                {selectedPhoto && <div className="grid gap-4 py-4">
+                {selectedMedia && <div className="grid gap-4 py-4">
                     <div className="grid w-full items-center gap-1.5">
                         <Label htmlFor="edit-title">Title</Label>
-                        <Input id="edit-title" value={selectedPhoto.title} onChange={(e) => setSelectedPhoto(p => p ? {...p, title: e.target.value} : null)} />
+                        <Input id="edit-title" value={selectedMedia.title} onChange={(e) => setSelectedMedia(p => p ? {...p, title: e.target.value} : null)} />
                     </div>
                     <div className="grid w-full items-center gap-1.5">
                         <Label htmlFor="edit-description">Description</Label>
-                        <Textarea id="edit-description" value={selectedPhoto.description || ''} onChange={(e) => setSelectedPhoto(p => p ? {...p, description: e.target.value} : null)} />
+                        <Textarea id="edit-description" value={selectedMedia.description || ''} onChange={(e) => setSelectedMedia(p => p ? {...p, description: e.target.value} : null)} />
                     </div>
                 </div>}
                 <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">

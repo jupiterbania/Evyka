@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Image as ImageType } from '@/lib/types';
+import type { Media as MediaType } from '@/lib/types';
 import Image from 'next/image';
 import { useState } from 'react';
 import {
@@ -17,6 +17,7 @@ import {
   Edit,
   Trash2,
   Share2,
+  PlayCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -61,12 +62,13 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 type ImageCardProps = {
-  photo: ImageType;
+  media: MediaType;
 };
 
-export function ImageCard({ photo }: ImageCardProps) {
+export function ImageCard({ media: mediaItem }: ImageCardProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -74,30 +76,29 @@ export function ImageCard({ photo }: ImageCardProps) {
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
   const isAdmin = user?.email === designatedAdminEmail;
 
-  // State for Edit/Delete dialogs
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editedPhoto, setEditedPhoto] = useState<ImageType | null>(null);
+  const [editedMedia, setEditedMedia] = useState<MediaType | null>(null);
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setEditedPhoto(photo);
+    setEditedMedia(mediaItem);
     setEditDialogOpen(true);
   };
 
   const handleSaveEdit = () => {
-    if (!editedPhoto || !firestore) return;
-    const docRef = doc(firestore, 'images', editedPhoto.id);
+    if (!editedMedia || !firestore) return;
+    const docRef = doc(firestore, 'media', editedMedia.id);
     updateDocumentNonBlocking(docRef, {
-      title: editedPhoto.title,
-      description: editedPhoto.description,
+      title: editedMedia.title,
+      description: editedMedia.description,
     });
     toast({
-      title: 'Image Updated',
-      description: 'The image details have been successfully updated.',
+      title: 'Media Updated',
+      description: 'The media details have been successfully updated.',
     });
     setEditDialogOpen(false);
-    setEditedPhoto(null);
+    setEditedMedia(null);
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -106,12 +107,12 @@ export function ImageCard({ photo }: ImageCardProps) {
   };
 
   const confirmDelete = () => {
-    if (!photo || !firestore) return;
-    const docRef = doc(firestore, 'images', photo.id);
+    if (!mediaItem || !firestore) return;
+    const docRef = doc(firestore, 'media', mediaItem.id);
     deleteDocumentNonBlocking(docRef);
     toast({
-      title: 'Image Deleted',
-      description: 'The image has been successfully removed.',
+      title: 'Media Deleted',
+      description: 'The media has been successfully removed.',
       variant: 'destructive',
     });
     setDeleteDialogOpen(false);
@@ -120,9 +121,9 @@ export function ImageCard({ photo }: ImageCardProps) {
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const shareData = {
-      title: photo.title,
-      text: `Check out this image on EVYKA: ${photo.title}`,
-      url: window.location.origin + '/image/' + photo.id
+      title: mediaItem.title,
+      text: `Check out this item on EVYKA: ${mediaItem.title}`,
+      url: window.location.origin + '/image/' + mediaItem.id
     };
     try {
       if (navigator.share) {
@@ -146,7 +147,7 @@ export function ImageCard({ photo }: ImageCardProps) {
         toast({
           variant: 'destructive',
           title: 'Share Failed',
-          description: 'Could not share the image at this time.',
+          description: 'Could not share the media at this time.',
         });
       }
     }
@@ -176,37 +177,48 @@ export function ImageCard({ photo }: ImageCardProps) {
               className="text-destructive focus:text-destructive focus:bg-destructive/10"
             >
               <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete Image</span>
+              <span>Delete Media</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
     );
   };
 
+  const isVideo = mediaItem.mediaType === 'video';
+  const displayUrl = isVideo ? mediaItem.thumbnailUrl || mediaItem.mediaUrl : mediaItem.mediaUrl;
+  const linkHref = isVideo ? mediaItem.mediaUrl : `/image/${mediaItem.id}`;
+  const linkTarget = isVideo ? "_blank" : "_self";
+
+
   return (
     <>
       <Card className="group overflow-hidden flex flex-col">
-        <Link href={`/image/${photo.id}`} className="block cursor-pointer">
+        <Link href={linkHref} target={linkTarget} rel="noopener noreferrer" className="block cursor-pointer">
             <CardHeader className="p-0">
                 <div
                     className="relative aspect-[3/4] w-full overflow-hidden bg-card"
                 >
                     <Image
-                    src={photo.imageUrl}
-                    alt={photo.title}
+                    src={displayUrl!}
+                    alt={mediaItem.title}
                     fill
                     sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     className="object-cover transition-all duration-300 ease-in-out group-hover:scale-105"
                     data-ai-hint="photo"
                     />
+                    {isVideo && (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <PlayCircle className="h-16 w-16 text-white" />
+                        </div>
+                    )}
                 </div>
             </CardHeader>
         </Link>
         <CardContent className="p-4 flex-grow flex flex-col">
             <div className="flex-grow">
-                <Link href={`/image/${photo.id}`} className="block cursor-pointer">
+                <Link href={linkHref} target={linkTarget} rel="noopener noreferrer" className="block cursor-pointer">
                     <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline">
-                    {photo.title}
+                    {mediaItem.title}
                     </CardTitle>
                 </Link>
             </div>
@@ -218,7 +230,7 @@ export function ImageCard({ photo }: ImageCardProps) {
                 </Button>
                 <Button asChild className="w-full" variant="secondary">
                     <Link href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
-                        View Full Image
+                        View Full {isVideo ? 'Video' : 'Image'}
                     </Link>
                 </Button>
             </div>
@@ -232,7 +244,7 @@ export function ImageCard({ photo }: ImageCardProps) {
                 {isAdmin && renderAdminMenu()}
             </div>
         </CardFooter>
-      </Card>
+      </Card>>
 
       {/* Admin Modals */}
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
@@ -241,7 +253,7 @@ export function ImageCard({ photo }: ImageCardProps) {
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
               This action cannot be undone. This will permanently delete the
-              image "{photo.title}" from the gallery.
+              media "{mediaItem.title}" from the gallery.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -259,20 +271,20 @@ export function ImageCard({ photo }: ImageCardProps) {
       <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Edit Image</DialogTitle>
+            <DialogTitle>Edit Media</DialogTitle>
             <DialogDescription>
-              Update the details for "{editedPhoto?.title}".
+              Update the details for "{editedMedia?.title}".
             </DialogDescription>
           </DialogHeader>
-          {editedPhoto && (
+          {editedMedia && (
             <div className="grid gap-4 py-4">
               <div className="grid w-full items-center gap-1.5">
                 <Label htmlFor="edit-title">Title</Label>
                 <Input
                   id="edit-title"
-                  value={editedPhoto.title}
+                  value={editedMedia.title}
                   onChange={(e) =>
-                    setEditedPhoto((p) => (p ? { ...p, title: e.target.value } : null))
+                    setEditedMedia((p) => (p ? { ...p, title: e.target.value } : null))
                   }
                 />
               </div>
@@ -280,9 +292,9 @@ export function ImageCard({ photo }: ImageCardProps) {
                 <Label htmlFor="edit-description">Description</Label>
                 <Textarea
                   id="edit-description"
-                  value={editedPhoto.description}
+                  value={editedMedia.description}
                   onChange={(e) =>
-                    setEditedPhoto((p) =>
+                    setEditedMedia((p) =>
                       p ? { ...p, description: e.target.value } : null
                     )
                   }

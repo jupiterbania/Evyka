@@ -3,11 +3,11 @@ import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { ImageCard } from '@/components/image-card';
 import Image from 'next/image';
-import type { Image as ImageType, SiteSettings } from '@/lib/types';
+import type { Media as MediaType, SiteSettings } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { placeholderImages } from '@/lib/placeholder-images';
-import { useMemo, useState, useRef, Fragment } from 'react';
+import { useMemo, useState, useRef, Fragment, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -23,9 +23,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload } from 'lucide-react';
+import { Upload, Film, ImageIcon } from 'lucide-react';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { uploadImage } from '@/ai/flows/upload-image-flow';
+import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { AdBanner } from '@/components/ad-banner';
 import { cn } from '@/lib/utils';
@@ -38,17 +38,23 @@ export default function Home() {
   const { toast } = useToast();
   const galleryRef = useRef<HTMLElement>(null);
   
-  const imagesCollection = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
-  const { data: photos, isLoading } = useCollection<ImageType>(imagesCollection);
+  const mediaCollection = useMemoFirebase(() => collection(firestore, 'media'), [firestore]);
+  const { data: media, isLoading } = useCollection<MediaType>(mediaCollection);
 
-  const sortedPhotos = useMemo(() => {
-    if (!photos) return [];
-    return [...photos].sort((a, b) => {
+  const [filter, setFilter] = useState<'image' | 'video'>('image');
+
+  const sortedMedia = useMemo(() => {
+    if (!media) return [];
+    return [...media].sort((a, b) => {
       const timeA = a.uploadDate?.toMillis() || 0;
       const timeB = b.uploadDate?.toMillis() || 0;
       return timeB - timeA;
     });
-  }, [photos]);
+  }, [media]);
+
+  const filteredMedia = useMemo(() => {
+      return sortedMedia.filter(item => item.mediaType === filter);
+  }, [sortedMedia, filter]);
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'main'), [firestore]);
   const { data: settings } = useDoc<SiteSettings>(settingsDocRef);
@@ -64,21 +70,21 @@ export default function Home() {
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [newPhoto, setNewPhoto] = useState({ title: '', description: '' });
-  const [imageFiles, setImageFiles] = useState<FileList | null>(null);
-  const [imageUrl, setImageUrl] = useState('');
+  const [newMedia, setNewMedia] = useState({ title: '', description: '' });
+  const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
+  const [mediaUrl, setMediaUrl] = useState('');
   
   // State for pagination
   const [currentPage, setCurrentPage] = useState(1);
   const imagesPerPage = 8;
-  const totalPages = Math.ceil((sortedPhotos?.length || 0) / imagesPerPage);
+  const totalPages = Math.ceil((filteredMedia?.length || 0) / imagesPerPage);
   const maxPageNumbersToShow = 4;
 
-  const paginatedPhotos = useMemo(() => {
+  const paginatedMedia = useMemo(() => {
     const startIndex = (currentPage - 1) * imagesPerPage;
     const endIndex = startIndex + imagesPerPage;
-    return sortedPhotos.slice(startIndex, endIndex);
-  }, [sortedPhotos, currentPage, imagesPerPage]);
+    return filteredMedia.slice(startIndex, endIndex);
+  }, [filteredMedia, currentPage, imagesPerPage]);
 
   const goToPage = (page: number) => {
     setCurrentPage(page);
@@ -128,21 +134,20 @@ export default function Home() {
     return pages;
   };
 
-
   const resetUploadForm = () => {
-    setNewPhoto({ title: '', description: '' });
-    setImageFiles(null);
-    setImageUrl('');
+    setNewMedia({ title: '', description: '' });
+    setMediaFiles(null);
+    setMediaUrl('');
     setUploadDialogOpen(false);
   };
   
   const handleUpload = () => {
     if (!firestore) return;
-    if (!imageFiles?.length && !imageUrl) {
+    if (!mediaFiles?.length && !mediaUrl) {
       toast({
         variant: 'destructive',
         title: 'Upload Error',
-        description: 'Please select an image file or provide a direct URL.',
+        description: 'Please select an image/video file or provide a direct URL.',
       });
       return;
     }
@@ -153,12 +158,12 @@ export default function Home() {
 
     const performUpload = async () => {
       try {
-        if (imageFiles && imageFiles.length > 0) {
-          const totalFiles = imageFiles.length;
+        if (mediaFiles && mediaFiles.length > 0) {
+          const totalFiles = mediaFiles.length;
           const isMultiple = totalFiles > 1;
 
           for (let i = 0; i < totalFiles; i++) {
-            const file = imageFiles[i];
+            const file = mediaFiles[i];
             const reader = await new Promise<string>((resolve, reject) => {
               const fileReader = new FileReader();
               fileReader.readAsDataURL(file);
@@ -166,37 +171,43 @@ export default function Home() {
               fileReader.onerror = (error) => reject(error);
             });
 
-            const uploadResult = await uploadImage({ photoDataUri: reader });
-            if (!uploadResult || !uploadResult.imageUrl) {
-              throw new Error('Image URL was not returned from the upload service.');
+            const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo: file.type.startsWith('video/') });
+            if (!uploadResult || !uploadResult.mediaUrl) {
+              throw new Error('Media URL was not returned from the upload service.');
             }
             
-            const colorResult = await extractDominantColor({ photoDataUri: reader });
-            const dominantColor = colorResult.dominantColor || '#F0F4F8';
+            const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+            let dominantColor = '#F0F4F8';
+            if (mediaType === 'image') {
+              const colorResult = await extractDominantColor({ photoDataUri: reader });
+              dominantColor = colorResult.dominantColor || '#F0F4F8';
+            }
 
             const originalFileName = file.name.substring(0, file.name.lastIndexOf('.'));
             
             addDocumentNonBlocking(
-              imagesCollection,
+              mediaCollection,
               {
-                title: isMultiple ? '' : newPhoto.title || originalFileName,
-                description: newPhoto.description,
-                imageUrl: uploadResult.imageUrl,
-                blurredImageUrl: uploadResult.imageUrl,
+                title: isMultiple ? '' : newMedia.title || originalFileName,
+                description: newMedia.description,
+                mediaUrl: uploadResult.mediaUrl,
+                thumbnailUrl: uploadResult.thumbnailUrl,
+                mediaType: mediaType,
                 uploadDate: serverTimestamp(),
-                dominantColor: dominantColor,
+                dominantColor: mediaType === 'image' ? dominantColor : undefined,
               }
             );
             setUploadProgress(((i + 1) / totalFiles) * 100);
           }
-        } else if (imageUrl) {
+        } else if (mediaUrl) {
+            // Simple URL upload assumes image for now. Can be enhanced.
           setUploadProgress(50);
           addDocumentNonBlocking(
-            imagesCollection,
+            mediaCollection,
             {
-              ...newPhoto,
-              imageUrl: imageUrl,
-              blurredImageUrl: imageUrl,
+              ...newMedia,
+              mediaUrl: mediaUrl,
+              mediaType: 'image',
               uploadDate: serverTimestamp(),
               dominantColor: '#F0F4F8',
             }
@@ -207,8 +218,8 @@ export default function Home() {
         setTimeout(() => setIsUploading(false), 1000);
         resetUploadForm();
         toast({
-          title: imageFiles && imageFiles.length > 1 ? `${imageFiles.length} Images Added!` : 'Image Added!',
-          description: 'The new images are now live in the gallery.',
+          title: mediaFiles && mediaFiles.length > 1 ? `${mediaFiles.length} files Added!` : 'Media Added!',
+          description: 'The new media is now live in the gallery.',
         });
 
       } catch (error: any) {
@@ -217,7 +228,7 @@ export default function Home() {
           variant: 'destructive',
           title: 'Upload Failed',
           description:
-            error.message || 'An unknown error occurred during image processing.',
+            error.message || 'An unknown error occurred during media processing.',
         });
         setIsUploading(false);
       }
@@ -226,7 +237,11 @@ export default function Home() {
     performUpload();
   };
 
-  const showTitleInput = !imageFiles || imageFiles.length <= 1;
+  const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filter]);
 
 
   return (
@@ -262,25 +277,25 @@ export default function Home() {
                     <DialogTrigger asChild>
                       <Button>
                         <Upload className="mr-2 h-4 w-4" />
-                        Upload Image
+                        Upload Media
                       </Button>
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
                       <DialogHeader>
-                        <DialogTitle>Upload New Image(s)</DialogTitle>
+                        <DialogTitle>Upload New Media</DialogTitle>
                         <DialogDescription>
-                          Select one or more image files to add to the gallery. You can also provide a URL for a single image.
+                          Select one or more image/video files (max 99MB) to add to the gallery. You can also provide a URL for a single image.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
                         <div className="grid w-full items-center gap-1.5">
-                          <Label htmlFor="imageFile">Image File(s)</Label>
-                          <Input id="imageFile" type="file" accept="image/*" multiple
+                          <Label htmlFor="mediaFile">Media File(s)</Label>
+                          <Input id="mediaFile" type="file" accept="image/*,video/mp4,video/quicktime" multiple
                             onChange={(e) => {
-                                setImageFiles(e.target.files);
-                                if (e.target.files?.length) setImageUrl('');
+                                setMediaFiles(e.target.files);
+                                if (e.target.files?.length) setMediaUrl('');
                             }}
-                            disabled={!!imageUrl}
+                            disabled={!!mediaUrl}
                           />
                         </div>
                          <div className="relative my-2">
@@ -292,25 +307,25 @@ export default function Home() {
                             </div>
                         </div>
                         <div className="grid w-full items-center gap-1.5">
-                          <Label htmlFor="imageUrl">Image URL</Label>
-                          <Input id="imageUrl" type="text" placeholder="https://example.com/image.png" 
-                            value={imageUrl} 
+                          <Label htmlFor="mediaUrl">Image URL</Label>
+                          <Input id="mediaUrl" type="text" placeholder="https://example.com/image.png" 
+                            value={mediaUrl} 
                             onChange={(e) => {
-                                setImageUrl(e.target.value);
-                                if (e.target.value) setImageFiles(null);
+                                setMediaUrl(e.target.value);
+                                if (e.target.value) setMediaFiles(null);
                             }}
-                            disabled={!!imageFiles?.length}
+                            disabled={!!mediaFiles?.length}
                           />
                         </div>
                         {showTitleInput && (
                             <div className="grid w-full items-center gap-1.5 mt-4">
                                 <Label htmlFor="title">Title</Label>
-                                <Input id="title" type="text" placeholder="A beautiful landscape (optional)" value={newPhoto.title} onChange={(e) => setNewPhoto({...newPhoto, title: e.target.value})} />
+                                <Input id="title" type="text" placeholder="A beautiful landscape (optional)" value={newMedia.title} onChange={(e) => setNewMedia({...newMedia, title: e.target.value})} />
                             </div>
                         )}
                         <div className="grid w-full items-center gap-1.5">
                           <Label htmlFor="description">Description</Label>
-                          <Textarea id="description" placeholder="A detailed description of the image." value={newPhoto.description} onChange={(e) => setNewPhoto({...newPhoto, description: e.target.value})}/>
+                          <Textarea id="description" placeholder="A detailed description of the media." value={newMedia.description} onChange={(e) => setNewMedia({...newMedia, description: e.target.value})}/>
                         </div>
                       </div>
                       <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
@@ -326,11 +341,25 @@ export default function Home() {
                 )}
               </div>
             </div>
+            
+            <div className="flex justify-center mb-6 sm:mb-8">
+              <div className="inline-flex items-center justify-center rounded-md bg-muted p-1">
+                <Button variant={filter === 'image' ? 'default' : 'ghost'} onClick={() => setFilter('image')} className="px-4 py-2 h-auto">
+                    <ImageIcon className="mr-2 h-4 w-4" />
+                    Images
+                </Button>
+                <Button variant={filter === 'video' ? 'default' : 'ghost'} onClick={() => setFilter('video')} className="px-4 py-2 h-auto">
+                    <Film className="mr-2 h-4 w-4" />
+                    Videos
+                </Button>
+              </div>
+            </div>
+
 
             {isUploading && (
               <div className="mb-4">
                 <Progress value={uploadProgress} className="w-full" />
-                <p className="text-sm text-center mt-2 text-muted-foreground">Uploading images... ({Math.round(uploadProgress)}%)</p>
+                <p className="text-sm text-center mt-2 text-muted-foreground">Uploading media... ({Math.round(uploadProgress)}%)</p>
               </div>
             )}
 
@@ -338,12 +367,12 @@ export default function Home() {
               {isLoading && Array.from({ length: 8 }).map((_, i) => (
                 <div key={i} className="aspect-[3/4] bg-muted animate-pulse rounded-lg" />
               ))}
-              {!isLoading && paginatedPhotos.length === 0 && (
-                <p className="col-span-full text-center text-muted-foreground">No images have been uploaded yet.</p>
+              {!isLoading && paginatedMedia.length === 0 && (
+                <p className="col-span-full text-center text-muted-foreground">No {filter}s have been uploaded yet.</p>
               )}
-              {paginatedPhotos.map((photo, index) => (
-                <Fragment key={photo.id}>
-                  <ImageCard photo={photo} />
+              {paginatedMedia.map((item, index) => (
+                <Fragment key={item.id}>
+                  <ImageCard media={item} />
                   {index === 3 && <AdBanner />}
                 </Fragment>
               ))}
@@ -387,3 +416,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
