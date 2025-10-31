@@ -16,6 +16,7 @@ import {
   Edit,
   Trash2,
   Share2,
+  Video,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -192,9 +193,15 @@ export function ImageCard({ photo }: ImageCardProps) {
                   alt={photo.title}
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className='object-contain transition-all duration-300 ease-in-out group-hover:scale-105'
+                  className={`object-contain transition-all duration-300 ease-in-out group-hover:scale-105 ${photo.isAdGated ? 'blur-md' : ''}`}
                   data-ai-hint="photo"
                 />
+                {photo.isAdGated && (
+                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-4 text-center text-white">
+                        <Video className="w-8 h-8 mb-2" />
+                        <span className="font-semibold text-sm">Watch to Unlock</span>
+                    </div>
+                )}
               </div>
           </Link>
         </CardHeader>
