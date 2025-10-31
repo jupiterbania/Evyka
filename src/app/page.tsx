@@ -7,7 +7,7 @@ import type { Image as ImageType, SiteSettings } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { placeholderImages } from '@/lib/placeholder-images';
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +34,7 @@ export default function Home() {
   const firestore = useFirestore();
   const { user } = useUser();
   const { toast } = useToast();
+  const galleryRef = useRef<HTMLElement>(null);
   
   const imagesCollection = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
   const { data: photos, isLoading } = useCollection<ImageType>(imagesCollection);
@@ -77,10 +78,12 @@ export default function Home() {
 
   const goToNextPage = () => {
     setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+    galleryRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const goToPreviousPage = () => {
     setCurrentPage((prev) => Math.max(prev - 1, 1));
+    galleryRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
 
@@ -185,7 +188,7 @@ export default function Home() {
             </h1>
           </div>
         </section>
-        <section id="gallery" className="py-8 sm:py-12">
+        <section ref={galleryRef} id="gallery" className="py-8 sm:py-12 scroll-mt-20">
           <div className="container px-4 sm:px-6">
             <div className="flex flex-col sm:flex-row items-center justify-between mb-6 sm:mb-8 gap-4">
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline">
@@ -266,10 +269,12 @@ export default function Home() {
               {!isLoading && paginatedPhotos.length === 0 && (
                 <p className="col-span-full text-center text-muted-foreground">No images have been uploaded yet.</p>
               )}
-              {paginatedPhotos.map(photo => (
-                <ImageCard key={photo.id} photo={photo} />
+              {paginatedPhotos.map((photo, index) => (
+                <>
+                  <ImageCard key={photo.id} photo={photo} />
+                  {index === 3 && <AdBanner />}
+                </>
               ))}
-              {/* Ad might be placed here if logic is added */}
             </div>
 
             {totalPages > 1 && (
@@ -291,3 +296,5 @@ export default function Home() {
       <Footer />
     </div>
   );
+
+    
