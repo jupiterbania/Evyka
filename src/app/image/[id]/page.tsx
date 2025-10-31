@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useState, useEffect } from 'react';
-import { Video } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 
 export default function ImagePage() {
   const { id } = useParams();
@@ -29,7 +29,7 @@ export default function ImagePage() {
   const { data: photo, isLoading: isPhotoLoading } = useDoc<ImageType>(imageDocRef);
 
   useEffect(() => {
-    if (!imageId) return;
+    if (!imageId || !photo) return;
 
     // Check if user is returning from the ad URL
     const isUnlocking = sessionStorage.getItem(`unlocking_${imageId}`);
@@ -37,18 +37,25 @@ export default function ImagePage() {
         sessionStorage.removeItem(`unlocking_${imageId}`); // Clean up the flag
         sessionStorage.setItem(`unlocked_${imageId}`, 'true'); // Set permanent unlock
         setHasUnlocked(true);
-        return; // Early exit to show unlocked content
+        return;
     }
     
     // Check for existing unlock status
     const isUnlocked = sessionStorage.getItem(`unlocked_${imageId}`);
     if (isUnlocked === 'true') {
       setHasUnlocked(true);
+      return;
     }
-  }, [imageId]);
+
+    // If ad-gated and not unlocked, redirect immediately
+    if (photo.isAdGated && !isUnlocked) {
+        handleWatchAd();
+    }
+
+  }, [imageId, photo]);
 
   const handleWatchAd = () => {
-    if (!imageId) return;
+    if (!imageId || isRedirecting) return;
 
     setIsRedirecting(true);
     // Set a flag to indicate we are starting the ad process
@@ -58,14 +65,13 @@ export default function ImagePage() {
   };
   
   const renderContent = () => {
-    if (isPhotoLoading) {
+    if (isPhotoLoading || isRedirecting) {
       return (
-        <div className="flex flex-col flex-grow items-center justify-center p-4">
-            <Skeleton className="w-full h-[75vh] max-w-7xl" />
-            <div className="w-full max-w-4xl text-center mt-8">
-                <Skeleton className="h-12 w-3/4 mx-auto" />
-                <Skeleton className="h-6 w-full max-w-prose mx-auto mt-4" />
-            </div>
+        <div className="flex-grow flex flex-col items-center justify-center p-4 text-center">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="text-muted-foreground mt-4">
+                {isRedirecting ? "Redirecting to our partner..." : "Loading image..."}
+            </p>
         </div>
       );
     }
@@ -84,28 +90,14 @@ export default function ImagePage() {
       );
     }
 
-    const needsAd = photo.isAdGated && !hasUnlocked;
-
-    if (needsAd) {
-        return (
-            <div className="flex-grow flex flex-col items-center justify-center text-center p-4">
-                 <div className="relative w-full max-w-4xl aspect-[4/3] rounded-lg overflow-hidden shadow-2xl">
-                    <Image
-                        src={photo.imageUrl}
-                        alt={photo.title}
-                        fill
-                        className="object-cover blur-2xl scale-110"
-                        sizes="(max-width: 1024px) 100vw, 1024px"
-                    />
-                     <div className="absolute inset-0 bg-black/30 flex flex-col items-center justify-center text-white p-8">
-                        <Video className="w-16 h-16 mb-4 text-white/80" />
-                        <h2 className="text-2xl sm:text-3xl font-bold mb-2">Watch ad to unlock image</h2>
-                        <p className="text-base sm:text-lg mb-6 text-white/90">This content is available for free after a short ad.</p>
-                        <Button size="lg" onClick={handleWatchAd} disabled={isRedirecting}>
-                            {isRedirecting ? 'Redirecting...' : 'Watch Ad'}
-                        </Button>
-                    </div>
-                </div>
+    // If ad-gated and still not unlocked (e.g., redirect is pending), show loading.
+    if (photo.isAdGated && !hasUnlocked) {
+         return (
+            <div className="flex-grow flex flex-col items-center justify-center p-4 text-center">
+                <Loader2 className="h-12 w-12 animate-spin text-primary" />
+                <p className="text-muted-foreground mt-4">
+                    Preparing content...
+                </p>
             </div>
         );
     }
