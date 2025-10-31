@@ -200,14 +200,23 @@ export function ImageCard({ photo }: ImageCardProps) {
                     />
                 </div>
             </CardHeader>
-            <CardContent className="p-4 flex-grow">
-                <div className="flex-grow">
+        </Link>
+        <CardContent className="p-4 flex-grow">
+            <div className="flex-grow">
+                <Link href={`/image/${photo.id}`} className="block cursor-pointer">
                     <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline">
                     {photo.title}
                     </CardTitle>
-                </div>
-            </CardContent>
-        </Link>
+                </Link>
+            </div>
+             <div className="mt-4">
+                <Button asChild className="w-full">
+                    <Link href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+                        NUD*
+                    </Link>
+                </Button>
+            </div>
+        </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-end items-center mt-auto">
             <div className="flex-grow"></div>
             <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>
