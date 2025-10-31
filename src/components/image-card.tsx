@@ -261,13 +261,8 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
             </div>
              <div className="mt-4 space-y-2">
                 <Button asChild className="w-full">
-                    <Link href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
-                        NUD*
-                    </Link>
-                </Button>
-                <Button asChild className="w-full" variant="secondary">
                     <Link href={linkHref}>
-                        View Full {isVideo ? 'Video' : 'Image'}
+                        {isVideo ? 'Play Video' : 'View Image'}
                     </Link>
                 </Button>
             </div>
