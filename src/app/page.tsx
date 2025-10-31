@@ -27,6 +27,7 @@ import { Upload } from 'lucide-react';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadImage } from '@/ai/flows/upload-image-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
+import { AdBanner } from '@/components/ad-banner';
 
 
 export default function Home() {
@@ -245,9 +246,17 @@ export default function Home() {
               {!isLoading && sortedPhotos.length === 0 && (
                 <p className="col-span-full text-center text-muted-foreground">No images have been uploaded yet.</p>
               )}
-              {sortedPhotos.map(photo => (
+              {sortedPhotos.slice(0, 4).map(photo => (
                 <ImageCard key={photo.id} photo={photo} />
               ))}
+              {sortedPhotos.length > 4 && (
+                <>
+                  <AdBanner />
+                  {sortedPhotos.slice(4).map(photo => (
+                    <ImageCard key={photo.id} photo={photo} />
+                  ))}
+                </>
+              )}
             </div>
           </div>
         </section>
