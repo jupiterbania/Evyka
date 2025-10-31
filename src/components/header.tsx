@@ -4,8 +4,8 @@ import Link from 'next/link';
 import { Logo } from './logo';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from './ui/sheet';
-import { Menu, LogIn, LogOut, MessageSquare } from 'lucide-react';
-import { useUser, useAuth, useCollection, useMemoFirebase } from '@/firebase';
+import { Menu, LogIn, LogOut } from 'lucide-react';
+import { useUser, useAuth } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import {
   DropdownMenu,
@@ -16,13 +16,10 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { doc, setDoc, serverTimestamp, getDoc, collection, query, where } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
-import type { Message } from '@/lib/types';
-import { Badge } from '@/components/ui/badge';
-
 
 export function Header() {
   const { user, isUserLoading } = useUser();
@@ -32,16 +29,6 @@ export function Header() {
 
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
   const isAdmin = user?.email === designatedAdminEmail;
-
-  // Fetch unread messages only for the admin
-  const unreadMessagesQuery = useMemoFirebase(() => {
-    if (isAdmin) {
-      return query(collection(firestore, 'messages'), where('isRead', '==', false))
-    }
-    return null;
-  }, [firestore, isAdmin]);
-  const { data: unreadMessages } = useCollection<Message>(unreadMessagesQuery);
-
 
   useEffect(() => {
     const setupAdminRole = async () => {
@@ -143,17 +130,6 @@ export function Header() {
             <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
           ) : user ? (
             <>
-            {isAdmin && (
-              <Button variant="ghost" size="icon" asChild>
-                <Link href="/admin/messages" className="relative">
-                  <MessageSquare className="h-5 w-5" />
-                  {unreadMessages && unreadMessages.length > 0 && (
-                     <Badge variant="destructive" className="absolute -top-1 -right-2 h-5 w-5 justify-center p-0">{unreadMessages.length}</Badge>
-                  )}
-                  <span className="sr-only">Messages</span>
-                </Link>
-              </Button>
-            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">

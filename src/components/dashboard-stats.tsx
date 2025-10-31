@@ -1,22 +1,16 @@
 
 "use client";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { ImageIcon, MessageSquare } from "lucide-react";
+import { ImageIcon } from "lucide-react";
 import { useCollection, useFirestore, useMemoFirebase } from "@/firebase";
-import { collection, query, where } from "firebase/firestore";
-import type { Image, Message } from "@/lib/types";
+import { collection } from "firebase/firestore";
+import type { Image } from "@/lib/types";
 
 export function DashboardStats() {
     const firestore = useFirestore();
     
     const imagesQuery = useMemoFirebase(() => collection(firestore, 'images'), [firestore]);
     const { data: images, isLoading: imagesLoading } = useCollection<Image>(imagesQuery);
-
-    const messagesQuery = useMemoFirebase(() => collection(firestore, 'messages'), [firestore]);
-    const { data: messages, isLoading: messagesLoading } = useCollection<Message>(messagesQuery);
-    
-    const unreadMessagesQuery = useMemoFirebase(() => query(collection(firestore, 'messages'), where('isRead', '==', false)), [firestore]);
-    const { data: unreadMessages, isLoading: unreadLoading } = useCollection<Message>(unreadMessagesQuery);
 
 
     const stats = [
@@ -26,12 +20,6 @@ export function DashboardStats() {
             icon: ImageIcon,
             description: "Total number of images in the gallery."
         },
-        {
-            title: "Unread Messages",
-            value: unreadLoading ? '...' : (unreadMessages?.length ?? 0).toLocaleString(),
-            icon: MessageSquare,
-            description: "Number of new messages from users."
-        }
     ]
   return (
     <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">

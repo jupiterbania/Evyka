@@ -24,21 +24,3 @@ export type User = {
   profileImageUrl?: string;
   isAdmin?: boolean;
 }
-
-export type Reply = {
-    id: string;
-    message: string;
-    sentAt: Timestamp;
-    isFromAdmin: boolean;
-}
-
-export type Message = {
-    id: string;
-    name: string;
-    userId?: string;
-    email?: string;
-    message: string;
-    isRead: boolean;
-    createdAt: Timestamp;
-    replies?: Reply[];
-}
