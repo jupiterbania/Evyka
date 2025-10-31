@@ -31,6 +31,19 @@ export default function RootLayout({
           crossOrigin="anonymous"
           strategy="lazyOnload"
         />
+        {/*
+          ================================================
+          ADSTERRA AD SCRIPT
+          Replace the script below with the code from your Adsterra dashboard.
+          This is just a placeholder.
+          ================================================
+        */}
+        <Script id="adsterra-script" strategy="lazyOnload">
+          {`
+            // console.log("Adsterra script placeholder loaded.");
+            // PASTE YOUR ADSTERRA SCRIPT CODE HERE
+          `}
+        </Script>
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
