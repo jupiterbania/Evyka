@@ -201,7 +201,7 @@ export function ImageCard({ photo }: ImageCardProps) {
                 </div>
             </CardHeader>
         </Link>
-        <CardContent className="p-4 flex-grow">
+        <CardContent className="p-4 flex-grow flex flex-col">
             <div className="flex-grow">
                 <Link href={`/image/${photo.id}`} className="block cursor-pointer">
                     <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline">
@@ -209,10 +209,15 @@ export function ImageCard({ photo }: ImageCardProps) {
                     </CardTitle>
                 </Link>
             </div>
-             <div className="mt-4">
+             <div className="mt-4 space-y-2">
                 <Button asChild className="w-full">
                     <Link href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
                         NUD*
+                    </Link>
+                </Button>
+                <Button asChild className="w-full" variant="secondary">
+                    <Link href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+                        View Full Image
                     </Link>
                 </Button>
             </div>
