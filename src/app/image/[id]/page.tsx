@@ -29,15 +29,15 @@ export default function ImagePage() {
   const { data: photo, isLoading: isPhotoLoading } = useDoc<ImageType>(imageDocRef);
 
   useEffect(() => {
-    if (!imageId || !photo) return;
-
+    if (isPhotoLoading || !imageId || !photo) return;
+    
     // 1. Check if user is returning from the ad URL
     const isUnlocking = sessionStorage.getItem(`unlocking_${imageId}`);
     if (isUnlocking === 'true') {
-        sessionStorage.removeItem(`unlocking_${imageId}`); // Clean up the flag
-        sessionStorage.setItem(`unlocked_${imageId}`, 'true'); // Set permanent unlock
+        sessionStorage.removeItem(`unlocking_${imageId}`);
+        sessionStorage.setItem(`unlocked_${imageId}`, 'true');
         setHasUnlocked(true);
-        return; // Stop further execution to show the unlocked image
+        return; 
     }
     
     // 2. Check for existing unlock status in the session
@@ -49,20 +49,12 @@ export default function ImagePage() {
 
     // 3. If ad-gated and not unlocked, redirect to the ad
     if (photo.isAdGated && !isUnlocked) {
-        handleWatchAd();
+        setIsRedirecting(true);
+        sessionStorage.setItem(`unlocking_${imageId}`, 'true');
+        window.location.href = `https://www.effectivegatecpm.com/rqgi4kseb?key=7466724a8386072866c53caa673b3d9f`;
     }
 
-  }, [imageId, photo]);
-
-  const handleWatchAd = () => {
-    if (!imageId || isRedirecting) return;
-
-    setIsRedirecting(true);
-    // Set a flag to indicate we are starting the ad process
-    sessionStorage.setItem(`unlocking_${imageId}`, 'true');
-    // Redirect to the ad provider
-    window.location.href = `https://www.effectivegatecpm.com/rqgi4kseb?key=7466724a8386072866c53caa673b3d9f`;
-  };
+  }, [imageId, photo, isPhotoLoading]);
   
   const renderContent = () => {
     // If we are loading the photo data, or about to redirect, show a loader.

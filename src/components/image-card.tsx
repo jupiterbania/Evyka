@@ -81,23 +81,8 @@ export function ImageCard({ photo }: ImageCardProps) {
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editedPhoto, setEditedPhoto] = useState<ImageType | null>(null);
 
-  const handleWatchAdClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent any parent click handlers from firing
-    sessionStorage.setItem(`unlocking_${photo.id}`, 'true');
-    window.location.href = `https://www.effectivegatecpm.com/rqgi4kseb?key=7466724a8386072866c53caa673b3d9f`;
-  };
-
   const handleCardClick = () => {
-    if (photo.isAdGated) {
-      // Intentionally do nothing on card click for ad-gated images,
-      // as the button is the explicit action.
-      // Or, we could trigger the ad redirect here as well for better UX.
-      // Let's redirect for now.
-      sessionStorage.setItem(`unlocking_${photo.id}`, 'true');
-      window.location.href = `https://www.effectivegatecpm.com/rqgi4kseb?key=7466724a8386072866c53caa673b3d9f`;
-    } else {
-      router.push(`/image/${photo.id}`);
-    }
+    router.push(`/image/${photo.id}`);
   };
 
   const handleEditClick = (e: React.MouseEvent) => {
@@ -225,7 +210,7 @@ export function ImageCard({ photo }: ImageCardProps) {
                         <Video className="w-8 h-8 mb-2" />
                         <span className="font-semibold text-sm">Watch ad to unlock image</span>
                         <p className="text-xs mt-1 opacity-80 mb-4">This content is available for free after a short ad.</p>
-                        <Button onClick={handleWatchAdClick} variant="secondary" size="sm">
+                        <Button onClick={(e) => { e.stopPropagation(); handleCardClick(); }} variant="secondary" size="sm">
                             Watch Ad
                         </Button>
                     </div>
