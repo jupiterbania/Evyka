@@ -13,6 +13,7 @@ export function Footer() {
           <Link href="/terms-and-conditions" className="text-sm font-medium hover:text-primary">Terms & Conditions</Link>
           <Link href="/privacy-policy" className="text-sm font-medium hover:text-primary">Privacy Policy</Link>
           <Link href="https://www.instagram.com/heyevyka" target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:text-primary">Contact Us</Link>
+          <Link href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:text-primary">Sponsored Link</Link>
         </div>
         <p className="text-center text-sm text-muted-foreground">
           © {new Date().getFullYear()} EVYKA Inc. All rights reserved.
