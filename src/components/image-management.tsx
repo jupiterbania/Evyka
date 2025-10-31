@@ -195,18 +195,33 @@ export function ImageManagement() {
             setUploadProgress(((i + 1) / totalFiles) * 100);
           }
         } else if (mediaUrl) {
-          setUploadProgress(50);
-          addDocumentNonBlocking(
-            mediaCollection,
-            {
-              ...newMedia,
-              mediaUrl: mediaUrl,
-              mediaType: 'image',
-              uploadDate: serverTimestamp(),
-              dominantColor: '#F0F4F8',
+            setUploadProgress(25);
+            const isVideo = ['.mp4', '.mov', '.mkv'].some(ext => mediaUrl.toLowerCase().endsWith(ext));
+            const mediaType = isVideo ? 'video' : 'image';
+
+            const uploadResult = await uploadMedia({ mediaDataUri: mediaUrl, isVideo });
+            if (!uploadResult || !uploadResult.mediaUrl) {
+                throw new Error('Media URL was not returned from the upload service.');
             }
-          );
-          setUploadProgress(100);
+            setUploadProgress(75);
+
+            const docData: any = {
+                ...newMedia,
+                mediaUrl: uploadResult.mediaUrl,
+                mediaType,
+                uploadDate: serverTimestamp(),
+            };
+
+            if (uploadResult.thumbnailUrl) {
+                docData.thumbnailUrl = uploadResult.thumbnailUrl;
+            }
+            
+            if (mediaType === 'image') {
+                docData.dominantColor = '#F0F4F8';
+            }
+
+            addDocumentNonBlocking(mediaCollection, docData);
+            setUploadProgress(100);
         }
         
         setTimeout(() => setIsUploading(false), 1000);
@@ -246,7 +261,7 @@ export function ImageManagement() {
             <DialogHeader>
               <DialogTitle>Upload New Media</DialogTitle>
               <DialogDescription>
-                 Select image or video files to add. Max size is 99MB. You can also provide a URL for a single image.
+                 Select image/video files to add (max 99MB). You can also provide a direct URL for a single image or video.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
@@ -269,8 +284,8 @@ export function ImageManagement() {
                   </div>
               </div>
               <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="mediaUrl-admin">Image URL</Label>
-                <Input id="mediaUrl-admin" type="text" placeholder="https://example.com/image.png" 
+                <Label htmlFor="mediaUrl-admin">Media URL</Label>
+                <Input id="mediaUrl-admin" type="text" placeholder="https://.../image.png or video.mp4" 
                   value={mediaUrl} 
                   onChange={(e) => {
                       setMediaUrl(e.target.value);
