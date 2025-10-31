@@ -204,7 +204,7 @@ export function ImageCard({ photo }: ImageCardProps) {
                   alt={photo.title}
                   fill
                   sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                  className={`object-contain transition-all duration-300 ease-in-out group-hover:scale-105 ${photo.isAdGated ? 'blur-md' : ''}`}
+                  className={`object-cover transition-all duration-300 ease-in-out group-hover:scale-105 ${photo.isAdGated ? 'blur-md' : ''}`}
                   data-ai-hint="photo"
                 />
                 {photo.isAdGated && (
