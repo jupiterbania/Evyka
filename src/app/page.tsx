@@ -65,7 +65,7 @@ export default function Home() {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [newPhoto, setNewPhoto] = useState({ title: '', description: '' });
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageFiles, setImageFiles] = useState<FileList | null>(null);
   const [imageUrl, setImageUrl] = useState('');
   
   // State for pagination
@@ -131,14 +131,14 @@ export default function Home() {
 
   const resetUploadForm = () => {
     setNewPhoto({ title: '', description: '' });
-    setImageFile(null);
+    setImageFiles(null);
     setImageUrl('');
     setUploadDialogOpen(false);
   };
   
   const handleUpload = () => {
     if (!firestore) return;
-    if (!imageFile && !imageUrl) {
+    if (!imageFiles?.length && !imageUrl) {
       toast({
         variant: 'destructive',
         title: 'Upload Error',
@@ -147,64 +147,68 @@ export default function Home() {
       return;
     }
     
-    // Close dialog and start background upload
     setUploadDialogOpen(false);
     setIsUploading(true);
     setUploadProgress(0);
 
     const performUpload = async () => {
       try {
-        let finalImageUrl: string;
-        let photoDataUriForColor: string | undefined;
+        if (imageFiles && imageFiles.length > 0) {
+          const totalFiles = imageFiles.length;
+          for (let i = 0; i < totalFiles; i++) {
+            const file = imageFiles[i];
+            const reader = await new Promise<string>((resolve, reject) => {
+              const fileReader = new FileReader();
+              fileReader.readAsDataURL(file);
+              fileReader.onload = () => resolve(fileReader.result as string);
+              fileReader.onerror = (error) => reject(error);
+            });
 
-        if (imageFile) {
-          setUploadProgress(10);
-          const reader = await new Promise<string>((resolve, reject) => {
-            const fileReader = new FileReader();
-            fileReader.readAsDataURL(imageFile);
-            fileReader.onload = () => resolve(fileReader.result as string);
-            fileReader.onerror = (error) => reject(error);
-          });
-          
-          setUploadProgress(25);
-          photoDataUriForColor = reader;
-          const uploadResult = await uploadImage({ photoDataUri: reader });
-          if (!uploadResult || !uploadResult.imageUrl) {
-            throw new Error('Image URL was not returned from the upload service.');
+            const uploadResult = await uploadImage({ photoDataUri: reader });
+            if (!uploadResult || !uploadResult.imageUrl) {
+              throw new Error('Image URL was not returned from the upload service.');
+            }
+            
+            const colorResult = await extractDominantColor({ photoDataUri: reader });
+            const dominantColor = colorResult.dominantColor || '#F0F4F8';
+
+            const originalFileName = file.name.substring(0, file.name.lastIndexOf('.'));
+            
+            addDocumentNonBlocking(
+              imagesCollection,
+              {
+                title: newPhoto.title || originalFileName,
+                description: newPhoto.description,
+                imageUrl: uploadResult.imageUrl,
+                blurredImageUrl: uploadResult.imageUrl,
+                uploadDate: serverTimestamp(),
+                dominantColor: dominantColor,
+              }
+            );
+            setUploadProgress(((i + 1) / totalFiles) * 100);
           }
-          finalImageUrl = uploadResult.imageUrl;
+        } else if (imageUrl) {
           setUploadProgress(50);
-        } else {
-          finalImageUrl = imageUrl;
-          setUploadProgress(50);
+          addDocumentNonBlocking(
+            imagesCollection,
+            {
+              ...newPhoto,
+              imageUrl: imageUrl,
+              blurredImageUrl: imageUrl,
+              uploadDate: serverTimestamp(),
+              dominantColor: '#F0F4F8',
+            }
+          );
+          setUploadProgress(100);
         }
 
-        let dominantColor = '#F0F4F8'; // Default background color
-        if (photoDataUriForColor) {
-          const colorResult = await extractDominantColor({ photoDataUri: photoDataUriForColor });
-          dominantColor = colorResult.dominantColor;
-        }
-        setUploadProgress(75);
-
-        addDocumentNonBlocking(
-          imagesCollection,
-          {
-            ...newPhoto,
-            imageUrl: finalImageUrl,
-            blurredImageUrl: finalImageUrl,
-            uploadDate: serverTimestamp(),
-            dominantColor: dominantColor,
-          }
-        );
-
-        setUploadProgress(100);
-        setTimeout(() => setIsUploading(false), 1000); // Hide progress bar after a short delay
-
+        setTimeout(() => setIsUploading(false), 1000);
         resetUploadForm();
         toast({
-          title: 'Image Added!',
-          description: 'The new image is now live in the gallery.',
+          title: imageFiles && imageFiles.length > 1 ? `${imageFiles.length} Images Added!` : 'Image Added!',
+          description: 'The new images are now live in the gallery.',
         });
+
       } catch (error: any) {
         console.error('Upload process failed:', error);
         toast({
@@ -213,7 +217,7 @@ export default function Home() {
           description:
             error.message || 'An unknown error occurred during image processing.',
         });
-        setIsUploading(false); // Hide progress on failure
+        setIsUploading(false);
       }
     };
 
@@ -259,17 +263,17 @@ export default function Home() {
                     </DialogTrigger>
                     <DialogContent className="sm:max-w-md">
                       <DialogHeader>
-                        <DialogTitle>Upload New Image</DialogTitle>
+                        <DialogTitle>Upload New Image(s)</DialogTitle>
                         <DialogDescription>
-                          Select an image file and set its details to add it to the gallery.
+                          Select one or more image files to add to the gallery. You can also provide a URL for a single image.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
                         <div className="grid w-full items-center gap-1.5">
-                          <Label htmlFor="imageFile">Image File</Label>
-                          <Input id="imageFile" type="file" accept="image/*" 
+                          <Label htmlFor="imageFile">Image File(s)</Label>
+                          <Input id="imageFile" type="file" accept="image/*" multiple
                             onChange={(e) => {
-                                setImageFile(e.target.files ? e.target.files[0] : null);
+                                setImageFiles(e.target.files);
                                 if (e.target.files?.length) setImageUrl('');
                             }}
                             disabled={!!imageUrl}
@@ -289,14 +293,15 @@ export default function Home() {
                             value={imageUrl} 
                             onChange={(e) => {
                                 setImageUrl(e.target.value);
-                                if (e.target.value) setImageFile(null);
+                                if (e.target.value) setImageFiles(null);
                             }}
-                            disabled={!!imageFile}
+                            disabled={!!imageFiles?.length}
                           />
                         </div>
                         <div className="grid w-full items-center gap-1.5 mt-4">
                           <Label htmlFor="title">Title</Label>
-                          <Input id="title" type="text" placeholder="A beautiful landscape" value={newPhoto.title} onChange={(e) => setNewPhoto({...newPhoto, title: e.target.value})} />
+                          <Input id="title" type="text" placeholder="A beautiful landscape (optional)" value={newPhoto.title} onChange={(e) => setNewPhoto({...newPhoto, title: e.target.value})} />
+                          <p className='text-xs text-muted-foreground'>If uploading multiple files, this title will be ignored. The original filename will be used as the title.</p>
                         </div>
                         <div className="grid w-full items-center gap-1.5">
                           <Label htmlFor="description">Description</Label>
@@ -320,7 +325,7 @@ export default function Home() {
             {isUploading && (
               <div className="mb-4">
                 <Progress value={uploadProgress} className="w-full" />
-                <p className="text-sm text-center mt-2 text-muted-foreground">Uploading image...</p>
+                <p className="text-sm text-center mt-2 text-muted-foreground">Uploading images... ({Math.round(uploadProgress)}%)</p>
               </div>
             )}
 
