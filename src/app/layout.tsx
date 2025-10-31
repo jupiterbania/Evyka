@@ -33,6 +33,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
           strategy="lazyOnload"
         />
+        <script type='text/javascript' src='//pl27958404.effectivegatecpm.com/47/2e/54/472e5469e9a7e3864565f60e6138e84e.js'></script>
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
