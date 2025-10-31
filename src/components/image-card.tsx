@@ -195,12 +195,19 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
     if (!video) return;
 
     if (isHovering) {
-      video.play().catch(error => {
-        // Autoplay was prevented.
-        console.error("Video autoplay failed:", error);
-      });
+      if (video.paused) {
+        video.play().catch(error => {
+          // This can happen if the user hasn't interacted with the page yet.
+          // We can safely ignore this error as it's a browser policy.
+          if (error.name !== 'NotAllowedError') {
+            console.error("Video autoplay failed:", error);
+          }
+        });
+      }
     } else {
-      video.pause();
+      if (!video.paused) {
+        video.pause();
+      }
     }
   }, [isHovering]);
 
