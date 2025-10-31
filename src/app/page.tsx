@@ -40,33 +40,20 @@ export default function Home() {
   const [unlockedImages, setUnlockedImages] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    // This effect runs on the client after the page loads.
+    // This effect runs once on the client after the page loads.
     // It checks if the user has just returned from the ad provider.
-    const newUnlocked = new Set(unlockedImages);
+    const newUnlocked = new Set<string>();
     let changed = false;
 
-    // 1. Finalize any pending unlocks from this session
+    // Check for a pending unlock from this session
     for (let i = 0; i < sessionStorage.length; i++) {
       const key = sessionStorage.key(i);
       if (key && key.startsWith('unlocking_')) {
         const imageId = key.replace('unlocking_', '');
         sessionStorage.removeItem(key); // Remove temp flag
-        sessionStorage.setItem(`unlocked_${imageId}`, 'true'); // Set permanent session flag
         newUnlocked.add(imageId);
         changed = true;
       }
-    }
-
-    // 2. Load any images that were already unlocked in this session
-    for (let i = 0; i < sessionStorage.length; i++) {
-        const key = sessionStorage.key(i);
-        if (key && key.startsWith('unlocked_')) {
-            const imageId = key.replace('unlocked_', '');
-            if (!newUnlocked.has(imageId)) {
-                newUnlocked.add(imageId);
-                changed = true;
-            }
-        }
     }
 
     if (changed) {
