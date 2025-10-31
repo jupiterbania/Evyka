@@ -3,7 +3,6 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-import { AgeGate } from '@/components/age-gate';
 import Script from 'next/script';
 
 export const metadata: Metadata = {
@@ -36,9 +35,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           <FirebaseErrorListener />
-          <AgeGate>
-            {children}
-          </AgeGate>
+          {children}
           <Toaster />
         </FirebaseClientProvider>
       </body>
