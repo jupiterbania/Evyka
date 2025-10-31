@@ -187,36 +187,27 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
   const isVideo = mediaItem.mediaType === 'video';
   const displayUrl = isVideo ? mediaItem.thumbnailUrl || mediaItem.mediaUrl : mediaItem.mediaUrl;
   const linkHref = `/image/${mediaItem.id}`;
-  const linkTarget = "_self";
 
 
   const renderMedia = () => {
-    if (isVideo) {
-      return (
-          <video
-            src={mediaItem.mediaUrl}
-            poster={mediaItem.thumbnailUrl}
-            controls
-            playsInline
-            className="w-full h-full object-cover"
-            onClick={(e) => e.preventDefault()}
-          />
-      );
-    }
-
     return (
-        <Link href={linkHref} className="block cursor-pointer h-full">
-            <Image
-                src={displayUrl!}
-                alt={mediaItem.title}
-                fill
-                sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                className="object-cover transition-all duration-300 ease-in-out group-hover:scale-105"
-                data-ai-hint="photo"
-            />
-        </Link>
+      <Link href={linkHref} className="block cursor-pointer h-full">
+        <Image
+          src={displayUrl!}
+          alt={mediaItem.title}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="object-cover transition-all duration-300 ease-in-out group-hover:scale-105"
+          data-ai-hint="photo"
+        />
+        {isVideo && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
+            <PlayCircle className="h-16 w-16 text-white" />
+          </div>
+        )}
+      </Link>
     );
-  }
+  };
 
   return (
     <>
@@ -230,7 +221,7 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
         </CardHeader>
         <CardContent className="p-4 flex-grow flex flex-col">
             <div className="flex-grow">
-                <Link href={linkHref} target={linkTarget} rel="noopener noreferrer" className="block cursor-pointer">
+                <Link href={linkHref} className="block cursor-pointer">
                     <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline">
                     {mediaItem.title}
                     </CardTitle>
@@ -243,7 +234,7 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                     </Link>
                 </Button>
                 <Button asChild className="w-full" variant="secondary">
-                    <Link href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+                    <Link href={linkHref}>
                         View Full {isVideo ? 'Video' : 'Image'}
                     </Link>
                 </Button>
