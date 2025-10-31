@@ -201,8 +201,8 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
           data-ai-hint="photo"
         />
         {isVideo && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity">
-            <PlayCircle className="h-16 w-16 text-white" />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity">
+            <PlayCircle className="h-16 w-16 text-white/90" />
           </div>
         )}
       </Link>
