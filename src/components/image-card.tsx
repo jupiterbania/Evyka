@@ -208,9 +208,10 @@ export function ImageCard({ photo }: ImageCardProps) {
                   data-ai-hint="photo"
                 />
                 {photo.isAdGated && (
-                    <div className="absolute inset-0 bg-black/40 flex flex-col items-center justify-center p-4 text-center text-white">
+                    <div className="absolute inset-0 bg-black/50 flex flex-col items-center justify-center p-4 text-center text-white">
                         <Video className="w-8 h-8 mb-2" />
-                        <span className="font-semibold text-sm">Watch to Unlock</span>
+                        <span className="font-semibold text-sm">Watch ad to unlock image</span>
+                        <p className="text-xs mt-1 opacity-80">This content is available for free after a short ad.</p>
                     </div>
                 )}
               </div>
