@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Image as ImageType } from '@/lib/types';
@@ -210,24 +211,26 @@ export function ImageCard({ photo }: ImageCardProps) {
                 </div>
             </CardContent>
         </Link>
-        <CardFooter className="p-4 pt-0 flex justify-end items-center mt-auto">
-            <div className="flex-grow">
-              {!isAdmin && (
+        <CardFooter className="p-4 pt-0 flex justify-between items-center mt-auto">
+            {!isAdmin ? (
                 <MessageDialog
-                  trigger={
+                    trigger={
                     <Button variant="outline" size="sm">
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      Message
+                        <MessageSquare className="mr-2 h-4 w-4" />
+                        Message
                     </Button>
-                  }
+                    }
                 />
-              )}
+            ) : (
+                <div /> 
+            )}
+            <div className="flex items-center">
+                <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>
+                    <Share2 className="h-4 w-4" />
+                    <span className="sr-only">Share</span>
+                </Button>
+                {isAdmin && renderAdminMenu()}
             </div>
-            <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>
-              <Share2 className="h-4 w-4" />
-              <span className="sr-only">Share</span>
-            </Button>
-            {isAdmin && renderAdminMenu()}
         </CardFooter>
       </Card>
 
