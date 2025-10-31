@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { uploadImage } from '@/ai/flows/upload-image-flow';
+import { uploadMedia } from '@/ai/flows/upload-image-flow';
 import type { SiteSettings as SiteSettingsType } from '@/lib/types';
 import { placeholderImages } from '@/lib/placeholder-images';
 import { Upload } from 'lucide-react';
@@ -53,15 +53,15 @@ export function SiteSettings() {
       const reader = new FileReader();
       reader.readAsDataURL(heroImageFile);
       reader.onload = async () => {
-        const photoDataUri = reader.result as string;
-        const result = await uploadImage({ photoDataUri });
+        const mediaDataUri = reader.result as string;
+        const result = await uploadMedia({ mediaDataUri });
 
-        if (!result || !result.imageUrl) {
+        if (!result || !result.mediaUrl) {
           throw new Error('Image URL was not returned from the upload service.');
         }
 
         setDocumentNonBlocking(settingsDocRef, {
-            heroImageUrl: result.imageUrl,
+            heroImageUrl: result.mediaUrl,
             heroImageHint: 'custom background'
         }, { merge: true });
 
