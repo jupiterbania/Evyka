@@ -23,11 +23,30 @@ export function AdBanner() {
     >
         <div className="flex flex-col justify-center items-center w-full h-full">
             <Script 
-                async={true} 
-                data-cfasync="false" 
-                src="//pl27958407.effectivegatecpm.com/5f4d99dc5499dc62c5353fdfdfe2e35f/invoke.js" 
-                strategy="afterInteractive" 
-            />
+                id="ad-banner-script"
+                strategy="afterInteractive"
+            >
+                {`
+                    atOptions = {
+                        'key' : '5f4d99dc5499dc62c5353fdfdfe2e35f',
+                        'format' : 'iframe',
+                        'height' : 300,
+                        'width' : 160,
+                        'params' : {}
+                    };
+                    try {
+                        const container = document.getElementById('container-5f4d99dc5499dc62c5353fdfdfe2e35f');
+                        if (container) {
+                            const script = document.createElement('script');
+                            script.async = true;
+                            script.src = '//www.effectivecreativeformat.com/5f4d99dc5499dc62c5353fdfdfe2e35f/invoke.js';
+                            container.appendChild(script);
+                        }
+                    } catch (e) {
+                        console.error('Ad script error:', e);
+                    }
+                `}
+            </Script>
             <div id="container-5f4d99dc5499dc62c5353fdfdfe2e35f"></div>
         </div>
     </Card>
