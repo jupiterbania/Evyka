@@ -18,6 +18,8 @@ import {
   Share2,
   PlayCircle,
   Upload,
+  Heart,
+  MessageCircle,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -315,7 +317,21 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                 </Link>
             </div>
         </CardContent>
-        <CardFooter className="p-4 pt-0 flex justify-end items-center mt-auto">
+        <CardFooter className="p-4 pt-0 flex justify-between items-center mt-auto">
+            <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" asChild>
+                    <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+                        <Heart className="h-5 w-5" />
+                        <span className="sr-only">Like</span>
+                    </a>
+                </Button>
+                <Button variant="ghost" size="icon" asChild>
+                     <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+                        <MessageCircle className="h-5 w-5" />
+                        <span className="sr-only">Comment</span>
+                    </a>
+                </Button>
+            </div>
             <div className="flex items-center">
                 <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>
                     <Share2 className="h-4 w-4" />
@@ -433,3 +449,5 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
     </>
   );
 }
+
+    
