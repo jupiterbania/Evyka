@@ -48,6 +48,7 @@ import {
 } from '@/firebase';
 import {
   doc,
+  Timestamp,
 } from 'firebase/firestore';
 import {
   deleteDocumentNonBlocking,
@@ -71,6 +72,61 @@ type ImageCardProps = {
   media: MediaType;
 };
 
+// --- Time-based Like Calculation Logic ---
+
+// Calculate the number of likes based on the time since upload.
+const calculateLikes = (uploadDate: Timestamp): number => {
+    const baseLikes = 50; // Starts with 50 likes.
+    const now = Date.now();
+    const uploadTime = uploadDate.toDate().getTime();
+    const elapsedMs = Math.max(0, now - uploadTime);
+    const sevenDaysInMs = 7 * 24 * 60 * 60 * 1000;
+
+    // Stop calculating new likes after 7 days.
+    if (elapsedMs > sevenDaysInMs) {
+        return baseLikes + calculateLikesForDuration(sevenDaysInMs, uploadTime);
+    }
+    
+    return baseLikes + calculateLikesForDuration(elapsedMs, uploadTime);
+};
+
+const calculateLikesForDuration = (durationMs: number, uploadTime: number): number => {
+    let likes = 0;
+    const intervals = [
+        { duration: 60 * 60 * 1000, ratePerMinute: 2 }, // 1 hour at 2 likes/min
+        { duration: 2 * 60 * 60 * 1000, ratePerHour: 1 }, // Next 2 hours at 1 like/hr (2 likes every 2 hours)
+        { duration: 4 * 60 * 60 * 1000, ratePerHour: 0.5 }, // Next 4 hours at 0.5 likes/hr (2 likes every 4 hours)
+        { duration: 8 * 60 * 60 * 1000, ratePerHour: 0.25 }, // Next 8 hours at 0.25 likes/hr (2 likes every 8 hours)
+        { duration: 24 * 60 * 60 * 1000, ratePerHour: 0.125 }, // Next 24 hours at ~3 likes/day
+        { duration: Infinity, ratePerHour: 0.05 }, // Remainder of the week
+    ];
+
+    let elapsed = 0;
+    for (const interval of intervals) {
+        const intervalDuration = Math.min(durationMs - elapsed, interval.duration);
+        
+        if (intervalDuration <= 0) break;
+        
+        if (interval.ratePerMinute) {
+            likes += (intervalDuration / (60 * 1000)) * interval.ratePerMinute;
+        } else if (interval.ratePerHour) {
+            likes += (intervalDuration / (60 * 60 * 1000)) * interval.ratePerHour;
+        }
+        
+        elapsed += intervalDuration;
+    }
+
+    return Math.floor(likes);
+};
+
+// Calculate initial comments based on a percentage of likes.
+const calculateInitialComments = (likes: number): number => {
+  const minPercentage = 0.05; // 5%
+  const maxPercentage = 0.10; // 10%
+  const percentage = Math.random() * (maxPercentage - minPercentage) + minPercentage;
+  return Math.floor(likes * percentage);
+};
+
 export function ImageCard({ media: mediaItem }: ImageCardProps) {
   const { user } = useUser();
   const firestore = useFirestore();
@@ -90,25 +146,35 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
 
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [commentCount, setCommentCount] = useState<number | null>(null);
+  const [baseCommentCount, setBaseCommentCount] = useState(0);
 
   useEffect(() => {
-    // Initialize with a random starting number to avoid hydration mismatch
-    const initialLikes = Math.floor(Math.random() * 500) + 200; // Random number between 200 and 700
-    setLikeCount(initialLikes);
-    
-    // Set initial comment count between 5% and 10% of likes
-    const minComments = Math.floor(initialLikes * 0.05);
-    const maxComments = Math.floor(initialLikes * 0.1);
-    setCommentCount(Math.floor(Math.random() * (maxComments - minComments + 1)) + minComments);
+    let initialLikes = 0;
+    if (mediaItem.uploadDate) {
+        initialLikes = calculateLikes(mediaItem.uploadDate);
+        setLikeCount(initialLikes);
 
+        const initialComments = calculateInitialComments(initialLikes);
+        setCommentCount(initialComments);
+        setBaseCommentCount(initialComments); // Store base for consistent growth
+    }
 
     const interval = setInterval(() => {
-      setLikeCount(prevCount => (prevCount || 0) + Math.floor(Math.random() * 4) + 2); // Increase by 2 to 5
-      setCommentCount(prevCount => (prevCount || 0) + Math.floor(Math.random() * 2)); // Increase by 0 or 1
-    }, 60000); // Every 60 seconds
+        if (mediaItem.uploadDate) {
+            const currentLikes = calculateLikes(mediaItem.uploadDate);
+            setLikeCount(currentLikes);
+
+            // Grow comments proportionally to likes
+            if(initialLikes > 0){
+                const growthFactor = currentLikes / initialLikes;
+                setCommentCount(Math.floor(baseCommentCount * growthFactor));
+            }
+        }
+    }, 30000); // Update every 30 seconds
 
     return () => clearInterval(interval);
-  }, []);
+  }, [mediaItem.uploadDate, baseCommentCount]);
+
 
   const formatCount = (count: number | null): string => {
     if (count === null) return '...';
