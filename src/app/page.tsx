@@ -7,7 +7,6 @@ import Image from 'next/image';
 import type { Media as MediaType, SiteSettings } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
-import { placeholderImages } from '@/lib/placeholder-images';
 import { useMemo, useState, useRef, Fragment, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -75,9 +74,8 @@ export default function Home() {
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'main'), [firestore]);
   const { data: settings } = useDoc<SiteSettings>(settingsDocRef);
   
-  const defaultHero = placeholderImages[0];
-  const heroImageUrl = settings?.heroImageUrl || defaultHero.imageUrl;
-  const heroImageHint = settings?.heroImageHint || defaultHero.imageHint;
+  const heroImageUrl = settings?.heroImageUrl;
+  const heroImageHint = settings?.heroImageHint;
 
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
   const isAdmin = user?.email === designatedAdminEmail;
@@ -316,15 +314,17 @@ export default function Home() {
       <Header />
       <main className="flex-grow">
         <section className="relative w-full h-[40vh] sm:h-[50vh] md:h-[60vh] flex items-center justify-center text-center text-white overflow-hidden">
-          <Image
-            src={heroImageUrl}
-            alt="Welcome banner background"
-            fill
-            className="object-cover"
-            data-ai-hint={heroImageHint}
-            priority
-            sizes="100vw"
-          />
+          {heroImageUrl && (
+            <Image
+              src={heroImageUrl}
+              alt="Welcome banner background"
+              fill
+              className="object-cover"
+              data-ai-hint={heroImageHint}
+              priority
+              sizes="100vw"
+            />
+          )}
           <div className="absolute inset-0 bg-black/50" />
           <div className="relative z-10 p-4">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white drop-shadow-md font-headline">
@@ -534,3 +534,5 @@ export default function Home() {
     </div>
   );
 }
+
+    

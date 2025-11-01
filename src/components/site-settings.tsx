@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -16,9 +17,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { uploadMedia } from '@/ai/flows/upload-image-flow';
+import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import type { SiteSettings as SiteSettingsType } from '@/lib/types';
-import { placeholderImages } from '@/lib/placeholder-images';
 import { Upload } from 'lucide-react';
 
 export function SiteSettings() {
@@ -34,8 +34,7 @@ export function SiteSettings() {
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   
-  const defaultHero = placeholderImages[0];
-  const currentHeroImageUrl = settings?.heroImageUrl || defaultHero.imageUrl;
+  const currentHeroImageUrl = settings?.heroImageUrl;
   
   const handleHeroImageUpload = async () => {
     if (!heroImageFile) {
@@ -54,7 +53,7 @@ export function SiteSettings() {
       reader.readAsDataURL(heroImageFile);
       reader.onload = async () => {
         const mediaDataUri = reader.result as string;
-        const result = await uploadMedia({ mediaDataUri });
+        const result = await uploadMedia({ mediaDataUri, isVideo: false });
 
         if (!result || !result.mediaUrl) {
           throw new Error('Image URL was not returned from the upload service.');
@@ -98,7 +97,7 @@ export function SiteSettings() {
             <div className="relative aspect-video w-full max-w-md rounded-md overflow-hidden border mt-2">
               {isSettingsLoading ? (
                   <div className="w-full h-full bg-muted animate-pulse" />
-              ): (
+              ) : currentHeroImageUrl ? (
                   <Image
                   src={currentHeroImageUrl}
                   alt="Current hero background"
@@ -106,6 +105,10 @@ export function SiteSettings() {
                   className="object-cover"
                   data-ai-hint="background"
                   />
+              ) : (
+                <div className="w-full h-full bg-muted flex items-center justify-center text-muted-foreground">
+                  No image uploaded
+                </div>
               )}
             </div>
           </div>
@@ -133,3 +136,5 @@ export function SiteSettings() {
     </Card>
   );
 }
+
+    
