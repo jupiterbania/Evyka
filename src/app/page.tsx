@@ -37,7 +37,6 @@ import { Upload, Film, ImageIcon, AlertTriangle } from 'lucide-react';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
-import { AdBanner } from '@/components/ad-banner';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 
@@ -472,10 +471,7 @@ export default function Home() {
                 <p className="col-span-full text-center text-muted-foreground">No media in the '{filter}' category yet.</p>
               )}
               {paginatedMedia.map((item, index) => (
-                <Fragment key={item.id}>
-                  <ImageCard media={item} index={index} />
-                  {(index + 1) % 4 === 0 && <AdBanner />}
-                </Fragment>
+                <ImageCard key={item.id} media={item} index={index} />
               ))}
             </div>
 
