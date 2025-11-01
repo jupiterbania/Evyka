@@ -50,15 +50,32 @@ export default function ImagePage() {
     }
     
     if (media.mediaType === 'video') {
+        let videoSrc = media.mediaUrl;
+        const isGoogleDrive = media.mediaUrl.includes('drive.google.com');
+
+        if (isGoogleDrive) {
+            // Transform drive.google.com/file/d/FILE_ID/view... to drive.google.com/file/d/FILE_ID/preview
+            videoSrc = media.mediaUrl.replace('/view?usp=drivesdk', '').replace('/view', '').replace('file/d/', 'file/d/') + '/preview';
+        }
+        
         return (
             <div className="flex-grow flex flex-col items-center justify-start p-4 pt-8 bg-black">
                 <div className="relative w-full h-[80vh] max-w-7xl">
-                    <video
-                        src={media.mediaUrl}
-                        controls
-                        autoPlay
-                        className="w-full h-full object-contain"
-                    />
+                    {isGoogleDrive ? (
+                        <iframe
+                            src={videoSrc}
+                            allow="autoplay"
+                            className="w-full h-full object-contain"
+                            frameBorder="0"
+                        />
+                    ) : (
+                        <video
+                            src={videoSrc}
+                            controls
+                            autoPlay
+                            className="w-full h-full object-contain"
+                        />
+                    )}
                 </div>
                  <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 md:p-8 text-center text-white">
                     <h1 className="text-3xl md:text-5xl font-bold font-headline">{media.title}</h1>

@@ -66,26 +66,61 @@ export function ImageManagement() {
   
   const [newMedia, setNewMedia] = useState({ title: '', description: '' });
   const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
-  const [mediaUrl, setMediaUrl] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   
-  const [selectedMedia, setSelectedMedia] = useState<MediaType | null>(null);
+  const [selectedMedia, setSelectedMedia] = useState<Partial<MediaType> & { id: string } | null>(null);
   const [mediaToDelete, setMediaToDelete] = useState<MediaType | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
 
   const { toast } = useToast();
 
   const handleEditClick = (media: MediaType) => {
     setSelectedMedia(media);
+    setThumbnailFile(null);
     setEditDialogOpen(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!selectedMedia || !firestore) return;
 
     const docRef = doc(firestore, 'media', selectedMedia.id);
-    updateDocumentNonBlocking(docRef, {
+    let finalUpdates: Partial<MediaType> = {
         title: selectedMedia.title,
         description: selectedMedia.description,
-    });
+    };
+
+    if (thumbnailFile) {
+        setIsUploadingThumbnail(true);
+        try {
+            const reader = await new Promise<string>((resolve, reject) => {
+              const fileReader = new FileReader();
+              fileReader.readAsDataURL(thumbnailFile);
+              fileReader.onload = () => resolve(fileReader.result as string);
+              fileReader.onerror = (error) => reject(error);
+            });
+            const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo: false });
+
+            if (!uploadResult || !uploadResult.mediaUrl) {
+                throw new Error("Thumbnail upload failed to return a URL.");
+            }
+            finalUpdates.thumbnailUrl = uploadResult.mediaUrl;
+
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Thumbnail Upload Failed',
+                description: error.message || "Could not upload the new thumbnail.",
+            });
+            setIsUploadingThumbnail(false);
+            return;
+        } finally {
+            setIsUploadingThumbnail(false);
+        }
+    }
+
+    updateDocumentNonBlocking(docRef, finalUpdates);
     
     toast({
         title: "Media Updated",
@@ -93,6 +128,7 @@ export function ImageManagement() {
     });
     setEditDialogOpen(false);
     setSelectedMedia(null);
+    setThumbnailFile(null);
   }
 
   const handleDeleteClick = (media: MediaType) => {
@@ -115,17 +151,18 @@ export function ImageManagement() {
   const resetUploadForm = () => {
     setNewMedia({ title: '', description: '' });
     setMediaFiles(null);
-    setMediaUrl('');
+    setImageUrl('');
+    setVideoUrl('');
     setUploadDialogOpen(false);
   };
 
   const handleUpload = () => {
     if (!firestore) return;
-    if (!mediaFiles?.length && !mediaUrl) {
+    if (!mediaFiles?.length && !imageUrl && !videoUrl) {
       toast({
         variant: 'destructive',
         title: 'Upload Error',
-        description: 'Please select a file or provide a direct URL.',
+        description: 'Please select a file or provide an image/video URL.',
       });
       return;
     }
@@ -136,7 +173,16 @@ export function ImageManagement() {
 
     const performUpload = async () => {
       try {
-        if (mediaFiles && mediaFiles.length > 0) {
+        if (videoUrl) {
+          setUploadProgress(50);
+          addDocumentNonBlocking(mediaCollection, {
+            ...newMedia,
+            mediaUrl: videoUrl,
+            mediaType: 'video',
+            uploadDate: serverTimestamp(),
+          });
+          setUploadProgress(100);
+        } else if (mediaFiles && mediaFiles.length > 0) {
           const totalFiles = mediaFiles.length;
           const isMultiple = totalFiles > 1;
 
@@ -194,13 +240,19 @@ export function ImageManagement() {
             addDocumentNonBlocking(mediaCollection, docData);
             setUploadProgress(((i + 1) / totalFiles) * 100);
           }
-        } else if (mediaUrl) {
+        } else if (imageUrl) {
+          setUploadProgress(25);
+          const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
+          if (!uploadResult || !uploadResult.mediaUrl) {
+              throw new Error('Media URL was not returned from the upload service.');
+          }
           setUploadProgress(50);
           addDocumentNonBlocking(
             mediaCollection,
             {
               ...newMedia,
-              mediaUrl: mediaUrl,
+              mediaUrl: uploadResult.mediaUrl,
+              thumbnailUrl: uploadResult.thumbnailUrl,
               mediaType: 'image',
               uploadDate: serverTimestamp(),
               dominantColor: '#F0F4F8',
@@ -246,7 +298,7 @@ export function ImageManagement() {
             <DialogHeader>
               <DialogTitle>Upload New Media</DialogTitle>
               <DialogDescription>
-                 Select image or video files to add. Max size is 99MB. You can also provide a URL for a single image.
+                 Select files, or provide an image/video URL. Max size is 99MB.
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
@@ -255,9 +307,12 @@ export function ImageManagement() {
                 <Input id="mediaFile-admin" type="file" accept="image/*,video/mp4,video/quicktime" multiple
                     onChange={(e) => {
                         setMediaFiles(e.target.files);
-                        if (e.target.files?.length) setMediaUrl('');
+                        if (e.target.files?.length) {
+                          setImageUrl('');
+                          setVideoUrl('');
+                        }
                     }}
-                    disabled={!!mediaUrl}
+                    disabled={!!imageUrl || !!videoUrl}
                 />
               </div>
               <div className="relative my-2">
@@ -269,14 +324,31 @@ export function ImageManagement() {
                   </div>
               </div>
               <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="mediaUrl-admin">Image URL</Label>
-                <Input id="mediaUrl-admin" type="text" placeholder="https://example.com/image.png" 
-                  value={mediaUrl} 
+                <Label htmlFor="imageUrl-admin">Image URL</Label>
+                <Input id="imageUrl-admin" type="text" placeholder="https://example.com/image.png" 
+                  value={imageUrl} 
                   onChange={(e) => {
-                      setMediaUrl(e.target.value);
-                      if (e.target.value) setMediaFiles(null);
+                      setImageUrl(e.target.value);
+                      if (e.target.value) {
+                        setMediaFiles(null);
+                        setVideoUrl('');
+                      }
                   }}
-                  disabled={!!mediaFiles?.length}
+                  disabled={!!mediaFiles?.length || !!videoUrl}
+                />
+              </div>
+              <div className="grid w-full items-center gap-1.5">
+                <Label htmlFor="videoUrl-admin">Video URL</Label>
+                <Input id="videoUrl-admin" type="text" placeholder="https://youtube.com/watch?v=..." 
+                  value={videoUrl} 
+                  onChange={(e) => {
+                      setVideoUrl(e.target.value);
+                      if (e.target.value) {
+                        setMediaFiles(null);
+                        setImageUrl('');
+                      }
+                  }}
+                  disabled={!!mediaFiles?.length || !!imageUrl}
                 />
               </div>
               {showTitleInput && (
@@ -403,18 +475,31 @@ export function ImageManagement() {
                 {selectedMedia && <div className="grid gap-4 py-4">
                     <div className="grid w-full items-center gap-1.5">
                         <Label htmlFor="edit-title">Title</Label>
-                        <Input id="edit-title" value={selectedMedia.title} onChange={(e) => setSelectedMedia(p => p ? {...p, title: e.target.value} : null)} />
+                        <Input id="edit-title" value={selectedMedia.title || ''} onChange={(e) => setSelectedMedia(p => p ? {...p, title: e.target.value} : null)} />
                     </div>
                     <div className="grid w-full items-center gap-1.5">
                         <Label htmlFor="edit-description">Description</Label>
                         <Textarea id="edit-description" value={selectedMedia.description || ''} onChange={(e) => setSelectedMedia(p => p ? {...p, description: e.target.value} : null)} />
                     </div>
+                     {selectedMedia.mediaType === 'video' && (
+                      <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="edit-thumbnail">Upload New Thumbnail</Label>
+                        <Input
+                          id="edit-thumbnail"
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => setThumbnailFile(e.target.files ? e.target.files[0] : null)}
+                        />
+                      </div>
+                    )}
                 </div>}
                 <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
                     <DialogClose asChild>
                         <Button type="button" variant="secondary" onClick={() => setEditDialogOpen(false)}>Cancel</Button>
                     </DialogClose>
-                    <Button onClick={handleSaveEdit}>Save Changes</Button>
+                    <Button onClick={handleSaveEdit} disabled={isUploadingThumbnail}>
+                        {isUploadingThumbnail ? 'Uploading...' : 'Save Changes'}
+                    </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>

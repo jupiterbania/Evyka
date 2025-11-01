@@ -18,6 +18,7 @@ import {
   Trash2,
   Share2,
   PlayCircle,
+  Upload,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -62,6 +63,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import Link from 'next/link';
+import { uploadMedia } from '@/ai/flows/upload-media-flow';
 
 type ImageCardProps = {
   media: MediaType;
@@ -77,7 +79,9 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
 
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editedMedia, setEditedMedia] = useState<MediaType | null>(null);
+  const [editedMedia, setEditedMedia] = useState<Partial<MediaType> & { id: string } | null>(null);
+  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
+  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isHovering, setIsHovering] = useState(false);
@@ -86,22 +90,56 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setEditedMedia(mediaItem);
+    setThumbnailFile(null);
     setEditDialogOpen(true);
   };
 
-  const handleSaveEdit = () => {
+  const handleSaveEdit = async () => {
     if (!editedMedia || !firestore) return;
+
     const docRef = doc(firestore, 'media', editedMedia.id);
-    updateDocumentNonBlocking(docRef, {
+    let finalUpdates: Partial<MediaType> = {
       title: editedMedia.title,
       description: editedMedia.description,
-    });
+    };
+
+    if (thumbnailFile) {
+        setIsUploadingThumbnail(true);
+        try {
+            const reader = await new Promise<string>((resolve, reject) => {
+              const fileReader = new FileReader();
+              fileReader.readAsDataURL(thumbnailFile);
+              fileReader.onload = () => resolve(fileReader.result as string);
+              fileReader.onerror = (error) => reject(error);
+            });
+            const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo: false });
+
+            if (!uploadResult || !uploadResult.mediaUrl) {
+                throw new Error("Thumbnail upload failed to return a URL.");
+            }
+            finalUpdates.thumbnailUrl = uploadResult.mediaUrl;
+
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Thumbnail Upload Failed',
+                description: error.message || "Could not upload the new thumbnail.",
+            });
+            setIsUploadingThumbnail(false);
+            return; // Don't close dialog if thumbnail upload fails
+        } finally {
+            setIsUploadingThumbnail(false);
+        }
+    }
+
+    updateDocumentNonBlocking(docRef, finalUpdates);
     toast({
       title: 'Media Updated',
       description: 'The media details have been successfully updated.',
     });
     setEditDialogOpen(false);
     setEditedMedia(null);
+    setThumbnailFile(null);
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -197,8 +235,6 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
     if (isHovering) {
       if (video.paused) {
         video.play().catch(error => {
-          // This can happen if the user hasn't interacted with the page yet.
-          // We can safely ignore this error as it's a browser policy.
           if (error.name !== 'NotAllowedError') {
             console.error("Video autoplay failed:", error);
           }
@@ -214,6 +250,15 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
 
   const renderMedia = () => {
     if (isVideo) {
+       const isGoogleDrive = mediaItem.mediaUrl.includes('drive.google.com');
+      // If it's a GDrive video without a thumbnail, show a placeholder
+      if (isGoogleDrive && !mediaItem.thumbnailUrl) {
+         return (
+             <div className="w-full h-full bg-black flex items-center justify-center">
+                 <PlayCircle className="h-16 w-16 text-white/70" />
+             </div>
+         );
+      }
       return (
         <>
           <video
@@ -225,7 +270,7 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
             playsInline
             className="object-cover w-full h-full transition-all duration-300 ease-in-out"
           />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition-opacity">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
             <PlayCircle className="h-16 w-16 text-white/90" />
           </div>
         </>
@@ -321,7 +366,7 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                 <Label htmlFor="edit-title">Title</Label>
                 <Input
                   id="edit-title"
-                  value={editedMedia.title}
+                  value={editedMedia.title || ''}
                   onChange={(e) =>
                     setEditedMedia((p) => (p ? { ...p, title: e.target.value } : null))
                   }
@@ -331,7 +376,7 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                 <Label htmlFor="edit-description">Description</Label>
                 <Textarea
                   id="edit-description"
-                  value={editedMedia.description}
+                  value={editedMedia.description || ''}
                   onChange={(e) =>
                     setEditedMedia((p) =>
                       p ? { ...p, description: e.target.value } : null
@@ -339,6 +384,17 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                   }
                 />
               </div>
+               {mediaItem.mediaType === 'video' && (
+                <div className="grid w-full items-center gap-1.5">
+                  <Label htmlFor="edit-thumbnail">Upload New Thumbnail</Label>
+                  <Input
+                    id="edit-thumbnail"
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => setThumbnailFile(e.target.files ? e.target.files[0] : null)}
+                  />
+                </div>
+              )}
             </div>
           )}
           <DialogFooter className="flex-col-reverse sm:flex-row">
@@ -347,7 +403,13 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                 Cancel
               </Button>
             </DialogClose>
-            <Button onClick={handleSaveEdit}>Save Changes</Button>
+            <Button onClick={handleSaveEdit} disabled={isUploadingThumbnail}>
+                {isUploadingThumbnail ? (
+                    'Uploading...'
+                ) : (
+                    'Save Changes'
+                )}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

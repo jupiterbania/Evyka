@@ -72,7 +72,8 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [newMedia, setNewMedia] = useState({ title: '', description: '' });
   const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
-  const [mediaUrl, setMediaUrl] = useState('');
+  const [imageUrl, setImageUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
   
   // State for pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -137,17 +138,18 @@ export default function Home() {
   const resetUploadForm = () => {
     setNewMedia({ title: '', description: '' });
     setMediaFiles(null);
-    setMediaUrl('');
+    setImageUrl('');
+    setVideoUrl('');
     setUploadDialogOpen(false);
   };
   
   const handleUpload = () => {
     if (!firestore) return;
-    if (!mediaFiles?.length && !mediaUrl) {
+    if (!mediaFiles?.length && !imageUrl && !videoUrl) {
       toast({
         variant: 'destructive',
         title: 'Upload Error',
-        description: 'Please select an image/video file or provide a direct URL.',
+        description: 'Please select a file or provide an image/video URL.',
       });
       return;
     }
@@ -158,7 +160,16 @@ export default function Home() {
 
     const performUpload = async () => {
       try {
-        if (mediaFiles && mediaFiles.length > 0) {
+        if (videoUrl) {
+           setUploadProgress(50);
+           addDocumentNonBlocking(mediaCollection, {
+              ...newMedia,
+              mediaUrl: videoUrl,
+              mediaType: 'video',
+              uploadDate: serverTimestamp(),
+            });
+            setUploadProgress(100);
+        } else if (mediaFiles && mediaFiles.length > 0) {
           const totalFiles = mediaFiles.length;
           const isMultiple = totalFiles > 1;
 
@@ -171,12 +182,14 @@ export default function Home() {
               fileReader.onerror = (error) => reject(error);
             });
 
-            const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo: file.type.startsWith('video/') });
+            const isVideo = file.type.startsWith('video/');
+            const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo });
+
             if (!uploadResult || !uploadResult.mediaUrl) {
               throw new Error('Media URL was not returned from the upload service.');
             }
             
-            const mediaType = file.type.startsWith('video/') ? 'video' : 'image';
+            const mediaType = isVideo ? 'video' : 'image';
             let dominantColor = '#F0F4F8';
             if (mediaType === 'image') {
               const colorResult = await extractDominantColor({ photoDataUri: reader });
@@ -202,14 +215,19 @@ export default function Home() {
             addDocumentNonBlocking(mediaCollection, docData);
             setUploadProgress(((i + 1) / totalFiles) * 100);
           }
-        } else if (mediaUrl) {
-            // Simple URL upload assumes image for now. Can be enhanced.
+        } else if (imageUrl) {
+          setUploadProgress(25);
+          const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
+          if (!uploadResult || !uploadResult.mediaUrl) {
+              throw new Error('Media URL was not returned from the upload service.');
+          }
           setUploadProgress(50);
           addDocumentNonBlocking(
             mediaCollection,
             {
               ...newMedia,
-              mediaUrl: mediaUrl,
+              mediaUrl: uploadResult.mediaUrl,
+              thumbnailUrl: uploadResult.thumbnailUrl,
               mediaType: 'image',
               uploadDate: serverTimestamp(),
               dominantColor: '#F0F4F8',
@@ -287,7 +305,7 @@ export default function Home() {
                       <DialogHeader>
                         <DialogTitle>Upload New Media</DialogTitle>
                         <DialogDescription>
-                          Select one or more image/video files (max 99MB) to add to the gallery. You can also provide a URL for a single image.
+                          Select files, or provide an image/video URL.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
@@ -296,9 +314,12 @@ export default function Home() {
                           <Input id="mediaFile" type="file" accept="image/*,video/mp4,video/quicktime" multiple
                             onChange={(e) => {
                                 setMediaFiles(e.target.files);
-                                if (e.target.files?.length) setMediaUrl('');
+                                if (e.target.files?.length) {
+                                  setImageUrl('');
+                                  setVideoUrl('');
+                                }
                             }}
-                            disabled={!!mediaUrl}
+                            disabled={!!imageUrl || !!videoUrl}
                           />
                         </div>
                          <div className="relative my-2">
@@ -310,14 +331,31 @@ export default function Home() {
                             </div>
                         </div>
                         <div className="grid w-full items-center gap-1.5">
-                          <Label htmlFor="mediaUrl">Image URL</Label>
-                          <Input id="mediaUrl" type="text" placeholder="https://example.com/image.png" 
-                            value={mediaUrl} 
+                          <Label htmlFor="imageUrl">Image URL</Label>
+                          <Input id="imageUrl" type="text" placeholder="https://example.com/image.png" 
+                            value={imageUrl} 
                             onChange={(e) => {
-                                setMediaUrl(e.target.value);
-                                if (e.target.value) setMediaFiles(null);
+                                setImageUrl(e.target.value);
+                                if (e.target.value) {
+                                  setMediaFiles(null);
+                                  setVideoUrl('');
+                                }
                             }}
-                            disabled={!!mediaFiles?.length}
+                            disabled={!!mediaFiles?.length || !!videoUrl}
+                          />
+                        </div>
+                        <div className="grid w-full items-center gap-1.5">
+                          <Label htmlFor="videoUrl">Video URL</Label>
+                          <Input id="videoUrl" type="text" placeholder="https://youtube.com/watch?v=... or Google Drive link" 
+                            value={videoUrl} 
+                            onChange={(e) => {
+                                setVideoUrl(e.target.value);
+                                if (e.target.value) {
+                                  setMediaFiles(null);
+                                  setImageUrl('');
+                                }
+                            }}
+                            disabled={!!mediaFiles?.length || !!imageUrl}
                           />
                         </div>
                         {showTitleInput && (
