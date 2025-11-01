@@ -6,6 +6,7 @@ import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import Script from 'next/script';
 import { AdScriptHead } from '@/components/ad-script-head';
 import { AdScriptBody } from '@/components/ad-script-body';
+import { AdBlockDetector } from '@/components/adblock-detector';
 
 export const metadata: Metadata = {
   title: 'EVYKA',
@@ -37,6 +38,7 @@ export default function RootLayout({
       </head>
       <body className="font-body antialiased">
         <FirebaseClientProvider>
+          <AdBlockDetector />
           <AdScriptHead />
           <FirebaseErrorListener />
           {children}
