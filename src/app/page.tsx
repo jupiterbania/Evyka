@@ -1,3 +1,4 @@
+
 'use client';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
@@ -23,7 +24,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, Film, ImageIcon } from 'lucide-react';
+import { Upload, Film, ImageIcon, AlertTriangle } from 'lucide-react';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
@@ -41,7 +42,7 @@ export default function Home() {
   const mediaCollection = useMemoFirebase(() => collection(firestore, 'media'), [firestore]);
   const { data: media, isLoading } = useCollection<MediaType>(mediaCollection);
 
-  const [filter, setFilter] = useState<'image' | 'video'>('image');
+  const [filter, setFilter] = useState<'image' | 'video' | 'nude'>('image');
 
   const sortedMedia = useMemo(() => {
     if (!media) return [];
@@ -165,7 +166,7 @@ export default function Home() {
            addDocumentNonBlocking(mediaCollection, {
               ...newMedia,
               mediaUrl: videoUrl,
-              mediaType: 'video',
+              mediaType: filter, // Use the current filter as the type
               uploadDate: serverTimestamp(),
             });
             setUploadProgress(100);
@@ -189,9 +190,13 @@ export default function Home() {
               throw new Error('Media URL was not returned from the upload service.');
             }
             
-            const mediaType = isVideo ? 'video' : 'image';
+            let mediaType: 'image' | 'video' | 'nude' = filter;
+            if (filter !== 'nude') {
+                mediaType = isVideo ? 'video' : 'image';
+            }
+            
             let dominantColor = '#F0F4F8';
-            if (mediaType === 'image') {
+            if (mediaType === 'image' || (mediaType === 'nude' && !isVideo)) {
               const colorResult = await extractDominantColor({ photoDataUri: reader });
               dominantColor = colorResult.dominantColor || '#F0F4F8';
             }
@@ -208,7 +213,7 @@ export default function Home() {
                 docData.thumbnailUrl = uploadResult.thumbnailUrl;
             }
 
-            if (mediaType === 'image') {
+            if (mediaType === 'image' || (mediaType === 'nude' && !isVideo)) {
                 docData.dominantColor = dominantColor;
             }
             
@@ -226,7 +231,7 @@ export default function Home() {
           const docData: any = {
               ...newMedia,
               mediaUrl: uploadResult.mediaUrl,
-              mediaType: 'image',
+              mediaType: filter, // Use the current filter as the type
               uploadDate: serverTimestamp(),
           };
 
@@ -296,95 +301,6 @@ export default function Home() {
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline">
                 Explore Gallery
               </h2>
-              <div className="flex items-center gap-2">
-                {isAdmin && (
-                  <Dialog open={isUploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-                    <DialogTrigger asChild>
-                      <Button>
-                        <Upload className="mr-2 h-4 w-4" />
-                        Upload Media
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent className="sm:max-w-md">
-                      <DialogHeader>
-                        <DialogTitle>Upload New Media</DialogTitle>
-                        <DialogDescription>
-                          Select files, or provide an image/video URL.
-                        </DialogDescription>
-                      </DialogHeader>
-                      <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
-                        <div className="grid w-full items-center gap-1.5">
-                          <Label htmlFor="mediaFile">Media File(s)</Label>
-                          <Input id="mediaFile" type="file" accept="image/*,video/mp4,video/quicktime" multiple
-                            onChange={(e) => {
-                                setMediaFiles(e.target.files);
-                                if (e.target.files?.length) {
-                                  setImageUrl('');
-                                  setVideoUrl('');
-                                }
-                            }}
-                            disabled={!!imageUrl || !!videoUrl}
-                          />
-                        </div>
-                         <div className="relative my-2">
-                            <div className="absolute inset-0 flex items-center">
-                                <span className="w-full border-t" />
-                            </div>
-                            <div className="relative flex justify-center text-xs uppercase">
-                                <span className="bg-background px-2 text-muted-foreground">OR</span>
-                            </div>
-                        </div>
-                        <div className="grid w-full items-center gap-1.5">
-                          <Label htmlFor="imageUrl">Image URL</Label>
-                          <Input id="imageUrl" type="text" placeholder="https://example.com/image.png" 
-                            value={imageUrl} 
-                            onChange={(e) => {
-                                setImageUrl(e.target.value);
-                                if (e.target.value) {
-                                  setMediaFiles(null);
-                                  setVideoUrl('');
-                                }
-                            }}
-                            disabled={!!mediaFiles?.length || !!videoUrl}
-                          />
-                        </div>
-                        <div className="grid w-full items-center gap-1.5">
-                          <Label htmlFor="videoUrl">Video URL</Label>
-                          <Input id="videoUrl" type="text" placeholder="https://youtube.com/watch?v=... or Google Drive link" 
-                            value={videoUrl} 
-                            onChange={(e) => {
-                                setVideoUrl(e.target.value);
-                                if (e.target.value) {
-                                  setMediaFiles(null);
-                                  setImageUrl('');
-                                }
-                            }}
-                            disabled={!!mediaFiles?.length || !!imageUrl}
-                          />
-                        </div>
-                        {showTitleInput && (
-                            <div className="grid w-full items-center gap-1.5 mt-4">
-                                <Label htmlFor="title">Title</Label>
-                                <Input id="title" type="text" placeholder="A beautiful landscape (optional)" value={newMedia.title} onChange={(e) => setNewMedia({...newMedia, title: e.target.value})} />
-                            </div>
-                        )}
-                        <div className="grid w-full items-center gap-1.5">
-                          <Label htmlFor="description">Description</Label>
-                          <Textarea id="description" placeholder="A detailed description of the media." value={newMedia.description} onChange={(e) => setNewMedia({...newMedia, description: e.target.value})}/>
-                        </div>
-                      </div>
-                      <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
-                          <DialogClose asChild>
-                              <Button type="button" variant="secondary" onClick={resetUploadForm}>Cancel</Button>
-                          </DialogClose>
-                          <Button type="submit" onClick={handleUpload}>
-                              Upload
-                          </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                )}
-              </div>
             </div>
             
             <div className="flex justify-center mb-6 sm:mb-8">
@@ -397,8 +313,102 @@ export default function Home() {
                     <Film className="mr-2 h-4 w-4" />
                     Videos
                 </Button>
+                <Button variant={filter === 'nude' ? 'destructive' : 'ghost'} onClick={() => setFilter('nude')} className="px-4 py-2 h-auto">
+                    <AlertTriangle className="mr-2 h-4 w-4" />
+                    Nudes
+                </Button>
               </div>
             </div>
+
+            {filter === 'nude' && isAdmin && (
+              <div className="flex justify-center mb-6 sm:mb-8">
+                <Dialog open={isUploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <Upload className="mr-2 h-4 w-4" />
+                      Upload to Nudes
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Upload New Media</DialogTitle>
+                      <DialogDescription>
+                        Select files, or provide an image/video URL to add to the 'Nudes' category.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
+                      <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="mediaFile">Media File(s)</Label>
+                        <Input id="mediaFile" type="file" accept="image/*,video/mp4,video/quicktime" multiple
+                          onChange={(e) => {
+                              setMediaFiles(e.target.files);
+                              if (e.target.files?.length) {
+                                setImageUrl('');
+                                setVideoUrl('');
+                              }
+                          }}
+                          disabled={!!imageUrl || !!videoUrl}
+                        />
+                      </div>
+                       <div className="relative my-2">
+                          <div className="absolute inset-0 flex items-center">
+                              <span className="w-full border-t" />
+                          </div>
+                          <div className="relative flex justify-center text-xs uppercase">
+                              <span className="bg-background px-2 text-muted-foreground">OR</span>
+                          </div>
+                      </div>
+                      <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="imageUrl">Image URL</Label>
+                        <Input id="imageUrl" type="text" placeholder="https://example.com/image.png" 
+                          value={imageUrl} 
+                          onChange={(e) => {
+                              setImageUrl(e.target.value);
+                              if (e.target.value) {
+                                setMediaFiles(null);
+                                setVideoUrl('');
+                              }
+                          }}
+                          disabled={!!mediaFiles?.length || !!videoUrl}
+                        />
+                      </div>
+                      <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="videoUrl">Video URL</Label>
+                        <Input id="videoUrl" type="text" placeholder="https://youtube.com/watch?v=... or Google Drive link" 
+                          value={videoUrl} 
+                          onChange={(e) => {
+                              setVideoUrl(e.target.value);
+                              if (e.target.value) {
+                                setMediaFiles(null);
+                                setImageUrl('');
+                              }
+                          }}
+                          disabled={!!mediaFiles?.length || !!imageUrl}
+                        />
+                      </div>
+                      {showTitleInput && (
+                          <div className="grid w-full items-center gap-1.5 mt-4">
+                              <Label htmlFor="title">Title</Label>
+                              <Input id="title" type="text" placeholder="A beautiful landscape (optional)" value={newMedia.title} onChange={(e) => setNewMedia({...newMedia, title: e.target.value})} />
+                          </div>
+                      )}
+                      <div className="grid w-full items-center gap-1.5">
+                        <Label htmlFor="description">Description</Label>
+                        <Textarea id="description" placeholder="A detailed description of the media." value={newMedia.description} onChange={(e) => setNewMedia({...newMedia, description: e.target.value})}/>
+                      </div>
+                    </div>
+                    <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
+                        <DialogClose asChild>
+                            <Button type="button" variant="secondary" onClick={resetUploadForm}>Cancel</Button>
+                        </DialogClose>
+                        <Button type="submit" onClick={handleUpload}>
+                            Upload
+                        </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )}
 
 
             {isUploading && (
