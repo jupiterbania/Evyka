@@ -360,8 +360,7 @@ export default function Home() {
                       "focus-visible:ring-accent"
                   )}
                 >
-                    <AlertTriangle className="mr-2 h-4 w-4" />
-                    Nudes
+                    18+
                 </Button>
               </div>
             </div>
