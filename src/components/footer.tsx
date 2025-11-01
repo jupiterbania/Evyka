@@ -10,7 +10,6 @@ export function Footer() {
           <Logo />
         </div>
         <div className="flex flex-wrap justify-center gap-x-4 gap-y-2">
-          <Link href="/terms-and-conditions" className="text-sm font-medium hover:text-primary">Terms & Conditions</Link>
           <Link href="/privacy-policy" className="text-sm font-medium hover:text-primary">Privacy Policy</Link>
           <Link href="https://www.instagram.com/heyevyka" target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:text-primary">Contact Us</Link>
           <Link href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:text-primary">Sponsored Link</Link>
