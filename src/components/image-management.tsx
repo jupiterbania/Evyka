@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState } from 'react';
@@ -243,24 +242,28 @@ export function ImageManagement() {
             setUploadProgress(((i + 1) / totalFiles) * 100);
           }
         } else if (imageUrl) {
-          setUploadProgress(25);
-          const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
-          if (!uploadResult || !uploadResult.mediaUrl) {
-              throw new Error('Media URL was not returned from the upload service.');
-          }
-          setUploadProgress(50);
-          addDocumentNonBlocking(
-            mediaCollection,
-            {
-              ...newMedia,
-              mediaUrl: uploadResult.mediaUrl,
-              thumbnailUrl: uploadResult.thumbnailUrl,
-              mediaType: 'image',
-              uploadDate: serverTimestamp(),
-              dominantColor: '#F0F4F8',
+            setUploadProgress(25);
+            const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
+            if (!uploadResult || !uploadResult.mediaUrl) {
+                throw new Error('Media URL was not returned from the upload service.');
             }
-          );
-          setUploadProgress(100);
+            setUploadProgress(75);
+
+            const docData: any = {
+                ...newMedia,
+                mediaUrl: uploadResult.mediaUrl,
+                mediaType: 'image',
+                uploadDate: serverTimestamp(),
+            };
+
+            if (uploadResult.thumbnailUrl) {
+                docData.thumbnailUrl = uploadResult.thumbnailUrl;
+            }
+            
+            docData.dominantColor = '#F0F4F8';
+
+            addDocumentNonBlocking(mediaCollection, docData);
+            setUploadProgress(100);
         }
         
         setTimeout(() => setIsUploading(false), 1000);

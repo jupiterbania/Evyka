@@ -222,17 +222,21 @@ export default function Home() {
               throw new Error('Media URL was not returned from the upload service.');
           }
           setUploadProgress(50);
-          addDocumentNonBlocking(
-            mediaCollection,
-            {
+
+          const docData: any = {
               ...newMedia,
               mediaUrl: uploadResult.mediaUrl,
-              thumbnailUrl: uploadResult.thumbnailUrl,
               mediaType: 'image',
               uploadDate: serverTimestamp(),
-              dominantColor: '#F0F4F8',
-            }
-          );
+          };
+
+          if (uploadResult.thumbnailUrl) {
+              docData.thumbnailUrl = uploadResult.thumbnailUrl;
+          }
+
+          docData.dominantColor = '#F0F4F8';
+          
+          addDocumentNonBlocking(mediaCollection, docData);
           setUploadProgress(100);
         }
 
