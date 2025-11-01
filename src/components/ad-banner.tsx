@@ -23,22 +23,13 @@ export function AdBanner() {
         style={{ animationDelay: '200ms' }}
     >
         <div className="flex flex-col justify-center items-center w-full h-full">
-            <Script
-                async
-                src="//www.highperformanceformat.com/1aa94d7450572033bf4e3ce4bf8efaa7/invoke.js"
-                strategy="afterInteractive"
+            <Script 
+              async={true}
+              data-cfasync="false" 
+              src="//pl27958407.effectivegatecpm.com/5f4d99dc5499dc62c5353fdfdfe2e35f/invoke.js"
+              strategy="afterInteractive"
             />
-            <script type="text/javascript">
-              {`
-                atOptions = {
-                  'key' : '1aa94d7450572033bf4e3ce4bf8efaa7',
-                  'format' : 'iframe',
-                  'height' : 250,
-                  'width' : 300,
-                  'params' : {}
-                };
-              `}
-            </script>
+            <div id="container-5f4d99dc5499dc62c5353fdfdfe2e35f"></div>
         </div>
     </Card>
   );
