@@ -38,6 +38,7 @@ import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { AdBanner } from '@/components/ad-banner';
 
 
 export default function Home() {
@@ -330,6 +331,7 @@ export default function Home() {
             </h1>
           </div>
         </section>
+        <AdBanner />
         <section ref={galleryRef} id="gallery" className="py-8 sm:py-12 scroll-mt-20">
           <div className="container px-4 sm:px-6">
             <div className="flex flex-col sm:flex-row items-center justify-between mb-6 sm:mb-8 gap-4">
