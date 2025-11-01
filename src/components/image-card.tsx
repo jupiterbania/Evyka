@@ -96,20 +96,27 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
     const initialLikes = Math.floor(Math.random() * 500) + 200; // Random number between 200 and 700
     setLikeCount(initialLikes);
     
-    // Set initial comment count between 20% and 50% of likes
-    const minComments = Math.floor(initialLikes * 0.2);
-    const maxComments = Math.floor(initialLikes * 0.5);
+    // Set initial comment count between 5% and 10% of likes
+    const minComments = Math.floor(initialLikes * 0.05);
+    const maxComments = Math.floor(initialLikes * 0.1);
     setCommentCount(Math.floor(Math.random() * (maxComments - minComments + 1)) + minComments);
 
 
     const interval = setInterval(() => {
       setLikeCount(prevCount => (prevCount || 0) + Math.floor(Math.random() * 4) + 2); // Increase by 2 to 5
-      setCommentCount(prevCount => (prevCount || 0) + Math.floor(Math.random() * 2) + 1); // Increase by 1 or 2
+      setCommentCount(prevCount => (prevCount || 0) + Math.floor(Math.random() * 2)); // Increase by 0 or 1
     }, 60000); // Every 60 seconds
 
     return () => clearInterval(interval);
   }, []);
 
+  const formatCount = (count: number | null): string => {
+    if (count === null) return '...';
+    if (count >= 1000) {
+      return (count / 1000).toFixed(1) + 'k';
+    }
+    return count.toLocaleString();
+  };
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -345,13 +352,13 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                 <Button variant="ghost" className="px-2" asChild>
                     <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
                         <Heart className="h-5 w-5" />
-                        <span className="ml-2 text-sm font-semibold">{likeCount !== null ? likeCount.toLocaleString() : '...'}</span>
+                        <span className="ml-2 text-sm font-semibold">{formatCount(likeCount)}</span>
                     </a>
                 </Button>
                 <Button variant="ghost" className="px-2" asChild>
                      <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
                         <MessageCircle className="h-5 w-5" />
-                        <span className="ml-2 text-sm font-semibold">{commentCount !== null ? commentCount.toLocaleString() : '...'}</span>
+                        <span className="ml-2 text-sm font-semibold">{formatCount(commentCount)}</span>
                     </a>
                 </Button>
                  <Button variant="ghost" size="icon" asChild>
