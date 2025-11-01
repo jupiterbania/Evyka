@@ -274,21 +274,21 @@ export default function ImagePage() {
               <h1 className="text-3xl md:text-5xl font-bold font-headline">{media.title}</h1>
               <p className="text-lg md:text-xl text-muted-foreground mt-4 max-w-prose mx-auto">{media.description}</p>
               <div className="flex justify-center items-center gap-4 mt-6">
-                 <Button variant="ghost" className="px-2" asChild>
+                 <Button variant="ghost" className="h-auto px-2 py-1" asChild>
                       <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
-                          <Heart className="h-6 w-6" />
+                          <Heart className="h-5 w-5" />
                           <span className="ml-2 text-base font-semibold">{formatCount(likeCount)}</span>
                       </a>
                   </Button>
-                  <Button variant="ghost" className="px-2" asChild>
+                  <Button variant="ghost" className="h-auto px-2 py-1" asChild>
                        <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
-                          <MessageCircle className="h-6 w-6" />
+                          <MessageCircle className="h-5 w-5" />
                           <span className="ml-2 text-base font-semibold">{formatCount(commentCount)}</span>
                       </a>
                   </Button>
                    <Button variant="ghost" size="icon" asChild>
                       <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
-                          <Send className="h-6 w-6" />
+                          <Send className="h-5 w-5" />
                           <span className="sr-only">Message</span>
                       </a>
                   </Button>
