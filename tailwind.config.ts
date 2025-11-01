@@ -90,10 +90,10 @@ export default {
         },
         glow: {
           '0%, 100%': {
-            boxShadow: '0 0 5px hsl(var(--destructive))',
+            boxShadow: '0 0 10px hsl(var(--destructive) / 0.8), 0 0 20px hsl(var(--destructive) / 0.6)',
           },
           '50%': {
-            boxShadow: '0 0 15px hsl(var(--destructive))',
+            boxShadow: '0 0 20px hsl(var(--destructive) / 1), 0 0 40px hsl(var(--destructive) / 0.8)',
           },
         },
       },

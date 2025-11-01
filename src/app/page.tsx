@@ -352,14 +352,14 @@ export default function Home() {
                     Videos
                 </Button>
                 <Button 
-                    variant={filter === 'nude' ? 'destructive' : 'ghost'} 
-                    onClick={handleNudesClick} 
-                    className={cn(
-                        "px-4 py-2 h-auto animate-glow",
-                        filter !== 'nude' && "text-destructive hover:bg-destructive/10 hover:text-destructive-foreground focus:bg-destructive/10 focus:text-destructive-foreground",
-                        "focus-visible:ring-destructive"
-                    )}
-                >
+                  variant={filter === 'nude' ? 'destructive' : 'ghost'} 
+                  onClick={handleNudesClick} 
+                  className={cn(
+                      "px-4 py-2 h-auto animate-glow",
+                      filter !== 'nude' && "text-destructive hover:bg-destructive/10 hover:text-white focus:bg-destructive/10 focus:text-white",
+                      "focus-visible:ring-destructive"
+                  )}
+              >
                     <AlertTriangle className="mr-2 h-4 w-4" />
                     Nudes
                 </Button>
@@ -537,5 +537,6 @@ export default function Home() {
     
 
     
+
 
 
