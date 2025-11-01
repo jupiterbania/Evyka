@@ -89,13 +89,22 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
   const [isHovering, setIsHovering] = useState(false);
 
   const [likeCount, setLikeCount] = useState<number | null>(null);
+  const [commentCount, setCommentCount] = useState<number | null>(null);
 
   useEffect(() => {
     // Initialize with a random starting number to avoid hydration mismatch
-    setLikeCount(Math.floor(Math.random() * 500) + 200); // Random number between 200 and 700
+    const initialLikes = Math.floor(Math.random() * 500) + 200; // Random number between 200 and 700
+    setLikeCount(initialLikes);
+    
+    // Set initial comment count between 20% and 50% of likes
+    const minComments = Math.floor(initialLikes * 0.2);
+    const maxComments = Math.floor(initialLikes * 0.5);
+    setCommentCount(Math.floor(Math.random() * (maxComments - minComments + 1)) + minComments);
+
 
     const interval = setInterval(() => {
       setLikeCount(prevCount => (prevCount || 0) + Math.floor(Math.random() * 4) + 2); // Increase by 2 to 5
+      setCommentCount(prevCount => (prevCount || 0) + Math.floor(Math.random() * 2) + 1); // Increase by 1 or 2
     }, 60000); // Every 60 seconds
 
     return () => clearInterval(interval);
@@ -339,10 +348,10 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                         <span className="ml-2 text-sm font-semibold">{likeCount !== null ? likeCount.toLocaleString() : '...'}</span>
                     </a>
                 </Button>
-                <Button variant="ghost" size="icon" asChild>
+                <Button variant="ghost" className="px-2" asChild>
                      <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
                         <MessageCircle className="h-5 w-5" />
-                        <span className="sr-only">Comment</span>
+                        <span className="ml-2 text-sm font-semibold">{commentCount !== null ? commentCount.toLocaleString() : '...'}</span>
                     </a>
                 </Button>
                  <Button variant="ghost" size="icon" asChild>
