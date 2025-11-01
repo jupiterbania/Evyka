@@ -355,7 +355,7 @@ export default function Home() {
                     variant={filter === 'nude' ? 'destructive' : 'ghost'} 
                     onClick={handleNudesClick} 
                     className={cn(
-                        "px-4 py-2 h-auto animate-blink",
+                        "px-4 py-2 h-auto animate-glow",
                         filter !== 'nude' && "text-destructive hover:bg-destructive/10 hover:text-destructive-foreground focus:bg-destructive/10 focus:text-destructive-foreground",
                         "focus-visible:ring-destructive"
                     )}
@@ -537,4 +537,5 @@ export default function Home() {
     
 
     
+
 
