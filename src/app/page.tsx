@@ -464,7 +464,7 @@ export default function Home() {
               </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
               {isLoading && Array.from({ length: 16 }).map((_, i) => (
                 <div key={i} className="aspect-[3/4] bg-muted animate-pulse rounded-lg" />
               ))}
