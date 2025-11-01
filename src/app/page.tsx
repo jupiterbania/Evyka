@@ -95,7 +95,7 @@ export default function Home() {
   
   // State for pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const imagesPerPage = 8;
+  const imagesPerPage = 16;
   const totalPages = Math.ceil((filteredMedia?.length || 0) / imagesPerPage);
   const maxPageNumbersToShow = 4;
 
@@ -465,7 +465,7 @@ export default function Home() {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
-              {isLoading && Array.from({ length: 8 }).map((_, i) => (
+              {isLoading && Array.from({ length: 16 }).map((_, i) => (
                 <div key={i} className="aspect-[3/4] bg-muted animate-pulse rounded-lg" />
               ))}
               {!isLoading && paginatedMedia.length === 0 && (
@@ -534,5 +534,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
