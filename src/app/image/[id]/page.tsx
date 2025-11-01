@@ -108,15 +108,21 @@ export default function ImagePage() {
 
   const recommendedMedia = useMemo(() => {
     if (!allMedia || !media) return [];
-    
-    // Filter out the current item
+  
+    // 1. Filter out the current item
     const otherMedia = allMedia.filter(item => item.id !== media.id);
-
-    // Prioritize same media type, then fill with others
-    const sameType = otherMedia.filter(item => item.mediaType === media.mediaType && !item.isNude);
-    const otherType = otherMedia.filter(item => item.mediaType !== media.mediaType && !item.isNude);
-
-    // Shuffle and take 8
+  
+    // 2. Determine the context (nude or not nude)
+    const isNudeContext = media.isNude;
+  
+    // 3. Create the primary pool based on the context
+    const recommendationPool = otherMedia.filter(item => !!item.isNude === isNudeContext);
+  
+    // 4. Prioritize same media type within the pool
+    const sameType = recommendationPool.filter(item => item.mediaType === media.mediaType);
+    const otherType = recommendationPool.filter(item => item.mediaType !== media.mediaType);
+  
+    // 5. Shuffle and take 8
     const shuffled = [...sameType, ...otherType].sort(() => 0.5 - Math.random());
     
     return shuffled.slice(0, 8);
