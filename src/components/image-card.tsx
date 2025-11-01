@@ -2,7 +2,7 @@
 
 import type { Media as MediaType } from '@/lib/types';
 import Image from 'next/image';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import {
   Card,
   CardContent,
@@ -74,9 +74,28 @@ type ImageCardProps = {
 
 // --- Time-based Like Calculation Logic ---
 
+/**
+ * Generates a pseudo-random but deterministic number from a string (like a media ID).
+ * This ensures the same ID always produces the same base like count.
+ * @param seed The string to use as a seed.
+ * @returns A number between 0 and 1.
+ */
+const seededRandom = (seed: string): number => {
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    const char = seed.charCodeAt(i);
+    hash = (hash << 5) - hash + char;
+    hash |= 0; // Convert to 32bit integer
+  }
+  const result = (hash & 0x7fffffff) / 0x7fffffff;
+  return result;
+};
+
+
 // Calculate the number of likes based on the time since upload.
-const calculateLikes = (uploadDate: Timestamp): number => {
-    const baseLikes = 50; // Starts with 50 likes.
+const calculateLikes = (uploadDate: Timestamp, mediaId: string): number => {
+    // Use a deterministic random number based on media ID for the base.
+    const baseLikes = Math.floor(seededRandom(mediaId) * 450) + 50; // Random base between 50 and 500
     const now = Date.now();
     const uploadTime = uploadDate.toDate().getTime();
     const elapsedMs = Math.max(0, now - uploadTime);
@@ -84,13 +103,13 @@ const calculateLikes = (uploadDate: Timestamp): number => {
 
     // Stop calculating new likes after 7 days.
     if (elapsedMs > sevenDaysInMs) {
-        return baseLikes + calculateLikesForDuration(sevenDaysInMs, uploadTime);
+        return baseLikes + calculateLikesForDuration(sevenDaysInMs);
     }
     
-    return baseLikes + calculateLikesForDuration(elapsedMs, uploadTime);
+    return baseLikes + calculateLikesForDuration(elapsedMs);
 };
 
-const calculateLikesForDuration = (durationMs: number, uploadTime: number): number => {
+const calculateLikesForDuration = (durationMs: number): number => {
     let likes = 0;
     const intervals = [
         { duration: 60 * 60 * 1000, ratePerMinute: 2 }, // 1 hour at 2 likes/min
@@ -148,32 +167,37 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
   const [commentCount, setCommentCount] = useState<number | null>(null);
   const [baseCommentCount, setBaseCommentCount] = useState(0);
 
-  useEffect(() => {
-    let initialLikes = 0;
+  // Memoize the initial likes and comments so they are stable per card
+  const initialCounts = useMemo(() => {
     if (mediaItem.uploadDate) {
-        initialLikes = calculateLikes(mediaItem.uploadDate);
-        setLikeCount(initialLikes);
-
-        const initialComments = calculateInitialComments(initialLikes);
-        setCommentCount(initialComments);
-        setBaseCommentCount(initialComments); // Store base for consistent growth
+      const initialLikes = calculateLikes(mediaItem.uploadDate, mediaItem.id);
+      const initialComments = calculateInitialComments(initialLikes);
+      return { initialLikes, initialComments };
     }
+    return { initialLikes: 0, initialComments: 0 };
+  }, [mediaItem.uploadDate, mediaItem.id]);
+
+
+  useEffect(() => {
+    setLikeCount(initialCounts.initialLikes);
+    setCommentCount(initialCounts.initialComments);
+    setBaseCommentCount(initialCounts.initialComments); // Store base for consistent growth
 
     const interval = setInterval(() => {
         if (mediaItem.uploadDate) {
-            const currentLikes = calculateLikes(mediaItem.uploadDate);
+            const currentLikes = calculateLikes(mediaItem.uploadDate, mediaItem.id);
             setLikeCount(currentLikes);
 
             // Grow comments proportionally to likes
-            if(initialLikes > 0){
-                const growthFactor = currentLikes / initialLikes;
-                setCommentCount(Math.floor(baseCommentCount * growthFactor));
+            if(initialCounts.initialLikes > 0){
+                const growthFactor = currentLikes / initialCounts.initialLikes;
+                setCommentCount(Math.floor(initialCounts.initialComments * growthFactor));
             }
         }
     }, 30000); // Update every 30 seconds
 
     return () => clearInterval(interval);
-  }, [mediaItem.uploadDate, baseCommentCount]);
+  }, [mediaItem.uploadDate, mediaItem.id, initialCounts]);
 
 
   const formatCount = (count: number | null): string => {
@@ -520,8 +544,7 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                       </div>
                   </div>
                   <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="edit-thumbnail-file">Upload New Thumbnail</Label>
-                    <Input
+                    <Label htmlFor="edit-thumbnail-file">Upload New Thumbnail</Label>                    <Input
                       id="edit-thumbnail-file"
                       type="file"
                       accept="image/*"
