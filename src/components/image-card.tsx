@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { Media as MediaType } from '@/lib/types';
@@ -314,13 +313,6 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                     {mediaItem.title}
                     </CardTitle>
                 </Link>
-            </div>
-             <div className="mt-4 space-y-2">
-                <Button asChild className="w-full">
-                    <Link href={linkHref}>
-                        {isVideo ? 'Play Video' : 'View Image'}
-                    </Link>
-                </Button>
             </div>
         </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-end items-center mt-auto">
