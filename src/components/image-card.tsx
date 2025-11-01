@@ -41,7 +41,7 @@ import {
   DialogDescription,
   DialogFooter,
   DialogClose,
-} from '@/components/ui/dialog';
+} from './ui/dialog';
 import {
   useFirestore,
   useUser,
@@ -439,26 +439,12 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
             </div>
         </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-between items-center mt-auto">
-            <div className="flex items-center gap-1 -ml-2">
-                <Button variant="ghost" size="sm" className="h-auto p-2 flex items-center" asChild>
-                    <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
-                        <Heart className="h-4 w-4" />
-                        <span className="ml-1 text-sm font-semibold">{formatCount(likeCount)}</span>
-                    </a>
-                </Button>
-                <Button variant="ghost" size="sm" className="h-auto p-2 flex items-center" asChild>
-                     <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
-                        <MessageCircle className="h-4 w-4" />
-                        <span className="ml-1 text-sm font-semibold">{formatCount(commentCount)}</span>
-                    </a>
-                </Button>
-                 <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
-                    <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
-                        <Send className="h-4 w-4" />
-                        <span className="sr-only">Message</span>
-                    </a>
-                </Button>
-            </div>
+            <Button variant="ghost" size="sm" className="h-auto p-2 flex items-center" asChild>
+                <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+                    <Heart className="h-4 w-4" />
+                    <span className="ml-1 text-sm font-semibold">{formatCount(likeCount)}</span>
+                </a>
+            </Button>
             <div className="flex items-center">
                 <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>
                     <Share2 className="h-4 w-4" />
