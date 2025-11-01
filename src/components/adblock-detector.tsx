@@ -12,11 +12,22 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from './ui/button';
 import { ShieldAlert } from 'lucide-react';
+import { useUser } from '@/firebase';
 
 export function AdBlockDetector() {
+  const { user } = useUser();
   const [isBlocking, setIsBlocking] = useState(false);
+  
+  const designatedAdminEmail = 'jupiterbania472@gmail.com';
+  const isAdmin = user?.email === designatedAdminEmail;
 
   useEffect(() => {
+    // Don't run detection for the admin user
+    if (isAdmin) {
+      setIsBlocking(false);
+      return;
+    }
+
     // A common technique is to try fetching a resource that is typically blocked by ad-blockers.
     const testAdUrl = 'https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js';
 
@@ -30,11 +41,15 @@ export function AdBlockDetector() {
         // A failed fetch (e.g., network error) is a strong indicator of ad-blocking.
         setIsBlocking(true);
       });
-  }, []);
+  }, [isAdmin]);
 
   const handleRefresh = () => {
     window.location.reload();
   };
+  
+  if (isAdmin) {
+    return null; // Don't render the component for admin
+  }
 
   return (
     <AlertDialog open={isBlocking}>
