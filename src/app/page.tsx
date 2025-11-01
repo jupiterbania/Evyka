@@ -1,4 +1,5 @@
 
+
 'use client';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
@@ -350,7 +351,15 @@ export default function Home() {
                     <Film className="mr-2 h-4 w-4" />
                     Videos
                 </Button>
-                <Button variant={filter === 'nude' ? 'destructive' : 'ghost'} onClick={handleNudesClick} className="px-4 py-2 h-auto animate-blink">
+                <Button 
+                    variant={filter === 'nude' ? 'destructive' : 'ghost'} 
+                    onClick={handleNudesClick} 
+                    className={cn(
+                        "px-4 py-2 h-auto animate-blink",
+                        filter !== 'nude' && "text-destructive hover:bg-destructive/10 hover:text-destructive-foreground focus:bg-destructive/10 focus:text-destructive-foreground",
+                        "focus-visible:ring-destructive"
+                    )}
+                >
                     <AlertTriangle className="mr-2 h-4 w-4" />
                     Nudes
                 </Button>
@@ -528,3 +537,4 @@ export default function Home() {
     
 
     
+
