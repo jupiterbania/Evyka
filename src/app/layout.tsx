@@ -43,7 +43,7 @@ export async function generateMetadata(
 
   return {
     title: 'EVYKA',
-    description: 'Discover and purchase unique, high-quality images from talented photographers around the world.',
+    description: 'See my exclusive premium pictures, videos & nudes.',
     manifest: '/manifest.json',
     openGraph: {
       images: openGraphImages,
