@@ -88,6 +88,19 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isHovering, setIsHovering] = useState(false);
 
+  const [likeCount, setLikeCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    // Initialize with a random starting number to avoid hydration mismatch
+    setLikeCount(Math.floor(Math.random() * 500) + 200); // Random number between 200 and 700
+
+    const interval = setInterval(() => {
+      setLikeCount(prevCount => (prevCount || 0) + Math.floor(Math.random() * 4) + 2); // Increase by 2 to 5
+    }, 60000); // Every 60 seconds
+
+    return () => clearInterval(interval);
+  }, []);
+
 
   const handleEditClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -320,10 +333,10 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
         </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-between items-center mt-auto">
             <div className="flex items-center gap-2">
-                <Button variant="ghost" size="icon" asChild>
+                <Button variant="ghost" className="px-2" asChild>
                     <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
                         <Heart className="h-5 w-5" />
-                        <span className="sr-only">Like</span>
+                        <span className="ml-2 text-sm font-semibold">{likeCount !== null ? likeCount.toLocaleString() : '...'}</span>
                     </a>
                 </Button>
                 <Button variant="ghost" size="icon" asChild>
@@ -456,5 +469,3 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
     </>
   );
 }
-
-    
