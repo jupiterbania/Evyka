@@ -13,9 +13,10 @@ export function Footer() {
           <Link href="https://www.instagram.com/heyevyka" target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:text-primary">Contact Us</Link>
           <Link href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" className="text-sm font-medium hover:text-primary">Sponsored Link</Link>
         </div>
-        <p className="text-center text-sm text-muted-foreground">
-          © {new Date().getFullYear()} EVYKA Inc. All rights reserved.
-        </p>
+        <div className="text-center text-sm text-muted-foreground">
+            <p className="mb-2">All content on this site is AI-generated and for entertainment purposes only.</p>
+            <p>© {new Date().getFullYear()} EVYKA Inc. All rights reserved.</p>
+        </div>
       </div>
     </footer>
   );
