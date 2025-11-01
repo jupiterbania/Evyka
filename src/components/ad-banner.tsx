@@ -1,5 +1,8 @@
 'use client';
 import { useUser } from '@/firebase';
+import { Card } from './ui/card';
+import { cn } from '@/lib/utils';
+import Script from 'next/script';
 
 export function AdBanner() {
   const { user } = useUser();
@@ -11,10 +14,30 @@ export function AdBanner() {
   }
 
   return (
-    <div className="flex justify-center items-center aspect-[3/4] w-full">
-        <div className="flex flex-col justify-center items-center w-full">
-             {/* The ad script has been removed as requested. */}
+    <Card 
+        className={cn(
+          "group overflow-hidden flex flex-col items-center justify-center p-2",
+          "opacity-0 animate-fade-in-up"
+        )}
+        style={{ animationDelay: '200ms' }}
+    >
+        <div className="flex flex-col justify-center items-center w-full h-full">
+            <Script id="ad-banner-script" strategy="afterInteractive">
+                {`
+                    atOptions = {
+                        'key' : '20b08575a703d154fae0b8214f4a4759',
+                        'format' : 'iframe',
+                        'height' : 300,
+                        'width' : 160,
+                        'params' : {}
+                    };
+                `}
+            </Script>
+            <Script 
+                src="//www.topcreativeformat.com/20b08575a703d154fae0b8214f4a4759/invoke.js" 
+                strategy="afterInteractive" 
+            />
         </div>
-    </div>
+    </Card>
   );
 }
