@@ -473,7 +473,7 @@ export default function Home() {
               )}
               {paginatedMedia.map((item, index) => (
                 <Fragment key={item.id}>
-                  <ImageCard media={item} />
+                  <ImageCard media={item} index={index} />
                   {index === 3 && <AdBanner />}
                 </Fragment>
               ))}

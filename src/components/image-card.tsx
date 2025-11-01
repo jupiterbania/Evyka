@@ -67,9 +67,11 @@ import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import Link from 'next/link';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
+import { cn } from '@/lib/utils';
 
 type ImageCardProps = {
   media: MediaType;
+  index?: number;
 };
 
 // --- Time-based Like Calculation Logic ---
@@ -146,7 +148,7 @@ const calculateInitialComments = (likes: number): number => {
   return Math.floor(likes * percentage);
 };
 
-export function ImageCard({ media: mediaItem }: ImageCardProps) {
+export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -418,7 +420,11 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
   return (
     <>
       <Card 
-        className="group overflow-hidden flex flex-col"
+        className={cn(
+          "group overflow-hidden flex flex-col",
+          "opacity-0 animate-fade-in-up"
+        )}
+        style={{ animationDelay: `${index * 50}ms` }}
         onMouseEnter={() => isVideo && !isGoogleDrive && setIsHovering(true)}
         onMouseLeave={() => isVideo && !isGoogleDrive && setIsHovering(false)}
       >
