@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from 'react';
@@ -89,6 +90,7 @@ export function ImageManagement() {
     let finalUpdates: Partial<MediaType> = {
         title: selectedMedia.title,
         description: selectedMedia.description,
+        thumbnailUrl: selectedMedia.thumbnailUrl,
     };
 
     if (thumbnailFile) {
@@ -482,15 +484,36 @@ export function ImageManagement() {
                         <Textarea id="edit-description" value={selectedMedia.description || ''} onChange={(e) => setSelectedMedia(p => p ? {...p, description: e.target.value} : null)} />
                     </div>
                      {selectedMedia.mediaType === 'video' && (
-                      <div className="grid w-full items-center gap-1.5">
-                        <Label htmlFor="edit-thumbnail">Upload New Thumbnail</Label>
-                        <Input
-                          id="edit-thumbnail"
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => setThumbnailFile(e.target.files ? e.target.files[0] : null)}
-                        />
-                      </div>
+                      <>
+                        <div className="grid w-full items-center gap-1.5">
+                          <Label htmlFor="edit-thumbnail-url">Thumbnail URL</Label>
+                          <Input
+                            id="edit-thumbnail-url"
+                            value={selectedMedia.thumbnailUrl || ''}
+                            onChange={(e) =>
+                              setSelectedMedia((p) => (p ? { ...p, thumbnailUrl: e.target.value } : null))
+                            }
+                            placeholder="https://example.com/thumbnail.jpg"
+                          />
+                        </div>
+                        <div className="relative my-1">
+                          <div className="absolute inset-0 flex items-center">
+                              <span className="w-full border-t" />
+                          </div>
+                          <div className="relative flex justify-center text-xs uppercase">
+                              <span className="bg-background px-2 text-muted-foreground">OR</span>
+                          </div>
+                        </div>
+                        <div className="grid w-full items-center gap-1.5">
+                          <Label htmlFor="edit-thumbnail-file">Upload New Thumbnail</Label>
+                          <Input
+                            id="edit-thumbnail-file"
+                            type="file"
+                            accept="image/*"
+                            onChange={(e) => setThumbnailFile(e.target.files ? e.target.files[0] : null)}
+                          />
+                        </div>
+                      </>
                     )}
                 </div>}
                 <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">

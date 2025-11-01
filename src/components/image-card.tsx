@@ -101,6 +101,7 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
     let finalUpdates: Partial<MediaType> = {
       title: editedMedia.title,
       description: editedMedia.description,
+      thumbnailUrl: editedMedia.thumbnailUrl,
     };
 
     if (thumbnailFile) {
@@ -226,11 +227,15 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
   };
 
   const isVideo = mediaItem.mediaType === 'video';
+  const isGoogleDrive = isVideo && mediaItem.mediaUrl.includes('drive.google.com');
   const linkHref = `/image/${mediaItem.id}`;
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
+
+    // Do not attempt to play Google Drive videos on hover.
+    if (isGoogleDrive) return;
 
     if (isHovering) {
       if (video.paused) {
@@ -245,12 +250,11 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
         video.pause();
       }
     }
-  }, [isHovering]);
+  }, [isHovering, isGoogleDrive]);
 
 
   const renderMedia = () => {
     if (isVideo) {
-       const isGoogleDrive = mediaItem.mediaUrl.includes('drive.google.com');
       // If it's a GDrive video without a thumbnail, show a placeholder
       if (isGoogleDrive && !mediaItem.thumbnailUrl) {
          return (
@@ -293,8 +297,8 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
     <>
       <Card 
         className="group overflow-hidden flex flex-col"
-        onMouseEnter={() => isVideo && setIsHovering(true)}
-        onMouseLeave={() => isVideo && setIsHovering(false)}
+        onMouseEnter={() => isVideo && !isGoogleDrive && setIsHovering(true)}
+        onMouseLeave={() => isVideo && !isGoogleDrive && setIsHovering(false)}
       >
         <CardHeader className="p-0">
             <Link href={linkHref} className="block cursor-pointer">
@@ -385,15 +389,36 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                 />
               </div>
                {mediaItem.mediaType === 'video' && (
-                <div className="grid w-full items-center gap-1.5">
-                  <Label htmlFor="edit-thumbnail">Upload New Thumbnail</Label>
-                  <Input
-                    id="edit-thumbnail"
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => setThumbnailFile(e.target.files ? e.target.files[0] : null)}
-                  />
-                </div>
+                <>
+                  <div className="grid w-full items-center gap-1.5">
+                    <Label htmlFor="edit-thumbnail-url">Thumbnail URL</Label>
+                    <Input
+                      id="edit-thumbnail-url"
+                      value={editedMedia.thumbnailUrl || ''}
+                      onChange={(e) =>
+                        setEditedMedia((p) => (p ? { ...p, thumbnailUrl: e.target.value } : null))
+                      }
+                      placeholder="https://example.com/thumbnail.jpg"
+                    />
+                  </div>
+                  <div className="relative my-1">
+                      <div className="absolute inset-0 flex items-center">
+                          <span className="w-full border-t" />
+                      </div>
+                      <div className="relative flex justify-center text-xs uppercase">
+                          <span className="bg-background px-2 text-muted-foreground">OR</span>
+                      </div>
+                  </div>
+                  <div className="grid w-full items-center gap-1.5">
+                    <Label htmlFor="edit-thumbnail-file">Upload New Thumbnail</Label>
+                    <Input
+                      id="edit-thumbnail-file"
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => setThumbnailFile(e.target.files ? e.target.files[0] : null)}
+                    />
+                  </div>
+                </>
               )}
             </div>
           )}
