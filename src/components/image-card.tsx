@@ -20,6 +20,7 @@ import {
   Upload,
   Heart,
   MessageCircle,
+  Send,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -329,6 +330,12 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
                      <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
                         <MessageCircle className="h-5 w-5" />
                         <span className="sr-only">Comment</span>
+                    </a>
+                </Button>
+                 <Button variant="ghost" size="icon" asChild>
+                    <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+                        <Send className="h-5 w-5" />
+                        <span className="sr-only">Message</span>
                     </a>
                 </Button>
             </div>
