@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, Timestamp } from 'firebase/firestore';
+import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { doc, Timestamp, collection } from 'firebase/firestore';
 import type { Media as MediaType } from '@/lib/types';
 import Image from 'next/image';
 import { Header } from '@/components/header';
@@ -14,6 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Loader2, Heart, MessageCircle, Send, Share2 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { ImageCard } from '@/components/image-card';
 
 
 // --- Time-based Like Calculation Logic ---
@@ -102,6 +102,25 @@ export default function ImagePage() {
     [firestore, mediaId]
   );
   const { data: media, isLoading: isMediaLoading } = useDoc<MediaType>(mediaDocRef);
+
+  const mediaCollection = useMemoFirebase(() => collection(firestore, 'media'), [firestore]);
+  const { data: allMedia, isLoading: isAllMediaLoading } = useCollection<MediaType>(mediaCollection);
+
+  const recommendedMedia = useMemo(() => {
+    if (!allMedia || !media) return [];
+    
+    // Filter out the current item
+    const otherMedia = allMedia.filter(item => item.id !== media.id);
+
+    // Prioritize same media type, then fill with others
+    const sameType = otherMedia.filter(item => item.mediaType === media.mediaType && !item.isNude);
+    const otherType = otherMedia.filter(item => item.mediaType !== media.mediaType && !item.isNude);
+
+    // Shuffle and take 8
+    const shuffled = [...sameType, ...otherType].sort(() => 0.5 - Math.random());
+    
+    return shuffled.slice(0, 8);
+  }, [allMedia, media]);
 
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [commentCount, setCommentCount] = useState<number | null>(null);
@@ -248,37 +267,56 @@ export default function ImagePage() {
     };
     
     return (
-      <div className="flex-grow flex flex-col items-center justify-start p-4 pt-8">
-        {renderMediaContent()}
-        <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 md:p-8 text-center">
-            <h1 className="text-3xl md:text-5xl font-bold font-headline">{media.title}</h1>
-            <p className="text-lg md:text-xl text-muted-foreground mt-4 max-w-prose mx-auto">{media.description}</p>
-            <div className="flex justify-center items-center gap-4 mt-6">
-               <Button variant="ghost" className="px-2" asChild>
-                    <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
-                        <Heart className="h-6 w-6" />
-                        <span className="ml-2 text-base font-semibold">{formatCount(likeCount)}</span>
-                    </a>
-                </Button>
-                <Button variant="ghost" className="px-2" asChild>
-                     <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
-                        <MessageCircle className="h-6 w-6" />
-                        <span className="ml-2 text-base font-semibold">{formatCount(commentCount)}</span>
-                    </a>
-                </Button>
-                 <Button variant="ghost" size="icon" asChild>
-                    <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
-                        <Send className="h-6 w-6" />
-                        <span className="sr-only">Message</span>
-                    </a>
-                </Button>
-                 <Button variant="ghost" size="icon" onClick={handleShare}>
-                    <Share2 className="h-5 w-5" />
-                    <span className="sr-only">Share</span>
-                </Button>
-            </div>
+      <>
+        <div className="flex-grow flex flex-col items-center justify-start pt-8">
+          {renderMediaContent()}
+          <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 md:p-8 text-center">
+              <h1 className="text-3xl md:text-5xl font-bold font-headline">{media.title}</h1>
+              <p className="text-lg md:text-xl text-muted-foreground mt-4 max-w-prose mx-auto">{media.description}</p>
+              <div className="flex justify-center items-center gap-4 mt-6">
+                 <Button variant="ghost" className="px-2" asChild>
+                      <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+                          <Heart className="h-6 w-6" />
+                          <span className="ml-2 text-base font-semibold">{formatCount(likeCount)}</span>
+                      </a>
+                  </Button>
+                  <Button variant="ghost" className="px-2" asChild>
+                       <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+                          <MessageCircle className="h-6 w-6" />
+                          <span className="ml-2 text-base font-semibold">{formatCount(commentCount)}</span>
+                      </a>
+                  </Button>
+                   <Button variant="ghost" size="icon" asChild>
+                      <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+                          <Send className="h-6 w-6" />
+                          <span className="sr-only">Message</span>
+                      </a>
+                  </Button>
+                   <Button variant="ghost" size="icon" onClick={handleShare}>
+                      <Share2 className="h-5 w-5" />
+                      <span className="sr-only">Share</span>
+                  </Button>
+              </div>
+          </div>
         </div>
-      </div>
+
+        {recommendedMedia.length > 0 && (
+          <section className="py-8 sm:py-12 bg-muted/50">
+            <div className="container px-4 sm:px-6">
+              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline text-center mb-6 sm:mb-8">
+                You Might Also Like
+              </h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+                {isAllMediaLoading
+                  ? Array.from({ length: 4 }).map((_, i) => (
+                      <div key={i} className="aspect-[3/4] bg-muted-foreground/10 animate-pulse rounded-lg" />
+                    ))
+                  : recommendedMedia.map(item => <ImageCard key={item.id} media={item} />)}
+              </div>
+            </div>
+          </section>
+        )}
+      </>
     );
   };
 
