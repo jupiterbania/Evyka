@@ -376,26 +376,27 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
 
   const renderMedia = () => {
     if (isVideo) {
-      // If it's a GDrive video without a thumbnail, show a placeholder
-      if (isGoogleDrive && !mediaItem.thumbnailUrl) {
-         return (
-             <div className="w-full h-full bg-black flex items-center justify-center">
-                 <PlayCircle className="h-16 w-16 text-white/70" />
-             </div>
-         );
-      }
+      const showVideoElement = !isGoogleDrive || (isGoogleDrive && !!mediaItem.thumbnailUrl);
+      const posterUrl = isGoogleDrive ? mediaItem.thumbnailUrl : mediaItem.thumbnailUrl || undefined;
+
       return (
         <>
-          <video
-            ref={videoRef}
-            src={mediaItem.mediaUrl}
-            poster={mediaItem.thumbnailUrl || undefined}
-            muted
-            loop
-            playsInline
-            className="object-cover w-full h-full transition-all duration-300 ease-in-out"
-          />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
+          {showVideoElement ? (
+            <video
+              ref={videoRef}
+              src={mediaItem.mediaUrl}
+              poster={posterUrl}
+              muted
+              loop
+              playsInline
+              className="object-cover w-full h-full transition-all duration-300 ease-in-out"
+            />
+          ) : (
+            <div className="w-full h-full bg-black flex items-center justify-center">
+              {/* Placeholder for GDrive video without thumbnail */}
+            </div>
+          )}
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-100 group-hover:opacity-100 transition-opacity">
             <PlayCircle className="h-16 w-16 text-white/90" />
           </div>
         </>
