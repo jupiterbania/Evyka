@@ -440,16 +440,16 @@ export function ImageCard({ media: mediaItem }: ImageCardProps) {
         </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-between items-center mt-auto">
             <div className="flex items-center gap-1">
-                <Button variant="ghost" size="sm" className="px-2" asChild>
+                <Button variant="ghost" size="sm" className="h-auto p-0 px-2 flex items-center" asChild>
                     <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
                         <Heart className="h-4 w-4" />
-                        <span className="ml-1.5 text-sm font-semibold">{formatCount(likeCount)}</span>
+                        <span className="ml-1 text-sm font-semibold">{formatCount(likeCount)}</span>
                     </a>
                 </Button>
-                <Button variant="ghost" size="sm" className="px-2" asChild>
+                <Button variant="ghost" size="sm" className="h-auto p-0 px-2 flex items-center" asChild>
                      <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
                         <MessageCircle className="h-4 w-4" />
-                        <span className="ml-1.5 text-sm font-semibold">{formatCount(commentCount)}</span>
+                        <span className="ml-1 text-sm font-semibold">{formatCount(commentCount)}</span>
                     </a>
                 </Button>
                  <Button variant="ghost" size="icon" className="h-8 w-8" asChild>
