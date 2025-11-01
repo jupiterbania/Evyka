@@ -54,7 +54,10 @@ export default function Home() {
   }, [media]);
 
   const filteredMedia = useMemo(() => {
-      return sortedMedia.filter(item => item.mediaType === filter);
+    if (filter === 'nude') {
+      return sortedMedia.filter(item => item.isNude);
+    }
+    return sortedMedia.filter(item => item.mediaType === filter && !item.isNude);
   }, [sortedMedia, filter]);
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'main'), [firestore]);
@@ -163,13 +166,18 @@ export default function Home() {
       try {
         if (videoUrl) {
            setUploadProgress(50);
-           addDocumentNonBlocking(mediaCollection, {
+           const docData: any = {
               ...newMedia,
               mediaUrl: videoUrl,
-              mediaType: filter, // Use the current filter as the type
+              mediaType: 'video', 
               uploadDate: serverTimestamp(),
-            });
-            setUploadProgress(100);
+           };
+           if (filter === 'nude') {
+             docData.isNude = true;
+           }
+           addDocumentNonBlocking(mediaCollection, docData);
+           setUploadProgress(100);
+
         } else if (mediaFiles && mediaFiles.length > 0) {
           const totalFiles = mediaFiles.length;
           const isMultiple = totalFiles > 1;
@@ -190,13 +198,10 @@ export default function Home() {
               throw new Error('Media URL was not returned from the upload service.');
             }
             
-            let mediaType: 'image' | 'video' | 'nude' = filter;
-            if (filter !== 'nude') {
-                mediaType = isVideo ? 'video' : 'image';
-            }
+            const mediaType: 'image' | 'video' = isVideo ? 'video' : 'image';
             
             let dominantColor = '#F0F4F8';
-            if (mediaType === 'image' || (mediaType === 'nude' && !isVideo)) {
+            if (mediaType === 'image') {
               const colorResult = await extractDominantColor({ photoDataUri: reader });
               dominantColor = colorResult.dominantColor || '#F0F4F8';
             }
@@ -208,12 +213,16 @@ export default function Home() {
               mediaType: mediaType,
               uploadDate: serverTimestamp(),
             };
+            
+            if (filter === 'nude') {
+                docData.isNude = true;
+            }
 
             if (uploadResult.thumbnailUrl) {
                 docData.thumbnailUrl = uploadResult.thumbnailUrl;
             }
 
-            if (mediaType === 'image' || (mediaType === 'nude' && !isVideo)) {
+            if (mediaType === 'image') {
                 docData.dominantColor = dominantColor;
             }
             
@@ -231,9 +240,13 @@ export default function Home() {
           const docData: any = {
               ...newMedia,
               mediaUrl: uploadResult.mediaUrl,
-              mediaType: filter, // Use the current filter as the type
+              mediaType: 'image',
               uploadDate: serverTimestamp(),
           };
+
+          if (filter === 'nude') {
+            docData.isNude = true;
+          }
 
           if (uploadResult.thumbnailUrl) {
               docData.thumbnailUrl = uploadResult.thumbnailUrl;

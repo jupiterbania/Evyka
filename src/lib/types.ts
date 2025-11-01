@@ -7,7 +7,8 @@ export type Media = {
   description: string;
   mediaUrl: string;
   thumbnailUrl?: string; // For videos
-  mediaType: 'image' | 'video' | 'nude';
+  mediaType: 'image' | 'video';
+  isNude?: boolean;
   uploadDate: Timestamp;
   dominantColor?: string;
 };
