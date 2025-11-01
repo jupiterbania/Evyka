@@ -88,19 +88,19 @@ export default {
             height: '0',
           },
         },
-        glow: {
+        'glow-right': {
           '0%, 100%': {
-            boxShadow: '0 0 15px hsl(var(--accent) / 0.8), 0 0 25px hsl(var(--accent) / 0.6)',
+            boxShadow: '5px 0 15px -5px hsl(var(--accent) / 0.6), 10px 0 25px -10px hsl(var(--accent) / 0.4)',
           },
           '50%': {
-            boxShadow: '0 0 25px hsl(var(--accent) / 1), 0 0 50px hsl(var(--accent) / 0.8)',
+            boxShadow: '5px 0 25px -5px hsl(var(--accent) / 0.8), 10px 0 40px -10px hsl(var(--accent) / 0.6)',
           },
         },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        glow: 'glow 2.5s infinite ease-in-out',
+        'glow-right': 'glow-right 2.5s infinite ease-in-out',
       },
     },
   },

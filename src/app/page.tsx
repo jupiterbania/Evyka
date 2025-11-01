@@ -354,7 +354,7 @@ export default function Home() {
                   variant={filter === 'nude' ? 'default' : 'ghost'}
                   onClick={handleNudesClick} 
                   className={cn(
-                      "px-4 py-2 h-auto animate-glow",
+                      "px-4 py-2 h-auto animate-glow-right",
                       filter !== 'nude' && "text-accent hover:bg-accent/10 hover:text-white focus:bg-accent/10 focus:text-white",
                       filter === 'nude' && "bg-accent text-accent-foreground hover:bg-accent/90",
                       "focus-visible:ring-accent"
