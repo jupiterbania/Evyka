@@ -17,7 +17,7 @@ export function AdBanner() {
     <Card 
         className={cn(
           "group overflow-hidden flex flex-col items-center justify-center p-2",
-          "opacity-0 animate-fade-in-up"
+          "opacity-0 animate-fade-in-up aspect-[3/4]"
         )}
         style={{ animationDelay: '200ms' }}
     >
@@ -25,16 +25,16 @@ export function AdBanner() {
             <Script id="ad-banner-script" strategy="afterInteractive">
                 {`
                     atOptions = {
-                        'key' : '20b08575a703d154fae0b8214f4a4759',
+                        'key' : '1aa94d7450572033bf4e3ce4bf8efaa7',
                         'format' : 'iframe',
-                        'height' : 300,
-                        'width' : 160,
+                        'height' : 250,
+                        'width' : 300,
                         'params' : {}
                     };
                 `}
             </Script>
             <Script 
-                src="//www.topcreativeformat.com/20b08575a703d154fae0b8214f4a4759/invoke.js" 
+                src="//www.highperformanceformat.com/1aa94d7450572033bf4e3ce4bf8efaa7/invoke.js" 
                 strategy="afterInteractive" 
             />
         </div>
