@@ -67,8 +67,10 @@ export default function Home() {
     if (filter === 'nude') {
       return sortedMedia.filter(item => item.isNude);
     }
+    // Default filter for 'image' or 'video' should not show nudes
     return sortedMedia.filter(item => item.mediaType === filter && !item.isNude);
   }, [sortedMedia, filter]);
+
 
   const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'main'), [firestore]);
   const { data: settings } = useDoc<SiteSettings>(settingsDocRef);
@@ -178,6 +180,8 @@ export default function Home() {
 
     const performUpload = async () => {
       try {
+        let isForNudes = filter === 'nude';
+        
         if (videoUrl) {
            setUploadProgress(50);
            const docData: any = {
@@ -185,10 +189,8 @@ export default function Home() {
               mediaUrl: videoUrl,
               mediaType: 'video', 
               uploadDate: serverTimestamp(),
+              isNude: isForNudes
            };
-           if (filter === 'nude') {
-             docData.isNude = true;
-           }
            addDocumentNonBlocking(mediaCollection, docData);
            setUploadProgress(100);
 
@@ -226,12 +228,9 @@ export default function Home() {
               mediaUrl: uploadResult.mediaUrl,
               mediaType: mediaType,
               uploadDate: serverTimestamp(),
+              isNude: isForNudes
             };
             
-            if (filter === 'nude') {
-                docData.isNude = true;
-            }
-
             if (uploadResult.thumbnailUrl) {
                 docData.thumbnailUrl = uploadResult.thumbnailUrl;
             }
@@ -256,11 +255,8 @@ export default function Home() {
               mediaUrl: uploadResult.mediaUrl,
               mediaType: 'image',
               uploadDate: serverTimestamp(),
+              isNude: isForNudes
           };
-
-          if (filter === 'nude') {
-            docData.isNude = true;
-          }
 
           if (uploadResult.thumbnailUrl) {
               docData.thumbnailUrl = uploadResult.thumbnailUrl;
@@ -361,20 +357,20 @@ export default function Home() {
               </div>
             </div>
 
-            {filter === 'nude' && isAdmin && (
+            {isAdmin && (
               <div className="flex justify-center mb-6 sm:mb-8">
                 <Dialog open={isUploadDialogOpen} onOpenChange={setUploadDialogOpen}>
                   <DialogTrigger asChild>
                     <Button>
                       <Upload className="mr-2 h-4 w-4" />
-                      Upload to Nudes
+                      Upload to {filter.charAt(0).toUpperCase() + filter.slice(1)}
                     </Button>
                   </DialogTrigger>
                   <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                       <DialogTitle>Upload New Media</DialogTitle>
                       <DialogDescription>
-                        Select files, or provide an image/video URL to add to the 'Nudes' category.
+                        Select files or provide a URL to add to the '{filter}' category.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
@@ -464,7 +460,7 @@ export default function Home() {
                 <div key={i} className="aspect-[3/4] bg-muted animate-pulse rounded-lg" />
               ))}
               {!isLoading && paginatedMedia.length === 0 && (
-                <p className="col-span-full text-center text-muted-foreground">No {filter}s have been uploaded yet.</p>
+                <p className="col-span-full text-center text-muted-foreground">No media in the '{filter}' category yet.</p>
               )}
               {paginatedMedia.map((item, index) => (
                 <Fragment key={item.id}>
@@ -528,5 +524,7 @@ export default function Home() {
       </AlertDialog>
     </div>
   );
+
+    
 
     
