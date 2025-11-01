@@ -21,6 +21,16 @@ import {
   DialogFooter,
   DialogClose,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -78,6 +88,10 @@ export default function Home() {
   const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
   const [imageUrl, setImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+
+  // State for age gate
+  const [isAgeGateOpen, setAgeGateOpen] = useState(false);
+  const [isAgeConfirmed, setAgeConfirmed] = useState(false);
   
   // State for pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -280,6 +294,20 @@ export default function Home() {
     performUpload();
   };
 
+  const handleNudesClick = () => {
+    if (isAgeConfirmed) {
+      setFilter('nude');
+    } else {
+      setAgeGateOpen(true);
+    }
+  };
+
+  const handleAgeConfirm = () => {
+    setAgeConfirmed(true);
+    setFilter('nude');
+    setAgeGateOpen(false);
+  };
+
   const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
 
   useEffect(() => {
@@ -326,7 +354,7 @@ export default function Home() {
                     <Film className="mr-2 h-4 w-4" />
                     Videos
                 </Button>
-                <Button variant={filter === 'nude' ? 'destructive' : 'ghost'} onClick={() => setFilter('nude')} className="px-4 py-2 h-auto">
+                <Button variant={filter === 'nude' ? 'destructive' : 'ghost'} onClick={handleNudesClick} className="px-4 py-2 h-auto">
                     <AlertTriangle className="mr-2 h-4 w-4" />
                     Nudes
                 </Button>
@@ -481,6 +509,24 @@ export default function Home() {
         </section>
       </main>
       <Footer />
+
+      <AlertDialog open={isAgeGateOpen} onOpenChange={setAgeGateOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Age Verification</AlertDialogTitle>
+            <AlertDialogDescription>
+              You must be 18 years or older to view this content. Please confirm your age.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>No, take me back</AlertDialogCancel>
+            <AlertDialogAction onClick={handleAgeConfirm}>
+              Yes, I am 18+
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
-}
+
+    
