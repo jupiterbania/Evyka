@@ -22,7 +22,7 @@ export function initializeFirebase() {
     return services;
   }
 
-  // If no apps are initialized, create a new one.
+  // If no apps are initialized, create a new one, always providing the config.
   if (!firebaseConfig.apiKey) {
     throw new Error("Missing Firebase API key. Make sure NEXT_PUBLIC_FIREBASE_API_KEY is set in your environment.");
   }
