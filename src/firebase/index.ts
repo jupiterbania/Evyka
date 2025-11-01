@@ -15,19 +15,10 @@ export function initializeFirebase() {
     return services;
   }
 
-  // If there are already initialized apps, use the default app.
-  if (getApps().length) {
-    const app = getApp();
-    services = getSdks(app);
-    return services;
-  }
+  // If no apps are initialized, create a new one. Otherwise, get the existing one.
+  const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
-  // If no apps are initialized, create a new one, always providing the config.
-  if (!firebaseConfig.apiKey) {
-    throw new Error("Missing Firebase API key. Make sure NEXT_PUBLIC_FIREBASE_API_KEY is set in your environment.");
-  }
-  const firebaseApp = initializeApp(firebaseConfig);
-  services = getSdks(firebaseApp);
+  services = getSdks(app);
   
   return services;
 }
