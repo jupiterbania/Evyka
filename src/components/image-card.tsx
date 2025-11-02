@@ -45,6 +45,7 @@ import {
 import {
   useFirestore,
   useUser,
+  useAuth,
 } from '@/firebase';
 import {
   doc,
@@ -54,6 +55,7 @@ import {
   deleteDocumentNonBlocking,
   updateDocumentNonBlocking,
 } from '@/firebase/non-blocking-updates';
+import { initiateAnonymousSignIn } from '@/firebase/non-blocking-login';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -66,6 +68,7 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Textarea } from './ui/textarea';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { cn } from '@/lib/utils';
 
@@ -151,6 +154,8 @@ const calculateInitialComments = (likes: number): number => {
 export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
   const { user } = useUser();
   const firestore = useFirestore();
+  const auth = useAuth();
+  const router = useRouter();
   const { toast } = useToast();
 
   const designatedAdminEmail = 'jupiterbania472@gmail.com';
@@ -317,6 +322,15 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
       }
     }
   };
+  
+  const handleCardClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    if (!user) {
+      initiateAnonymousSignIn(auth);
+    }
+    router.push(`/image/${mediaItem.id}`);
+  };
+
 
   const renderAdminMenu = () => {
     if (!isAdmin) {
@@ -351,7 +365,6 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
 
   const isVideo = mediaItem.mediaType === 'video';
   const isGoogleDrive = isVideo && mediaItem.mediaUrl.includes('drive.google.com');
-  const linkHref = `/image/${mediaItem.id}`;
 
   useEffect(() => {
     const video = videoRef.current;
@@ -421,32 +434,29 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
     <>
       <Card 
         className={cn(
-          "group overflow-hidden flex flex-col",
+          "group overflow-hidden flex flex-col cursor-pointer",
           "opacity-0 animate-fade-in-up"
         )}
         style={{ animationDelay: `${index * 50}ms` }}
         onMouseEnter={() => isVideo && !isGoogleDrive && setIsHovering(true)}
         onMouseLeave={() => isVideo && !isGoogleDrive && setIsHovering(false)}
+        onClick={handleCardClick}
       >
         <CardHeader className="p-0">
-            <Link href={linkHref} className="block cursor-pointer">
-              <div className="relative aspect-[3/4] w-full overflow-hidden bg-card rounded-t-lg">
-                  {renderMedia()}
-              </div>
-            </Link>
+          <div className="relative aspect-[3/4] w-full overflow-hidden bg-card rounded-t-lg">
+              {renderMedia()}
+          </div>
         </CardHeader>
         <CardContent className="p-4 flex-grow flex flex-col">
             <div className="flex-grow">
-                <Link href={linkHref} className="block cursor-pointer">
-                    <CardTitle className="text-base leading-tight mb-1 truncate hover:underline">
-                    {mediaItem.title}
-                    </CardTitle>
-                </Link>
+              <CardTitle className="text-base leading-tight mb-1 truncate hover:underline">
+              {mediaItem.title}
+              </CardTitle>
             </div>
         </CardContent>
         <CardFooter className="p-4 pt-0 flex justify-between items-center mt-auto">
             <Button variant="ghost" size="sm" className="h-auto p-2 flex items-center" asChild>
-                <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+                <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
                     <Heart className="h-4 w-4" />
                     <span className="ml-1 text-sm font-semibold">{formatCount(likeCount)}</span>
                 </a>
@@ -567,3 +577,5 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
     </>
   );
 }
+
+    
