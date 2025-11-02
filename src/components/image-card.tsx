@@ -438,7 +438,7 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
         <CardContent className="p-4 flex-grow flex flex-col">
             <div className="flex-grow">
                 <Link href={linkHref} className="block cursor-pointer">
-                    <CardTitle className="text-lg leading-tight mb-1 truncate hover:underline">
+                    <CardTitle className="text-base leading-tight mb-1 truncate hover:underline">
                     {mediaItem.title}
                     </CardTitle>
                 </Link>
