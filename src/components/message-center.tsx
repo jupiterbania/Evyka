@@ -285,6 +285,7 @@ export function MessageCenter() {
                                   <Image src={selectedMessage.imageUrl} alt="Sent image" width={200} height={200} className="rounded-md mb-1 max-w-[200px] h-auto cursor-pointer" />
                               </DialogTrigger>
                               <DialogContent className="max-w-3xl max-h-[80vh] p-0">
+                                  <DialogTitle className="sr-only">Enlarged image view</DialogTitle>
                                   <Image src={selectedMessage.imageUrl} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
                               </DialogContent>
                           </Dialog>
@@ -336,6 +337,7 @@ export function MessageCenter() {
                               </div>
                             </DialogTrigger>
                             <DialogContent className="max-w-3xl max-h-[80vh] p-0">
+                                <DialogTitle className="sr-only">Enlarged image view</DialogTitle>
                                 <Image src={reply.localImagePreviewUrl || reply.imageUrl!} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
                             </DialogContent>
                           </Dialog>
