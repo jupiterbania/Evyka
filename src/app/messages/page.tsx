@@ -28,9 +28,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { Send, Loader2, Image as ImageIcon, X } from 'lucide-react';
+import { Send, Loader2, Image as ImageIcon, X, Check, Clock, AlertTriangle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import { v4 as uuidv4 } from 'uuid';
 
 export default function UserMessagesPage() {
   const { user, isUserLoading } = useUser();
@@ -44,6 +45,8 @@ export default function UserMessagesPage() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
+  const [optimisticReplies, setOptimisticReplies] = useState<Reply[]>([]);
+
 
   // Redirect if user is not logged in
   useEffect(() => {
@@ -93,7 +96,7 @@ export default function UserMessagesPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [replies, userMessageThread]);
+  }, [replies, userMessageThread, optimisticReplies]);
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -102,13 +105,37 @@ export default function UserMessagesPage() {
       setImagePreview(URL.createObjectURL(file));
     }
   };
+  
+  const resetInput = () => {
+    setMessageText('');
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  }
 
   const handleSendMessage = async () => {
     if ((!messageText.trim() && !imageFile) || !user || !firestore || !userMessagesCollection) return;
+    
     setIsSending(true);
+    const optimisticId = uuidv4();
+    const now = new Date();
+
+    const optimisticReply: Reply = {
+      id: optimisticId,
+      message: messageText,
+      sentAt: now as any, // Temporary client-side date
+      isFromAdmin: false,
+      status: 'sending',
+      localImagePreviewUrl: imagePreview ?? undefined,
+    };
+    
+    setOptimisticReplies(prev => [...prev, optimisticReply]);
+    resetInput();
 
     try {
-      let imageUrl: string | undefined = undefined;
+      let finalImageUrl: string | undefined = undefined;
 
       if (imageFile) {
         const reader = await new Promise<string>((resolve, reject) => {
@@ -121,53 +148,47 @@ export default function UserMessagesPage() {
         if (!uploadResult || !uploadResult.mediaUrl) {
           throw new Error('Image upload failed to return a URL.');
         }
-        imageUrl = uploadResult.mediaUrl;
+        finalImageUrl = uploadResult.mediaUrl;
       }
       
-      const now = serverTimestamp();
-      const lastMessageSnippet = imageUrl ? '📷 Image' : messageText.substring(0, 100);
+      const serverTime = serverTimestamp();
+      const lastMessageSnippet = finalImageUrl ? '📷 Image' : messageText.substring(0, 100);
 
-      // If there's no existing message thread, create one.
       if (!userMessageThread) {
         const newMessage: Omit<Message, 'id'> = {
             firstMessage: messageText,
-            imageUrl,
+            imageUrl: finalImageUrl,
             userId: user.uid,
             email: user.email || '',
             name: user.displayName || 'New User',
-            createdAt: now as any,
+            createdAt: serverTime as any,
             isRead: false,
-            lastReplyAt: now as any,
+            lastReplyAt: serverTime as any,
             lastMessageSnippet,
         };
         await addDocumentNonBlocking(userMessagesCollection, newMessage);
       } else {
-        // If a thread exists, add the new message as a reply and update the parent thread doc.
         const threadDocRef = doc(firestore, 'users', user.uid, 'messages', userMessageThread.id);
-        const repliesCollection = collection(threadDocRef, 'replies');
+        const repliesCollectionRef = collection(threadDocRef, 'replies');
         
-        const newReply: Omit<Reply, 'id'> = {
+        const newReply: Omit<Reply, 'id' | 'status' | 'localImagePreviewUrl'> = {
             message: messageText,
-            imageUrl,
-            sentAt: now as any,
-            isFromAdmin: false, // This is a user's reply
+            imageUrl: finalImageUrl,
+            sentAt: serverTime as any,
+            isFromAdmin: false,
         };
-        addDocumentNonBlocking(repliesCollection, newReply);
+        addDocumentNonBlocking(repliesCollectionRef, newReply);
 
-        // Update the parent thread with last reply info
         updateDocumentNonBlocking(threadDocRef, {
-          isRead: false, // Mark as unread for the admin
-          lastReplyAt: now,
+          isRead: false,
+          lastReplyAt: serverTime,
           lastMessageSnippet,
         });
       }
-      
-      setMessageText('');
-      setImageFile(null);
-      setImagePreview(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
+
+      // Update optimistic reply to 'sent'
+      setOptimisticReplies(prev => prev.map(r => r.id === optimisticId ? { ...r, status: 'sent' } : r));
+
     } catch (error: any) {
       console.error("Error sending message: ", error);
       toast({
@@ -175,12 +196,24 @@ export default function UserMessagesPage() {
         title: 'Send Failed',
         description: error.message || 'Could not send your message.',
       });
+      // Update optimistic reply to 'error'
+      setOptimisticReplies(prev => prev.map(r => r.id === optimisticId ? { ...r, status: 'error' } : r));
     } finally {
       setIsSending(false);
     }
   };
   
   const isLoading = isUserLoading || isMessagesLoading;
+  
+  const allReplies = useMemo(() => {
+    const combined = [...(replies || [])];
+    optimisticReplies.forEach(optimistic => {
+        if (!combined.find(r => r.id === optimistic.id)) {
+            combined.push(optimistic);
+        }
+    });
+    return combined.sort((a, b) => (a.sentAt?.toDate?.() || 0) > (b.sentAt?.toDate?.() || 0) ? 1 : -1);
+  }, [replies, optimisticReplies]);
 
   if (isLoading) {
     return (
@@ -194,7 +227,23 @@ export default function UserMessagesPage() {
     );
   }
 
-  const allReplies = replies ?? [];
+
+  const renderStatusIcon = (reply: Reply) => {
+    if (reply.isFromAdmin) return null; // Only show for user's messages
+
+    switch (reply.status) {
+        case 'sending':
+            return <Clock className="h-3 w-3 text-primary-foreground/70" />;
+        case 'sent':
+            return <Check className="h-4 w-4 text-primary-foreground" />;
+        case 'error':
+            return <AlertTriangle className="h-4 w-4 text-destructive" />;
+        default:
+            // For real messages from Firestore that don't have a status
+            return <Check className="h-4 w-4 text-primary-foreground" />;
+    }
+}
+
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -223,7 +272,7 @@ export default function UserMessagesPage() {
                 </div>
 
                 {/* Replies */}
-                {isRepliesLoading ? (
+                {isRepliesLoading && !allReplies.length ? (
                     <div className="flex justify-center items-center h-full">
                         <Loader2 className="h-8 w-8 animate-spin text-primary" />
                     </div>
@@ -237,19 +286,35 @@ export default function UserMessagesPage() {
                   >
                     <div
                       className={cn(
-                        'rounded-lg p-3 max-w-lg shadow-sm',
+                        'rounded-lg p-3 max-w-lg shadow-sm relative',
                         !reply.isFromAdmin
                           ? 'bg-primary text-primary-foreground'
                           : 'bg-background'
                       )}
                     >
-                      {reply.imageUrl && (
-                        <Image src={reply.imageUrl} alt="Sent image" width={300} height={300} className="rounded-md mb-2" />
+                      {(reply.imageUrl || reply.localImagePreviewUrl) && (
+                        <div className="relative">
+                            <Image 
+                                src={reply.localImagePreviewUrl || reply.imageUrl!} 
+                                alt="Sent image" 
+                                width={300} 
+                                height={300} 
+                                className={cn("rounded-md mb-2", reply.status === 'sending' && 'opacity-50')}
+                            />
+                            {reply.status === 'sending' && (
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                </div>
+                            )}
+                        </div>
                       )}
-                      {reply.message && <p className="text-sm">{reply.message}</p>}
+                      {reply.message && <p className="text-sm break-words">{reply.message}</p>}
+                      <div className="absolute bottom-1 right-2">
+                        {renderStatusIcon(reply)}
+                      </div>
                     </div>
                     <span className="text-xs text-muted-foreground mt-1">
-                      {reply.sentAt && formatDistanceToNow(reply.sentAt.toDate(), { addSuffix: true })}
+                      {reply.sentAt && formatDistanceToNow(reply.sentAt instanceof Date ? reply.sentAt : reply.sentAt.toDate(), { addSuffix: true })}
                     </span>
                   </div>
                 ))}

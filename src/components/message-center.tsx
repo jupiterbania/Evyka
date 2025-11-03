@@ -41,8 +41,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
-import { Send, ArrowLeft, Loader2, Image as ImageIcon, X } from 'lucide-react';
+import { Send, ArrowLeft, Loader2, Image as ImageIcon, X, Check, Clock, AlertTriangle } from 'lucide-react';
 import Image from 'next/image';
+import { v4 as uuidv4 } from 'uuid';
 
 export function MessageCenter() {
   const firestore = useFirestore();
@@ -55,16 +56,17 @@ export function MessageCenter() {
     [firestore]
   );
   const { data: messages, isLoading, error } = useCollection<Message>(messagesQuery);
-
+  
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replyText, setReplyText] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isReplying, setIsReplying] = useState(false);
+  const [optimisticReplies, setOptimisticReplies] = useState<Reply[]>([]);
+
 
   const sortedMessages = useMemo(() => {
     if (!messages) return [];
-    // Client-side sorting
     return [...messages].sort((a, b) => {
       const timeA = a.lastReplyAt?.toMillis() || a.createdAt?.toMillis() || 0;
       const timeB = b.lastReplyAt?.toMillis() || b.createdAt?.toMillis() || 0;
@@ -107,6 +109,7 @@ export function MessageCenter() {
   const handleRowClick = (message: Message) => {
     if (!firestore) return;
     setSelectedMessage(message);
+    setOptimisticReplies([]);
     if (!message.isRead) {
       const docRef = doc(firestore, 'users', message.userId, 'messages', message.id);
       updateDocumentNonBlocking(docRef, { isRead: true });
@@ -121,12 +124,35 @@ export function MessageCenter() {
     }
   };
 
+  const resetInput = () => {
+    setReplyText('');
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
   const handleSendReply = async () => {
     if ((!replyText.trim() && !imageFile) || !selectedMessage || !firestore) return;
+    
     setIsReplying(true);
+    const optimisticId = uuidv4();
+
+    const optimisticReply: Reply = {
+      id: optimisticId,
+      message: replyText,
+      sentAt: new Date() as any,
+      isFromAdmin: true,
+      status: 'sending',
+      localImagePreviewUrl: imagePreview ?? undefined,
+    };
+    
+    setOptimisticReplies(prev => [...prev, optimisticReply]);
+    resetInput();
 
     try {
-      let imageUrl: string | undefined = undefined;
+      let finalImageUrl: string | undefined = undefined;
 
       if (imageFile) {
         const reader = await new Promise<string>((resolve, reject) => {
@@ -139,51 +165,74 @@ export function MessageCenter() {
         if (!uploadResult || !uploadResult.mediaUrl) {
           throw new Error('Image upload failed to return a URL.');
         }
-        imageUrl = uploadResult.mediaUrl;
+        finalImageUrl = uploadResult.mediaUrl;
       }
 
-      const now = serverTimestamp();
-      const lastMessageSnippet = imageUrl ? '📷 Image' : replyText.substring(0, 100);
+      const serverTime = serverTimestamp();
+      const lastMessageSnippet = finalImageUrl ? '📷 Image' : replyText.substring(0, 100);
 
       const threadDocRef = doc(firestore, 'users', selectedMessage.userId, 'messages', selectedMessage.id);
-      const repliesCollection = collection(threadDocRef, 'replies');
+      const repliesCollectionRef = collection(threadDocRef, 'replies');
 
-      const newReply: Omit<Reply, 'id'> = {
+      const newReply: Omit<Reply, 'id' | 'status' | 'localImagePreviewUrl'> = {
         message: replyText,
-        imageUrl,
-        sentAt: now as any,
+        imageUrl: finalImageUrl,
+        sentAt: serverTime as any,
         isFromAdmin: true,
       };
 
-      addDocumentNonBlocking(repliesCollection, newReply);
+      addDocumentNonBlocking(repliesCollectionRef, newReply);
       updateDocumentNonBlocking(threadDocRef, {
-        lastReplyAt: now,
+        lastReplyAt: serverTime,
         lastMessageSnippet,
       });
 
-      setReplyText('');
-      setImageFile(null);
-      setImagePreview(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-      toast({ title: 'Reply Sent!' });
+      setOptimisticReplies(prev => prev.map(r => r.id === optimisticId ? { ...r, status: 'sent' } : r));
+
     } catch (error: any) {
       toast({
         variant: 'destructive',
         title: 'Reply Failed',
         description: error.message,
       });
+      setOptimisticReplies(prev => prev.map(r => r.id === optimisticId ? { ...r, status: 'error' } : r));
     } finally {
       setIsReplying(false);
     }
   };
+  
+  const allReplies = useMemo(() => {
+    const combined = [...(replies || [])];
+    optimisticReplies.forEach(optimistic => {
+        if (!combined.find(r => r.id === optimistic.id)) {
+            combined.push(optimistic);
+        }
+    });
+    return combined.sort((a, b) => (a.sentAt?.toDate?.() || 0) > (b.sentAt?.toDate?.() || 0) ? 1 : -1);
+  }, [replies, optimisticReplies]);
 
   useEffect(() => {
     if (selectedMessage) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [replies, selectedMessage]);
+  }, [allReplies, selectedMessage]);
+
+  const renderStatusIcon = (reply: Reply) => {
+    if (!reply.isFromAdmin) return null; // Only show for admin's messages
+
+    switch (reply.status) {
+        case 'sending':
+            return <Clock className="h-3 w-3 text-primary-foreground/70" />;
+        case 'sent':
+            return <Check className="h-4 w-4 text-primary-foreground" />;
+        case 'error':
+            return <AlertTriangle className="h-4 w-4 text-destructive" />;
+        default:
+            // For real messages from Firestore that don't have a status
+            return <Check className="h-4 w-4 text-primary-foreground" />;
+    }
+  }
+
 
   const renderDetailView = () => (
     <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
@@ -214,28 +263,44 @@ export function MessageCenter() {
           </div>
 
           {/* Replies */}
-          {areRepliesLoading ? (
+          {areRepliesLoading && !allReplies.length ? (
             <div className="flex justify-center items-center h-full">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          ) : replies?.map((reply) => (
+          ) : allReplies.map((reply) => (
             <div
               key={reply.id}
               className={cn('flex flex-col', reply.isFromAdmin ? 'items-end' : 'items-start')}
             >
               <div
                 className={cn(
-                  'rounded-lg p-3 max-w-lg shadow-sm',
+                  'rounded-lg p-3 max-w-lg shadow-sm relative',
                   reply.isFromAdmin ? 'bg-primary text-primary-foreground' : 'bg-background'
                 )}
               >
-                {reply.imageUrl && (
-                    <Image src={reply.imageUrl} alt="Sent image" width={300} height={300} className="rounded-md mb-2" />
-                )}
-                {reply.message && <p className="text-sm">{reply.message}</p>}
+                 {(reply.imageUrl || reply.localImagePreviewUrl) && (
+                    <div className="relative">
+                        <Image 
+                            src={reply.localImagePreviewUrl || reply.imageUrl!} 
+                            alt="Sent image" 
+                            width={300} 
+                            height={300} 
+                            className={cn("rounded-md mb-2", reply.status === 'sending' && 'opacity-50')}
+                        />
+                        {reply.status === 'sending' && (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                <Loader2 className="h-8 w-8 animate-spin text-white" />
+                            </div>
+                        )}
+                    </div>
+                  )}
+                {reply.message && <p className="text-sm break-words">{reply.message}</p>}
+                <div className="absolute bottom-1 right-2">
+                    {renderStatusIcon(reply)}
+                </div>
               </div>
               <span className="text-xs text-muted-foreground mt-1">
-                {reply.sentAt && formatDistanceToNow(reply.sentAt.toDate(), { addSuffix: true })}
+                {reply.sentAt && formatDistanceToNow(reply.sentAt instanceof Date ? reply.sentAt : reply.sentAt.toDate(), { addSuffix: true })}
               </span>
             </div>
           ))}

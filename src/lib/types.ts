@@ -47,4 +47,6 @@ export type Reply = {
     imageUrl?: string;
     sentAt: Timestamp;
     isFromAdmin: boolean;
+    status?: 'sending' | 'sent' | 'error';
+    localImagePreviewUrl?: string; // For optimistic UI
 }
