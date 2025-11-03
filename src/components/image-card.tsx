@@ -368,24 +368,32 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
-
-    // Do not attempt to play Google Drive videos on hover.
-    if (isGoogleDrive) return;
-
+    if (!video || isGoogleDrive) return;
+  
+    let isCancelled = false;
+  
     if (isHovering) {
       if (video.paused) {
-        video.play().catch(error => {
-          if (error.name !== 'NotAllowedError') {
-            console.error("Video autoplay failed:", error);
-          }
-        });
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+          playPromise.catch(error => {
+            // Ignore errors if the component was unmounted or hover ended.
+            if (!isCancelled && error.name !== 'NotAllowedError') {
+              console.error("Video autoplay failed:", error);
+            }
+          });
+        }
       }
     } else {
       if (!video.paused) {
         video.pause();
       }
     }
+  
+    // Cleanup function to prevent play() on unmounted component
+    return () => {
+      isCancelled = true;
+    };
   }, [isHovering, isGoogleDrive]);
 
 
@@ -577,5 +585,3 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
     </>
   );
 }
-
-    
