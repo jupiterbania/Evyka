@@ -38,8 +38,8 @@ service cloud.firestore {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
     
-    function isDesignatedAdmin(userId) {
-      return request.auth.uid == userId && request.auth.token.email == 'jupiterbania472@gmail.com';
+    function isDesignatedAdmin() {
+      return request.auth != null && request.auth.token.email == 'jupiterbania472@gmail.com';
     }
 
     match /users/{userId} {
@@ -56,13 +56,13 @@ service cloud.firestore {
     }
 
     match /roles_admin/{userId} {
-      allow get, create, delete: if isAdmin() || isDesignatedAdmin(userId);
+      allow get, create, delete: if isAdmin() || (isOwner(userId) && isDesignatedAdmin());
       allow list, update: if false;
     }
 
     match /settings/main {
       allow get: if true;
-      allow update: if isAdmin() || isDesignatedAdmin(request.auth.uid);
+      allow update: if isAdmin() || isDesignatedAdmin();
       allow create, delete: if false;
     }
   }
