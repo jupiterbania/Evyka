@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -51,10 +50,10 @@ export function MessageCenter() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const messagesQuery = useMemoFirebase(
-    () => (firestore ? collectionGroup(firestore, 'messages') : null),
-    [firestore]
+  const [messagesQuery, setMessagesQuery] = useState(() =>
+    firestore ? query(collectionGroup(firestore, 'messages'), orderBy('lastReplyAt', 'desc')) : null
   );
+
   const { data: messages, isLoading, error } = useCollection<Message>(messagesQuery);
   
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
@@ -63,10 +62,12 @@ export function MessageCenter() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isReplying, setIsReplying] = useState(false);
   const [optimisticReplies, setOptimisticReplies] = useState<Reply[]>([]);
+  const [selectedTimestamp, setSelectedTimestamp] = useState<string | null>(null);
 
 
   const sortedMessages = useMemo(() => {
     if (!messages) return [];
+    // This sorting is a fallback if the query fails due to missing index.
     return [...messages].sort((a, b) => {
       const timeA = a.lastReplyAt?.toMillis() || a.createdAt?.toMillis() || 0;
       const timeB = b.lastReplyAt?.toMillis() || b.createdAt?.toMillis() || 0;
@@ -88,13 +89,25 @@ export function MessageCenter() {
 
   useEffect(() => {
     if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error loading messages',
-        description: error.message,
-      });
+       if (error.message.includes('firestore/failed-precondition')) {
+          // Fallback to client-side sorting if index is missing
+          toast({
+            variant: 'destructive',
+            title: 'Index Missing',
+            description: "Message ordering may be incorrect. Using fallback sorting.",
+          });
+          if (firestore) {
+            setMessagesQuery(query(collectionGroup(firestore, 'messages')));
+          }
+        } else {
+          toast({
+            variant: 'destructive',
+            title: 'Error loading messages',
+            description: error.message,
+          });
+        }
     }
-  }, [error, toast]);
+  }, [error, toast, firestore]);
 
   useEffect(() => {
     if (repliesError) {
@@ -150,6 +163,7 @@ export function MessageCenter() {
     
     setOptimisticReplies(prev => [...prev, optimisticReply]);
     resetInput();
+    scrollToBottom();
 
     try {
       let finalImageUrl: string | undefined = undefined;
@@ -208,12 +222,20 @@ export function MessageCenter() {
             combined.push(optimistic);
         }
     });
-    return combined.sort((a, b) => (a.sentAt?.toDate?.() || 0) > (b.sentAt?.toDate?.() || 0) ? 1 : -1);
+    return combined.sort((a, b) => {
+        const timeA = a.sentAt instanceof Date ? a.sentAt.getTime() : a.sentAt?.toMillis() || 0;
+        const timeB = b.sentAt instanceof Date ? b.sentAt.getTime() : b.sentAt?.toMillis() || 0;
+        return timeA - timeB;
+    });
   }, [replies, optimisticReplies]);
+  
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   useEffect(() => {
     if (selectedMessage) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      scrollToBottom();
     }
   }, [allReplies, selectedMessage]);
 
@@ -222,24 +244,24 @@ export function MessageCenter() {
 
     switch (reply.status) {
         case 'sending':
-            return <Clock className="h-3 w-3 text-primary-foreground/70" />;
+            return <Clock className="h-3 w-3 text-muted-foreground" />;
         case 'sent':
-            return <Check className="h-4 w-4 text-primary-foreground" />;
+            return <Check className="h-4 w-4 text-primary" />;
         case 'error':
             return <AlertTriangle className="h-4 w-4 text-destructive" />;
         default:
             // For real messages from Firestore that don't have a status
-            return <Check className="h-4 w-4 text-primary-foreground" />;
+            return <Check className="h-4 w-4 text-primary" />;
     }
   }
 
 
   const renderDetailView = () => (
     <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
-      <DialogContent className="max-w-2xl h-[80vh] flex flex-col">
-        <DialogHeader>
+      <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
+        <DialogHeader className="p-6 pb-4">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setSelectedMessage(null)}>
+            <Button variant="ghost" size="icon" className="shrink-0 -ml-2" onClick={() => setSelectedMessage(null)}>
               <ArrowLeft />
             </Button>
             <div>
@@ -248,19 +270,30 @@ export function MessageCenter() {
             </div>
           </div>
         </DialogHeader>
-        <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-muted/50 rounded-md">
+        <div className="flex-grow overflow-y-auto p-4 space-y-4 bg-muted/50">
           {/* Initial Message */}
-          <div className="flex flex-col items-start">
-            <div className="rounded-lg bg-background p-3 max-w-lg shadow-sm">
-                {selectedMessage?.imageUrl && (
-                    <Image src={selectedMessage.imageUrl} alt="Sent image" width={300} height={300} className="rounded-md mb-2 max-w-full h-auto" />
+          {selectedMessage && (
+            <div className="flex flex-col items-start" onClick={() => setSelectedTimestamp(selectedMessage.id)}>
+                <div className="rounded-lg bg-background p-2 max-w-lg shadow-sm">
+                    {selectedMessage?.imageUrl && (
+                        <Dialog>
+                            <DialogTrigger>
+                                <Image src={selectedMessage.imageUrl} alt="Sent image" width={200} height={200} className="rounded-md mb-1 max-w-[200px] h-auto cursor-pointer" />
+                            </DialogTrigger>
+                            <DialogContent className="max-w-3xl max-h-[80vh] p-0">
+                                <Image src={selectedMessage.imageUrl} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
+                            </DialogContent>
+                        </Dialog>
+                    )}
+                    {selectedMessage?.firstMessage && <p className="text-sm break-words px-1 pb-1">{selectedMessage.firstMessage}</p>}
+                </div>
+                {selectedTimestamp === selectedMessage.id && selectedMessage.createdAt && (
+                  <span className="text-xs text-muted-foreground mt-1 self-start">
+                    {formatDistanceToNow(selectedMessage.createdAt.toDate(), { addSuffix: true })}
+                  </span>
                 )}
-                {selectedMessage?.firstMessage && <p className="text-sm">{selectedMessage.firstMessage}</p>}
             </div>
-            <span className="text-xs text-muted-foreground mt-1">
-              {selectedMessage?.createdAt && formatDistanceToNow(selectedMessage.createdAt.toDate(), { addSuffix: true })}
-            </span>
-          </div>
+          )}
 
           {/* Replies */}
           {areRepliesLoading && !allReplies.length ? (
@@ -271,42 +304,54 @@ export function MessageCenter() {
             <div
               key={reply.id}
               className={cn('flex flex-col', reply.isFromAdmin ? 'items-end' : 'items-start')}
+              onClick={() => setSelectedTimestamp(reply.id)}
             >
               <div
                 className={cn(
-                  'rounded-lg p-3 max-w-lg shadow-sm relative',
+                  'rounded-lg p-2 max-w-lg shadow-sm relative',
                   reply.isFromAdmin ? 'bg-primary text-primary-foreground' : 'bg-background'
                 )}
               >
                  {(reply.imageUrl || reply.localImagePreviewUrl) && (
-                    <div className="relative">
-                        <Image 
-                            src={reply.localImagePreviewUrl || reply.imageUrl!} 
-                            alt="Sent image" 
-                            width={300} 
-                            height={300} 
-                            className={cn("rounded-md mb-2 max-w-full h-auto", reply.status === 'sending' && 'opacity-50')}
-                        />
-                        {reply.status === 'sending' && (
-                            <div className="absolute inset-0 flex items-center justify-center">
-                                <Loader2 className="h-8 w-8 animate-spin text-white" />
+                    <div className="relative mb-1">
+                        <Dialog>
+                          <DialogTrigger asChild>
+                            <div className="relative">
+                                <Image 
+                                    src={reply.localImagePreviewUrl || reply.imageUrl!} 
+                                    alt="Sent image" 
+                                    width={200} 
+                                    height={200} 
+                                    className={cn("rounded-md max-w-[200px] h-auto cursor-pointer", reply.status === 'sending' && 'opacity-50')}
+                                />
+                                {reply.status === 'sending' && (
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-md">
+                                        <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                    </div>
+                                )}
                             </div>
-                        )}
+                           </DialogTrigger>
+                           <DialogContent className="max-w-3xl max-h-[80vh] p-0">
+                                <Image src={reply.localImagePreviewUrl || reply.imageUrl!} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
+                            </DialogContent>
+                        </Dialog>
                     </div>
                   )}
-                {reply.message && <p className="text-sm break-words">{reply.message}</p>}
-                <div className="absolute bottom-1 right-2">
+                {reply.message && <p className="text-sm break-words px-1 pb-4">{reply.message}</p>}
+                <div className="absolute bottom-1 right-2 flex items-center gap-1">
                     {renderStatusIcon(reply)}
                 </div>
               </div>
-              <span className="text-xs text-muted-foreground mt-1">
-                {reply.sentAt && formatDistanceToNow(reply.sentAt instanceof Date ? reply.sentAt : reply.sentAt.toDate(), { addSuffix: true })}
-              </span>
+              {selectedTimestamp === reply.id && reply.sentAt && (
+                <span className={cn("text-xs text-muted-foreground mt-1", reply.isFromAdmin ? 'self-end' : 'self-start')}>
+                  {reply.sentAt && formatDistanceToNow(reply.sentAt instanceof Date ? reply.sentAt : reply.sentAt.toDate(), { addSuffix: true })}
+                </span>
+              )}
             </div>
           ))}
           <div ref={messagesEndRef} />
         </div>
-        <DialogFooter className="pt-4 border-t flex-col">
+        <DialogFooter className="p-4 pt-4 border-t flex-col bg-background">
             {imagePreview && (
                 <div className="relative w-24 h-24 mb-2 self-start">
                     <Image src={imagePreview} alt="Image preview" layout="fill" className="object-cover rounded-md" />
@@ -324,7 +369,7 @@ export function MessageCenter() {
                     </Button>
                 </div>
              )}
-          <div className="flex w-full gap-2 items-center">
+          <div className="flex w-full gap-2 items-start">
             <input
                 type="file"
                 accept="image/*"
@@ -341,6 +386,7 @@ export function MessageCenter() {
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               className="flex-grow"
+              rows={1}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
@@ -349,7 +395,7 @@ export function MessageCenter() {
               }}
               disabled={isReplying}
             />
-            <Button onClick={handleSendReply} disabled={isReplying || (!replyText.trim() && !imageFile)}>
+            <Button onClick={handleSendReply} disabled={isReplying || (!replyText.trim() && !imageFile)} size="icon" className="shrink-0">
               {isReplying ? <Loader2 className="animate-spin" /> : <Send />}
               <span className="sr-only">Send</span>
             </Button>
