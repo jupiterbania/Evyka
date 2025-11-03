@@ -210,7 +210,7 @@ function ImageManagementInternal() {
     const performUpload = async () => {
       try {
         if (videoUrl) {
-          simulateProgress(50 * 1024 * 1024, 5000); // Simulate 50MB upload over 5s
+          simulateProgress(50 * 1024 * 1024, 2000); // Simulate 50MB upload over 2s
           addDocumentNonBlocking(mediaCollectionRef, {
             ...newMedia,
             mediaUrl: videoUrl,
@@ -240,7 +240,7 @@ function ImageManagementInternal() {
               continue;
             }
             
-            const estimatedDuration = Math.max(file.size / 500000, 2000); // Estimate based on 500KB/s
+            const estimatedDuration = Math.max(file.size / 1000000, 1000); // Estimate based on 1MB/s, min 1s
             simulateProgress(file.size, estimatedDuration);
 
             const reader = await new Promise<string>((resolve, reject) => {
@@ -294,7 +294,7 @@ function ImageManagementInternal() {
             }
           }
         } else if (imageUrl) {
-            simulateProgress(5 * 1024 * 1024, 3000); // Simulate 5MB upload over 3s
+            simulateProgress(5 * 1024 * 1024, 1500); // Simulate 5MB upload over 1.5s
             const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
             if (!uploadResult || !uploadResult.mediaUrl) {
                 throw new Error('Media URL was not returned from the upload service.');
