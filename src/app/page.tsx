@@ -72,7 +72,7 @@ export default function Home() {
   }, [sortedMedia, filter]);
 
 
-  const settingsDocRef = useMemoFirebase(() => doc(firestore, 'settings', 'main'), [firestore]);
+  const settingsDocRef = useMemoFirebase(() => firestore ? doc(firestore, 'settings', 'main') : null, [firestore]);
   const { data: settings } = useDoc<SiteSettings>(settingsDocRef);
   
   const heroImageUrl = settings?.heroImageUrl;
@@ -194,7 +194,7 @@ export default function Home() {
   };
   
   const handleUpload = () => {
-    if (!firestore) return;
+    if (!firestore || !mediaCollection) return;
     if (!mediaFiles?.length && !imageUrl && !videoUrl) {
       toast({
         variant: 'destructive',
@@ -608,3 +608,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
