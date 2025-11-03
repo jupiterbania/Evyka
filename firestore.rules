@@ -4,6 +4,7 @@
  *
  * Core Philosophy:
  * This ruleset implements a hybrid security model, balancing public read access for certain data with strict owner-only or admin-only write access.
+ * The user with the email 'jupiterbania472@gmail.com' is a designated super-admin with immediate privileges.
  *
  * Data Structure:
  * - /users/{userId}: Stores user profiles, accessible only to the user and admins.
@@ -14,7 +15,7 @@
  * Key Security Decisions:
  * - Users can only read and write their own profile data.
  * - Media metadata is publicly readable to enable browsing. Write access is restricted to admins.
- * - The existence of a document in `/roles_admin/{userId}` grants the user admin privileges.
+ * - The `isDesignatedAdmin()` function grants immediate super-user access to avoid race conditions.
  * - The `settings/main` document is writeable by admins only, allowing for global site settings management.
  * - No user listing is allowed to prevent data scraping.
  */
@@ -43,27 +44,28 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
+      allow get: if isOwner(userId) || isAdmin() || isDesignatedAdmin();
       allow list: if false; // No user listing allowed.
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
     }
 
     match /media/{mediaId} {
       allow get, list: if true;
-      allow create, update, delete: if isAdmin();
+      allow create, update, delete: if isAdmin() || isDesignatedAdmin();
     }
 
     match /roles_admin/{userId} {
-      allow get, create, delete: if isAdmin() || (isOwner(userId) && isDesignatedAdmin());
+      allow get: if isOwner(userId) || isAdmin() || isDesignatedAdmin();
+      allow create: if (isOwner(userId) && isDesignatedAdmin()) || isAdmin();
+      allow delete: if isAdmin() || isDesignatedAdmin();
       allow list, update: if false;
     }
 
     match /settings/main {
       allow get: if true;
-      allow update: if isAdmin() || isDesignatedAdmin();
-      allow create, delete: if false;
+      allow create, update, delete: if isAdmin() || isDesignatedAdmin();
     }
   }
 }
