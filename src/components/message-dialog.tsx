@@ -10,18 +10,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogFooter,
-  DialogClose,
 } from './ui/dialog';
-import { Input } from './ui/input';
-import { Label } from './ui/label';
-import { Textarea } from './ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { useFirestore, useUser } from '@/firebase';
-import { collection, serverTimestamp } from 'firebase/firestore';
-import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { MessageSquare } from 'lucide-react';
+import { useUser, useAuth } from '@/firebase';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { Slot } from '@radix-ui/react-slot';
+import { useRouter } from 'next/navigation';
 
 
 type MessageDialogProps = {
@@ -29,117 +23,73 @@ type MessageDialogProps = {
 };
 
 export function MessageDialog({ trigger }: MessageDialogProps) {
-  const { user } = useUser();
-  const firestore = useFirestore();
+  const { user, isUserLoading } = useUser();
+  const auth = useAuth();
+  const router = useRouter();
   const { toast } = useToast();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [message, setMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
 
-  const resetForm = () => {
-    setName('');
-    setMessage('');
-    setIsOpen(false);
+  const handleTriggerClick = () => {
+    if (isUserLoading) return; // Don't do anything if auth state is loading
+    
+    if (user) {
+      // If user is logged in, navigate them to the messages page.
+      router.push('/messages');
+    } else {
+      // If user is not logged in, open the login prompt dialog.
+      setIsOpen(true);
+    }
   };
 
-  const handleSendMessage = async () => {
-    if (!message || (!user && !name)) {
-      toast({
-        variant: 'destructive',
-        title: 'Missing Information',
-        description: 'Please provide your name and a message.',
-      });
-      return;
-    }
-    if (!firestore) return;
-
-    setIsSending(true);
-    const messagesCollection = collection(firestore, 'messages');
-
+  const handleGoogleSignIn = async () => {
+    if (!auth) return;
+    const provider = new GoogleAuthProvider();
     try {
-      const messageData: any = {
-        message,
-        isRead: false,
-        createdAt: serverTimestamp(),
-      };
-
-      if (user) {
-        messageData.name = user.displayName || 'Authenticated User';
-        messageData.userId = user.uid;
-        messageData.email = user.email;
-      } else {
-        messageData.name = name;
-      }
-
-      addDocumentNonBlocking(messagesCollection, messageData);
-      
-      resetForm();
+      await signInWithPopup(auth, provider);
+      setIsOpen(false);
+      // After successful sign-in, you could redirect them or let them click again
       toast({
-        title: 'Message Sent!',
-        description: 'Thank you for your feedback. We will get back to you shortly.',
+        title: 'Signed In Successfully!',
+        description: 'You can now send a message.',
       });
+      router.push('/messages');
     } catch (error: any) {
-      console.error('Failed to send message:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Send Failed',
-        description: error.message || 'An unknown error occurred.',
-      });
-    } finally {
-      setIsSending(false);
+      if (error.code !== 'auth/popup-closed-by-user') {
+        console.error('Error signing in with Google', error);
+        toast({
+          variant: 'destructive',
+          title: 'Sign-In Failed',
+          description: 'Could not sign you in. Please try again.',
+        });
+      }
     }
   };
 
-  const TriggerComponent = trigger ? <Slot>{trigger}</Slot> : <Button variant="outline">Message Us</Button>;
+  const TriggerComponent = trigger ? (
+      <Slot onClick={handleTriggerClick}>{trigger}</Slot>
+  ) : (
+    <Button variant="outline" onClick={handleTriggerClick}>Message Us</Button>
+  );
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {TriggerComponent}
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Send a Message</DialogTitle>
-          <DialogDescription>
-            Have a question or feedback? We'd love to hear from you.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid gap-4 py-4">
-          {!user && (
-            <div className="grid w-full items-center gap-1.5">
-              <Label htmlFor="name">Your Name</Label>
-              <Input
-                id="name"
-                type="text"
-                placeholder="John Doe"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-          )}
-          <div className="grid w-full items-center gap-1.5">
-            <Label htmlFor="message">Message</Label>
-            <Textarea
-              id="message"
-              placeholder="Your message here..."
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-            />
-          </div>
-        </div>
-        <DialogFooter className="flex-col-reverse sm:flex-row">
-          <DialogClose asChild>
-            <Button type="button" variant="secondary">
-              Cancel
+    <>
+      {TriggerComponent}
+      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Please Sign In</DialogTitle>
+            <DialogDescription>
+              You need to be signed in to send a personal message and start a conversation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex justify-center py-4">
+            <Button onClick={handleGoogleSignIn}>
+              Sign In with Google
             </Button>
-          </DialogClose>
-          <Button onClick={handleSendMessage} disabled={isSending}>
-            {isSending ? 'Sending...' : 'Send Message'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

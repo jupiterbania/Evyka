@@ -1,9 +1,10 @@
+
 'use client';
 import Link from 'next/link';
 import { Logo } from './logo';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from './ui/sheet';
-import { Menu, LogIn, LogOut } from 'lucide-react';
+import { Menu, LogIn, LogOut, MessageSquare } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import {
@@ -36,13 +37,22 @@ export function Header() {
     const setupAdminRole = async () => {
       if (user && user.email === designatedAdminEmail && firestore) {
         const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
-        const adminRoleSnap = await getDoc(adminRoleRef);
-        if (!adminRoleSnap.exists()) {
-          const roleData = {
-            email: user.email,
-            grantedAt: serverTimestamp(),
-          };
-          setDocumentNonBlocking(adminRoleRef, roleData);
+        try {
+            const adminRoleSnap = await getDoc(adminRoleRef);
+            if (!adminRoleSnap.exists()) {
+              const roleData = {
+                email: user.email,
+                grantedAt: serverTimestamp(),
+              };
+              setDocumentNonBlocking(adminRoleRef, roleData);
+            }
+        } catch (error) {
+            console.error("Error checking or setting up admin role:", error);
+            const permissionError = new FirestorePermissionError({
+                path: adminRoleRef.path,
+                operation: 'get', // Or 'create' if that's where it fails
+            });
+            errorEmitter.emit('permission-error', permissionError);
         }
       }
     };
@@ -109,6 +119,9 @@ export function Header() {
               <nav className="grid gap-4 py-4">
                 <Link href="/" className="text-lg font-semibold hover:text-primary">Home</Link>
                 <Link href="/#gallery" className="text-lg font-semibold hover:text-primary">Gallery</Link>
+                {user && !isAdmin && (
+                  <Link href="/messages" className="text-lg font-semibold hover:text-primary">Messages</Link>
+                )}
                 {isAdmin && (
                   <Link href="/admin" className="text-lg font-semibold hover:text-primary">Admin</Link>
                 )}
@@ -118,6 +131,9 @@ export function Header() {
           <nav className="hidden sm:flex items-center gap-6 text-sm font-medium">
              <Link href="/" className="text-foreground/60 transition-colors hover:text-foreground/80">Home</Link>
              <Link href="/#gallery" className="text-foreground/60 transition-colors hover:text-foreground/80">Gallery</Link>
+             {user && !isAdmin && (
+                <Link href="/messages" className="text-foreground/60 transition-colors hover:text-foreground/80">Messages</Link>
+             )}
              {isAdmin && (
                 <Link href="/admin" className="text-foreground/60 transition-colors hover:text-foreground/80">Admin</Link>
               )}
@@ -133,6 +149,14 @@ export function Header() {
             <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
           ) : user ? (
             <>
+            { !isAdmin && (
+              <Button variant="ghost" size="icon" asChild>
+                <Link href="/messages">
+                  <MessageSquare />
+                  <span className="sr-only">My Messages</span>
+                </Link>
+              </Button>
+            )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" className="relative h-8 w-8 rounded-full">
