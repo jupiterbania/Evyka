@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { Media as MediaType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -64,12 +64,14 @@ export function ImageManagement() {
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadSpeed, setUploadSpeed] = useState(0);
   
   const [newMedia, setNewMedia] = useState({ title: '', description: '' });
   const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
   const [imageUrl, setImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
-  
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
   const [selectedMedia, setSelectedMedia] = useState<Partial<MediaType> & { id: string } | null>(null);
   const [mediaToDelete, setMediaToDelete] = useState<MediaType | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -149,6 +151,32 @@ export function ImageManagement() {
       });
     setMediaToDelete(null);
   }
+
+  const simulateProgress = (totalSize: number, duration: number) => {
+    const startTime = Date.now();
+    
+    progressIntervalRef.current = setInterval(() => {
+      const elapsedTime = Date.now() - startTime;
+      const progress = Math.min((elapsedTime / duration) * 100, 95); // Cap at 95%
+      setUploadProgress(progress);
+
+      const uploadedBytes = (progress / 100) * totalSize;
+      const speed = uploadedBytes / (elapsedTime / 1000); // bytes per second
+      setUploadSpeed(speed);
+
+      if (progress >= 95) {
+        if (progressIntervalRef.current) {
+            clearInterval(progressIntervalRef.current);
+        }
+      }
+    }, 100);
+  };
+
+  const formatSpeed = (speed: number) => {
+    if (speed < 1024) return `${speed.toFixed(2)} B/s`;
+    if (speed < 1024 * 1024) return `${(speed / 1024).toFixed(2)} KB/s`;
+    return `${(speed / (1024 * 1024)).toFixed(2)} MB/s`;
+  };
   
   const resetUploadForm = () => {
     setNewMedia({ title: '', description: '' });
@@ -156,6 +184,9 @@ export function ImageManagement() {
     setImageUrl('');
     setVideoUrl('');
     setUploadDialogOpen(false);
+    if (progressIntervalRef.current) {
+        clearInterval(progressIntervalRef.current);
+    }
   };
 
   const handleUpload = () => {
@@ -172,21 +203,29 @@ export function ImageManagement() {
     setUploadDialogOpen(false);
     setIsUploading(true);
     setUploadProgress(0);
+    setUploadSpeed(0);
 
     const performUpload = async () => {
       try {
         if (videoUrl) {
-          setUploadProgress(50);
+          simulateProgress(50 * 1024 * 1024, 5000); // Simulate 50MB upload over 5s
           addDocumentNonBlocking(mediaCollection, {
             ...newMedia,
             mediaUrl: videoUrl,
             mediaType: 'video',
             uploadDate: serverTimestamp(),
           });
+          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
           setUploadProgress(100);
         } else if (mediaFiles && mediaFiles.length > 0) {
           const totalFiles = mediaFiles.length;
           const isMultiple = totalFiles > 1;
+          const totalSize = Array.from(mediaFiles).reduce((acc, file) => acc + file.size, 0);
+
+          if (totalSize > 0) {
+            const estimatedDuration = Math.max(totalSize / 500000, 2000) * totalFiles; // Estimate based on 500KB/s
+            simulateProgress(totalSize, estimatedDuration);
+          }
 
           for (let i = 0; i < totalFiles; i++) {
             const file = mediaFiles[i];
@@ -240,19 +279,19 @@ export function ImageManagement() {
             }
 
             addDocumentNonBlocking(mediaCollection, docData);
-            setUploadProgress(((i + 1) / totalFiles) * 100);
             
             if (isMultiple && i < totalFiles - 1) {
               await new Promise(resolve => setTimeout(resolve, 2000));
             }
           }
+          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+          setUploadProgress(100);
         } else if (imageUrl) {
-            setUploadProgress(25);
+            simulateProgress(5 * 1024 * 1024, 3000); // Simulate 5MB upload over 3s
             const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
             if (!uploadResult || !uploadResult.mediaUrl) {
                 throw new Error('Media URL was not returned from the upload service.');
             }
-            setUploadProgress(75);
 
             const docData: any = {
                 ...newMedia,
@@ -268,6 +307,7 @@ export function ImageManagement() {
             docData.dominantColor = '#F0F4F8';
 
             addDocumentNonBlocking(mediaCollection, docData);
+            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
             setUploadProgress(100);
         }
         
@@ -286,6 +326,7 @@ export function ImageManagement() {
           description: error.message || 'An unknown error occurred during upload.',
         });
         setIsUploading(false);
+        if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
       }
     };
     performUpload();
@@ -387,7 +428,10 @@ export function ImageManagement() {
       {isUploading && (
         <div className="p-4 border-b">
             <Progress value={uploadProgress} className="w-full" />
-            <p className="text-sm text-center mt-2 text-muted-foreground">Uploading media... ({Math.round(uploadProgress)}%)</p>
+            <div className="flex justify-between items-center text-sm mt-2 text-muted-foreground">
+                <span>Uploading media... ({Math.round(uploadProgress)}%)</span>
+                <span>{formatSpeed(uploadSpeed)}</span>
+            </div>
         </div>
         )}
 
@@ -538,5 +582,3 @@ export function ImageManagement() {
     </Card>
   );
 }
-
-    
