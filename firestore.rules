@@ -70,7 +70,8 @@ service cloud.firestore {
     
     match /messages/{messageId} {
       allow create: if isSignedIn() && isOwner(request.resource.data.userId);
-      allow get, list: if isAdmin() || isDesignatedAdmin() || isOwner(resource.data.userId);
+      allow get: if isAdmin() || isDesignatedAdmin() || isOwner(resource.data.userId);
+      allow list: if isAdmin() || isDesignatedAdmin();
       allow update, delete: if isAdmin() || isDesignatedAdmin();
       
       match /replies/{replyId} {
