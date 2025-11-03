@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { Media as MediaType } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import {
@@ -57,7 +57,8 @@ import { Progress } from './ui/progress';
 
 export function ImageManagement() {
   const firestore = useFirestore();
-  const { data: mediaItems, isLoading } = useCollection<MediaType>(useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]));
+  const mediaItemsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
+  const { data: mediaItems, isLoading } = useCollection<MediaType>(mediaItemsQuery);
 
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
@@ -587,3 +588,5 @@ export function ImageManagement() {
     </Card>
   );
 }
+
+    
