@@ -60,8 +60,13 @@ export function Header() {
     try {
       await signInWithPopup(auth, provider);
     } catch (error: any) {
-      // Don't show an error if the user cancels the sign-in popup
-      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+      // Don't show an error if the user cancels the sign-in popup or it's blocked.
+      if (
+        error.code === 'auth/popup-closed-by-user' ||
+        error.code === 'auth/cancelled-popup-request' ||
+        error.code === 'auth/popup-blocked-by-browser'
+      ) {
+        console.warn('Sign-in popup was closed or blocked by the user/browser.');
         return;
       }
       console.error('Error signing in with Google', error);
