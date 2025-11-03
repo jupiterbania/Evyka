@@ -11,8 +11,7 @@ import {
   collectionGroup,
 } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
-import { useFirestore } from 'reactfire';
-import { useCollection } from 'react-firebase-hooks/firestore';
+import { useFirestore, useCollection } from '@/firebase';
 import {
   addDocumentNonBlocking,
   updateDocumentNonBlocking,
@@ -50,11 +49,10 @@ export function MessageCenter() {
 
   // Query across all users' message collections.
   const messagesQuery = useMemo(
-    () => query(collectionGroup(firestore, 'messages'), orderBy('lastReplyAt', 'desc')),
+    () => firestore ? query(collectionGroup(firestore, 'messages'), orderBy('lastReplyAt', 'desc')) : null,
     [firestore]
   );
-  const [messagesSnapshot, isLoading, error] = useCollection(messagesQuery);
-  const messages = useMemo(() => messagesSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message)), [messagesSnapshot]);
+  const {data: messages, isLoading, error} = useCollection<Message>(messagesQuery as any);
 
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replyText, setReplyText] = useState('');
@@ -63,7 +61,7 @@ export function MessageCenter() {
   // Get replies for the currently selected message thread.
   const repliesQuery = useMemo(
     () =>
-      selectedMessage
+      selectedMessage && firestore
         ? query(
             collection(firestore, 'users', selectedMessage.userId, 'messages', selectedMessage.id, 'replies'),
             orderBy('sentAt', 'asc')
@@ -71,8 +69,7 @@ export function MessageCenter() {
         : null,
     [firestore, selectedMessage]
   );
-  const [repliesSnapshot, areRepliesLoading, repliesError] = useCollection(repliesQuery);
-  const replies = useMemo(() => repliesSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reply)), [repliesSnapshot]);
+  const {data: replies, isLoading: areRepliesLoading, error: repliesError} = useCollection<Reply>(repliesQuery as any);
 
 
   useEffect(() => {
@@ -97,6 +94,7 @@ export function MessageCenter() {
 
 
   const handleRowClick = (message: Message) => {
+    if (!firestore) return;
     setSelectedMessage(message);
     if (!message.isRead) {
       const docRef = doc(firestore, 'users', message.userId, 'messages', message.id);
@@ -105,7 +103,7 @@ export function MessageCenter() {
   };
   
   const handleSendReply = async () => {
-    if (!replyText.trim() || !selectedMessage) return;
+    if (!replyText.trim() || !selectedMessage || !firestore) return;
     setIsReplying(true);
 
     try {
@@ -246,7 +244,7 @@ export function MessageCenter() {
               {isLoading && (
                 <TableRow>
                   <TableCell colSpan={3} className="text-center h-24">
-                    Loading messages...
+                    <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
                   </TableCell>
                 </TableRow>
               )}
