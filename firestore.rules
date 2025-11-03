@@ -71,7 +71,7 @@ service cloud.firestore {
     match /messages/{messageId} {
       allow create: if isSignedIn() && isOwner(request.resource.data.userId);
       allow get: if isAdmin() || isDesignatedAdmin() || isOwner(resource.data.userId);
-      allow list: if isAdmin() || isDesignatedAdmin();
+      allow list: if isAdmin() || isDesignatedAdmin() || (isSignedIn() && request.query.where.userId == request.auth.uid);
       allow update, delete: if isAdmin() || isDesignatedAdmin();
       
       match /replies/{replyId} {
