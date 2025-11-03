@@ -45,8 +45,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin() || isDesignatedAdmin();
-      allow list: if false; // No user listing allowed.
+      allow read, write: if true;
       allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
