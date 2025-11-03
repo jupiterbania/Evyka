@@ -168,7 +168,6 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
   const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isHovering, setIsHovering] = useState(false);
 
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [commentCount, setCommentCount] = useState<number | null>(null);
@@ -366,36 +365,6 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
   const isVideo = mediaItem.mediaType === 'video';
   const isGoogleDrive = isVideo && mediaItem.mediaUrl.includes('drive.google.com');
 
-  useEffect(() => {
-    const video = videoRef.current;
-    if (!video || isGoogleDrive) return;
-  
-    let isCancelled = false;
-  
-    if (isHovering) {
-      if (video.paused) {
-        const playPromise = video.play();
-        if (playPromise !== undefined) {
-          playPromise.catch(error => {
-            // Ignore errors if the component was unmounted or hover ended.
-            if (!isCancelled && error.name !== 'NotAllowedError') {
-              console.error("Video autoplay failed:", error);
-            }
-          });
-        }
-      }
-    } else {
-      if (!video.paused) {
-        video.pause();
-      }
-    }
-  
-    // Cleanup function to prevent play() on unmounted component
-    return () => {
-      isCancelled = true;
-    };
-  }, [isHovering, isGoogleDrive]);
-
 
   const renderMedia = () => {
     if (isVideo) {
@@ -409,6 +378,7 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
               ref={videoRef}
               src={mediaItem.mediaUrl}
               poster={posterUrl}
+              autoPlay
               muted
               loop
               playsInline
@@ -419,7 +389,7 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
               {/* Placeholder for GDrive video without thumbnail */}
             </div>
           )}
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-100 group-hover:opacity-100 transition-opacity">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
             <PlayCircle className="h-16 w-16 text-white/90" />
           </div>
         </>
@@ -446,8 +416,6 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
           "opacity-0 animate-fade-in-up"
         )}
         style={{ animationDelay: `${index * 50}ms` }}
-        onMouseEnter={() => isVideo && !isGoogleDrive && setIsHovering(true)}
-        onMouseLeave={() => isVideo && !isGoogleDrive && setIsHovering(false)}
         onClick={handleCardClick}
       >
         <CardHeader className="p-0">
