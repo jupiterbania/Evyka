@@ -64,7 +64,7 @@ export function Header() {
       if (
         error.code === 'auth/popup-closed-by-user' ||
         error.code === 'auth/cancelled-popup-request' ||
-        error.code === 'auth/popup-blocked-by-browser'
+        error.code === 'auth/popup-blocked'
       ) {
         console.warn('Sign-in popup was closed or blocked by the user/browser.');
         return;
