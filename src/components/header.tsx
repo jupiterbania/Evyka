@@ -16,10 +16,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { doc, setDoc, serverTimestamp, getDoc, getFirestore } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export function Header() {
   const { user, isUserLoading } = useUser();
@@ -36,15 +38,25 @@ export function Header() {
         const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
         const adminRoleSnap = await getDoc(adminRoleRef);
         if (!adminRoleSnap.exists()) {
-          try {
-            await setDoc(adminRoleRef, {
-              email: user.email,
-              grantedAt: serverTimestamp(),
+          const roleData = {
+            email: user.email,
+            grantedAt: serverTimestamp(),
+          };
+          // Use non-blocking setDoc with proper error handling
+          setDoc(adminRoleRef, roleData)
+            .then(() => {
+              console.log('Admin role document created for user:', user.email);
+            })
+            .catch((error) => {
+              // Emit the detailed, contextual error for debugging security rules.
+              const permissionError = new FirestorePermissionError({
+                path: adminRoleRef.path,
+                operation: 'create',
+                requestResourceData: roleData,
+              });
+              errorEmitter.emit('permission-error', permissionError);
+              console.error('Error granting admin role (permissions will be reported):', error);
             });
-            console.log('Admin role granted for user:', user.email);
-          } catch (error) {
-            console.error('Error granting admin role:', error);
-          }
         }
       }
     };
