@@ -1,4 +1,3 @@
-
 'use client';
 import Link from 'next/link';
 import { Logo } from './logo';
@@ -22,6 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export function Header() {
   const { user, isUserLoading } = useUser();
@@ -42,21 +42,7 @@ export function Header() {
             email: user.email,
             grantedAt: serverTimestamp(),
           };
-          // Use non-blocking setDoc with proper error handling
-          setDoc(adminRoleRef, roleData)
-            .then(() => {
-              console.log('Admin role document created for user:', user.email);
-            })
-            .catch((error) => {
-              // Emit the detailed, contextual error for debugging security rules.
-              const permissionError = new FirestorePermissionError({
-                path: adminRoleRef.path,
-                operation: 'create',
-                requestResourceData: roleData,
-              });
-              errorEmitter.emit('permission-error', permissionError);
-              console.error('Error granting admin role (permissions will be reported):', error);
-            });
+          setDocumentNonBlocking(adminRoleRef, roleData);
         }
       }
     };
