@@ -57,7 +57,7 @@ import { Progress } from './ui/progress';
 
 export function ImageManagement() {
   const firestore = useFirestore();
-  const mediaCollection = useMemoFirebase(() => collection(firestore, 'media'), [firestore]);
+  const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
   const { data: mediaItems, isLoading } = useCollection<MediaType>(mediaCollection);
 
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -173,9 +173,9 @@ export function ImageManagement() {
   };
 
   const formatSpeed = (speed: number) => {
-    if (speed < 1024) return `${speed.toFixed(2)} B/s`;
-    if (speed < 1024 * 1024) return `${(speed / 1024).toFixed(2)} KB/s`;
-    return `${(speed / (1024 * 1024)).toFixed(2)} MB/s`;
+    if (speed < 1024) return `${'speed.toFixed(2)'} B/s`;
+    if (speed < 1024 * 1024) return `${'(speed / 1024).toFixed(2)'} KB/s`;
+    return `${'(speed / (1024 * 1024)).toFixed(2)'} MB/s`;
   };
   
   const resetUploadForm = () => {
@@ -233,7 +233,7 @@ export function ImageManagement() {
               toast({
                 variant: 'destructive',
                 title: 'File Too Large',
-                description: `"${file.name}" is larger than the 99MB limit.`
+                description: `"${'file.name'}" is larger than the 99MB limit.`
               });
               continue;
             }
@@ -434,8 +434,8 @@ export function ImageManagement() {
         <div className="p-4 border-b">
             <Progress value={uploadProgress} className="w-full" />
             <div className="flex justify-between items-center text-sm mt-2 text-muted-foreground">
-                <span>{uploadProgress === 100 ? 'Complete!' : 'Uploading media...'} ({Math.round(uploadProgress)}%)</span>
-                <span>{formatSpeed(uploadSpeed)}</span>
+                <span>{uploadProgress === 100 ? 'Complete!' : 'Uploading media...'} ({`${Math.round(uploadProgress)}`})</span>
+                <span>{`${formatSpeed(uploadSpeed)}`}</span>
             </div>
         </div>
         )}
