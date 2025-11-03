@@ -125,6 +125,11 @@
           "type": "string",
           "description": "The initial message that started the thread."
         },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of an image sent with the first message.",
+          "format": "uri"
+        },
         "createdAt": {
           "type": "string",
           "description": "Timestamp when the thread was created.",
@@ -144,7 +149,7 @@
             "description": "A snippet of the last message sent in the thread."
         }
       },
-      "required": ["name", "email", "userId", "firstMessage", "createdAt"]
+      "required": ["name", "email", "userId", "createdAt"]
     },
     "Reply": {
       "title": "Reply",
@@ -154,6 +159,11 @@
         "message": {
           "type": "string",
           "description": "The content of the reply."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL of an image sent with the reply.",
+          "format": "uri"
         },
         "sentAt": {
           "type": "string",
@@ -165,7 +175,7 @@
           "description": "True if the reply is from an admin."
         }
       },
-      "required": ["message", "sentAt"]
+      "required": ["sentAt"]
     }
   },
   "auth": {

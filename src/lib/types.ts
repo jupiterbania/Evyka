@@ -33,7 +33,8 @@ export type Message = {
     name: string;
     email: string;
     userId: string;
-    firstMessage: string;
+    firstMessage?: string;
+    imageUrl?: string;
     createdAt: Timestamp;
     isRead: boolean;
     lastReplyAt: Timestamp;
@@ -42,7 +43,8 @@ export type Message = {
 
 export type Reply = {
     id: string;
-    message: string;
+    message?: string;
+    imageUrl?: string;
     sentAt: Timestamp;
     isFromAdmin: boolean;
 }

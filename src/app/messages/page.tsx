@@ -18,6 +18,7 @@ import {
   useUser,
 } from '@/firebase';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { uploadMedia } from '@/ai/flows/upload-media-flow';
 
 
 import type { Message, Reply } from '@/lib/types';
@@ -27,8 +28,9 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { Send, Loader2 } from 'lucide-react';
+import { Send, Loader2, Image as ImageIcon, X } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 export default function UserMessagesPage() {
   const { user, isUserLoading } = useUser();
@@ -36,8 +38,11 @@ export default function UserMessagesPage() {
   const { toast } = useToast();
   const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const [messageText, setMessageText] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
 
   // Redirect if user is not logged in
@@ -90,19 +95,43 @@ export default function UserMessagesPage() {
     scrollToBottom();
   }, [replies, userMessageThread]);
 
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
 
   const handleSendMessage = async () => {
-    if (!messageText.trim() || !user || !firestore || !userMessagesCollection) return;
+    if ((!messageText.trim() && !imageFile) || !user || !firestore || !userMessagesCollection) return;
     setIsSending(true);
 
     try {
+      let imageUrl: string | undefined = undefined;
+
+      if (imageFile) {
+        const reader = await new Promise<string>((resolve, reject) => {
+          const fileReader = new FileReader();
+          fileReader.readAsDataURL(imageFile);
+          fileReader.onload = () => resolve(fileReader.result as string);
+          fileReader.onerror = (error) => reject(error);
+        });
+        const uploadResult = await uploadMedia({ mediaDataUri: reader });
+        if (!uploadResult || !uploadResult.mediaUrl) {
+          throw new Error('Image upload failed to return a URL.');
+        }
+        imageUrl = uploadResult.mediaUrl;
+      }
+      
       const now = serverTimestamp();
-      const lastMessageSnippet = messageText.substring(0, 100);
+      const lastMessageSnippet = imageUrl ? '📷 Image' : messageText.substring(0, 100);
 
       // If there's no existing message thread, create one.
       if (!userMessageThread) {
         const newMessage: Omit<Message, 'id'> = {
             firstMessage: messageText,
+            imageUrl,
             userId: user.uid,
             email: user.email || '',
             name: user.displayName || 'New User',
@@ -119,6 +148,7 @@ export default function UserMessagesPage() {
         
         const newReply: Omit<Reply, 'id'> = {
             message: messageText,
+            imageUrl,
             sentAt: now as any,
             isFromAdmin: false, // This is a user's reply
         };
@@ -133,6 +163,11 @@ export default function UserMessagesPage() {
       }
       
       setMessageText('');
+      setImageFile(null);
+      setImagePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     } catch (error: any) {
       console.error("Error sending message: ", error);
       toast({
@@ -176,7 +211,10 @@ export default function UserMessagesPage() {
                 {/* Initial Message */}
                 <div className="flex flex-col items-start">
                   <div className={cn('rounded-lg p-3 max-w-lg shadow-sm', 'bg-background')}>
-                    <p className="text-sm">{userMessageThread?.firstMessage}</p>
+                    {userMessageThread.imageUrl && (
+                        <Image src={userMessageThread.imageUrl} alt="Sent image" width={300} height={300} className="rounded-md mb-2" />
+                    )}
+                    {userMessageThread.firstMessage && <p className="text-sm">{userMessageThread.firstMessage}</p>}
                   </div>
                   <span className="text-xs text-muted-foreground mt-1">
                     {userMessageThread?.createdAt &&
@@ -205,7 +243,10 @@ export default function UserMessagesPage() {
                           : 'bg-background'
                       )}
                     >
-                      <p className="text-sm">{reply.message}</p>
+                      {reply.imageUrl && (
+                        <Image src={reply.imageUrl} alt="Sent image" width={300} height={300} className="rounded-md mb-2" />
+                      )}
+                      {reply.message && <p className="text-sm">{reply.message}</p>}
                     </div>
                     <span className="text-xs text-muted-foreground mt-1">
                       {reply.sentAt && formatDistanceToNow(reply.sentAt.toDate(), { addSuffix: true })}
@@ -222,7 +263,35 @@ export default function UserMessagesPage() {
           </div>
 
           <div className="p-4 border-t bg-background/80">
+             {imagePreview && (
+                <div className="relative w-24 h-24 mb-2">
+                    <Image src={imagePreview} alt="Image preview" layout="fill" className="object-cover rounded-md" />
+                    <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                        onClick={() => {
+                            setImageFile(null);
+                            setImagePreview(null);
+                            if(fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+             )}
             <div className="flex w-full gap-2 items-center">
+              <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  ref={fileInputRef}
+                  className="hidden"
+              />
+              <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isSending}>
+                  <ImageIcon />
+                  <span className="sr-only">Upload Image</span>
+              </Button>
               <Textarea
                 placeholder="Type your message..."
                 value={messageText}
@@ -234,8 +303,9 @@ export default function UserMessagesPage() {
                     handleSendMessage();
                   }
                 }}
+                disabled={isSending}
               />
-              <Button onClick={handleSendMessage} disabled={isSending || !messageText.trim()} size="icon" className="shrink-0">
+              <Button onClick={handleSendMessage} disabled={isSending || (!messageText.trim() && !imageFile)} size="icon" className="shrink-0">
                 {isSending ? <Loader2 className="animate-spin" /> : <Send />}
                 <span className="sr-only">Send</span>
               </Button>

@@ -16,6 +16,7 @@ import {
   addDocumentNonBlocking,
   updateDocumentNonBlocking,
 } from '@/firebase/non-blocking-updates';
+import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import type { Message, Reply } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
@@ -40,35 +41,37 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
-import { Send, ArrowLeft, Loader2 } from 'lucide-react';
+import { Send, ArrowLeft, Loader2, Image as ImageIcon, X } from 'lucide-react';
+import Image from 'next/image';
 
 export function MessageCenter() {
   const firestore = useFirestore();
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
-  // Query across all users' message collections without server-side ordering.
   const messagesQuery = useMemoFirebase(
-    () => firestore ? collectionGroup(firestore, 'messages') : null,
+    () => (firestore ? collectionGroup(firestore, 'messages') : null),
     [firestore]
   );
-  const {data: messages, isLoading, error} = useCollection<Message>(messagesQuery);
+  const { data: messages, isLoading, error } = useCollection<Message>(messagesQuery);
 
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replyText, setReplyText] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isReplying, setIsReplying] = useState(false);
 
-  // Sort messages on the client side
   const sortedMessages = useMemo(() => {
     if (!messages) return [];
+    // Client-side sorting
     return [...messages].sort((a, b) => {
-      const timeA = a.lastReplyAt?.toMillis() || 0;
-      const timeB = b.lastReplyAt?.toMillis() || 0;
+      const timeA = a.lastReplyAt?.toMillis() || a.createdAt?.toMillis() || 0;
+      const timeB = b.lastReplyAt?.toMillis() || b.createdAt?.toMillis() || 0;
       return timeB - timeA;
     });
   }, [messages]);
 
-  // Get replies for the currently selected message thread.
   const repliesQuery = useMemoFirebase(
     () =>
       selectedMessage && firestore
@@ -79,29 +82,27 @@ export function MessageCenter() {
         : null,
     [firestore, selectedMessage]
   );
-  const {data: replies, isLoading: areRepliesLoading, error: repliesError} = useCollection<Reply>(repliesQuery);
-
+  const { data: replies, isLoading: areRepliesLoading, error: repliesError } = useCollection<Reply>(repliesQuery);
 
   useEffect(() => {
     if (error) {
-        toast({
-            variant: 'destructive',
-            title: 'Error loading messages',
-            description: error.message,
-        });
+      toast({
+        variant: 'destructive',
+        title: 'Error loading messages',
+        description: error.message,
+      });
     }
   }, [error, toast]);
 
   useEffect(() => {
     if (repliesError) {
-        toast({
-            variant: 'destructive',
-            title: 'Error loading replies',
-            description: repliesError.message,
-        });
+      toast({
+        variant: 'destructive',
+        title: 'Error loading replies',
+        description: repliesError.message,
+      });
     }
   }, [repliesError, toast]);
-
 
   const handleRowClick = (message: Message) => {
     if (!firestore) return;
@@ -111,25 +112,49 @@ export function MessageCenter() {
       updateDocumentNonBlocking(docRef, { isRead: true });
     }
   };
-  
+
+  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      setImagePreview(URL.createObjectURL(file));
+    }
+  };
+
   const handleSendReply = async () => {
-    if (!replyText.trim() || !selectedMessage || !firestore) return;
+    if ((!replyText.trim() && !imageFile) || !selectedMessage || !firestore) return;
     setIsReplying(true);
 
     try {
+      let imageUrl: string | undefined = undefined;
+
+      if (imageFile) {
+        const reader = await new Promise<string>((resolve, reject) => {
+          const fileReader = new FileReader();
+          fileReader.readAsDataURL(imageFile);
+          fileReader.onload = () => resolve(fileReader.result as string);
+          fileReader.onerror = (error) => reject(error);
+        });
+        const uploadResult = await uploadMedia({ mediaDataUri: reader });
+        if (!uploadResult || !uploadResult.mediaUrl) {
+          throw new Error('Image upload failed to return a URL.');
+        }
+        imageUrl = uploadResult.mediaUrl;
+      }
+
       const now = serverTimestamp();
-      const lastMessageSnippet = replyText.substring(0, 100);
+      const lastMessageSnippet = imageUrl ? '📷 Image' : replyText.substring(0, 100);
 
       const threadDocRef = doc(firestore, 'users', selectedMessage.userId, 'messages', selectedMessage.id);
       const repliesCollection = collection(threadDocRef, 'replies');
 
       const newReply: Omit<Reply, 'id'> = {
         message: replyText,
+        imageUrl,
         sentAt: now as any,
         isFromAdmin: true,
       };
 
-      // Non-blocking writes
       addDocumentNonBlocking(repliesCollection, newReply);
       updateDocumentNonBlocking(threadDocRef, {
         lastReplyAt: now,
@@ -137,6 +162,11 @@ export function MessageCenter() {
       });
 
       setReplyText('');
+      setImageFile(null);
+      setImagePreview(null);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
       toast({ title: 'Reply Sent!' });
     } catch (error: any) {
       toast({
@@ -150,25 +180,22 @@ export function MessageCenter() {
   };
 
   useEffect(() => {
-    if(selectedMessage) {
-        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (selectedMessage) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [replies, selectedMessage]);
-
 
   const renderDetailView = () => (
     <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
       <DialogContent className="max-w-2xl h-[80vh] flex flex-col">
         <DialogHeader>
           <div className="flex items-center gap-4">
-             <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setSelectedMessage(null)}>
-                <ArrowLeft />
-             </Button>
+            <Button variant="ghost" size="icon" className="shrink-0" onClick={() => setSelectedMessage(null)}>
+              <ArrowLeft />
+            </Button>
             <div>
-                <DialogTitle>Conversation with {selectedMessage?.name}</DialogTitle>
-                <DialogDescription>
-                    {selectedMessage?.email}
-                </DialogDescription>
+              <DialogTitle>Conversation with {selectedMessage?.name}</DialogTitle>
+              <DialogDescription>{selectedMessage?.email}</DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -176,59 +203,88 @@ export function MessageCenter() {
           {/* Initial Message */}
           <div className="flex flex-col items-start">
             <div className="rounded-lg bg-background p-3 max-w-lg shadow-sm">
-              <p className="text-sm">{selectedMessage?.firstMessage}</p>
+                {selectedMessage?.imageUrl && (
+                    <Image src={selectedMessage.imageUrl} alt="Sent image" width={300} height={300} className="rounded-md mb-2" />
+                )}
+                {selectedMessage?.firstMessage && <p className="text-sm">{selectedMessage.firstMessage}</p>}
             </div>
             <span className="text-xs text-muted-foreground mt-1">
-              {selectedMessage?.createdAt &&
-                formatDistanceToNow(selectedMessage.createdAt.toDate(), { addSuffix: true })}
+              {selectedMessage?.createdAt && formatDistanceToNow(selectedMessage.createdAt.toDate(), { addSuffix: true })}
             </span>
           </div>
 
           {/* Replies */}
           {areRepliesLoading ? (
-             <div className="flex justify-center items-center h-full">
-                <Loader2 className="h-8 w-8 animate-spin text-primary" />
-             </div>
+            <div className="flex justify-center items-center h-full">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
           ) : replies?.map((reply) => (
             <div
               key={reply.id}
-              className={cn(
-                'flex flex-col',
-                reply.isFromAdmin ? 'items-end' : 'items-start'
-              )}
+              className={cn('flex flex-col', reply.isFromAdmin ? 'items-end' : 'items-start')}
             >
               <div
                 className={cn(
                   'rounded-lg p-3 max-w-lg shadow-sm',
-                  reply.isFromAdmin
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-background'
+                  reply.isFromAdmin ? 'bg-primary text-primary-foreground' : 'bg-background'
                 )}
               >
-                <p className="text-sm">{reply.message}</p>
+                {reply.imageUrl && (
+                    <Image src={reply.imageUrl} alt="Sent image" width={300} height={300} className="rounded-md mb-2" />
+                )}
+                {reply.message && <p className="text-sm">{reply.message}</p>}
               </div>
               <span className="text-xs text-muted-foreground mt-1">
                 {reply.sentAt && formatDistanceToNow(reply.sentAt.toDate(), { addSuffix: true })}
               </span>
             </div>
           ))}
-           <div ref={messagesEndRef} />
+          <div ref={messagesEndRef} />
         </div>
-        <DialogFooter className="pt-4 border-t">
-          <div className="flex w-full gap-2">
+        <DialogFooter className="pt-4 border-t flex-col">
+            {imagePreview && (
+                <div className="relative w-24 h-24 mb-2 self-start">
+                    <Image src={imagePreview} alt="Image preview" layout="fill" className="object-cover rounded-md" />
+                    <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute -top-2 -right-2 h-6 w-6 rounded-full"
+                        onClick={() => {
+                            setImageFile(null);
+                            setImagePreview(null);
+                            if(fileInputRef.current) fileInputRef.current.value = '';
+                        }}
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+                </div>
+             )}
+          <div className="flex w-full gap-2 items-center">
+            <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                ref={fileInputRef}
+                className="hidden"
+            />
+            <Button variant="ghost" size="icon" onClick={() => fileInputRef.current?.click()} disabled={isReplying}>
+                <ImageIcon />
+                <span className="sr-only">Upload Image</span>
+            </Button>
             <Textarea
               placeholder="Type your reply..."
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               className="flex-grow"
               onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSendReply();
-                  }
-                }}
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSendReply();
+                }
+              }}
+              disabled={isReplying}
             />
-            <Button onClick={handleSendReply} disabled={isReplying || !replyText.trim()}>
+            <Button onClick={handleSendReply} disabled={isReplying || (!replyText.trim() && !imageFile)}>
               {isReplying ? <Loader2 className="animate-spin" /> : <Send />}
               <span className="sr-only">Send</span>
             </Button>
@@ -270,10 +326,7 @@ export function MessageCenter() {
                   <TableRow
                     key={message.id}
                     onClick={() => handleRowClick(message)}
-                    className={cn(
-                        "cursor-pointer",
-                        !message.isRead && "bg-muted/50 hover:bg-muted"
-                    )}
+                    className={cn('cursor-pointer', !message.isRead && 'bg-muted/50 hover:bg-muted')}
                   >
                     <TableCell>
                       <div className="font-medium">{message.name}</div>
