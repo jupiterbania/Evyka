@@ -70,11 +70,7 @@ export function Header() {
         return;
       }
       console.error('Error signing in with Google', error);
-      toast({
-        variant: "destructive",
-        title: "Sign-In Failed",
-        description: "Could not sign in with Google. Please try again.",
-      });
+      // Removed the toast to prevent blocking the user on any sign-in failure.
     }
   };
 
