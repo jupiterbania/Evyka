@@ -62,7 +62,7 @@ service cloud.firestore {
 
     match /settings/main {
       allow get: if true;
-      allow update: if isAdmin();
+      allow update: if isAdmin() || isDesignatedAdmin(request.auth.uid);
       allow create, delete: if false;
     }
   }
