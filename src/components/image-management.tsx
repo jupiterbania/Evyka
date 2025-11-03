@@ -174,9 +174,9 @@ function ImageManagementInternal() {
   };
 
   const formatSpeed = (speed: number) => {
-    if (speed < 1024) return `${'speed.toFixed(2)'} B/s`;
-    if (speed < 1024 * 1024) return `${'(speed / 1024).toFixed(2)'} KB/s`;
-    return `${'(speed / (1024 * 1024)).toFixed(2)'} MB/s`;
+    if (speed < 1024) return `${speed.toFixed(2)} B/s`;
+    if (speed < 1024 * 1024) return `${(speed / 1024).toFixed(2)} KB/s`;
+    return `${(speed / (1024 * 1024)).toFixed(2)} MB/s`;
   };
   
   const resetUploadForm = () => {
@@ -235,7 +235,7 @@ function ImageManagementInternal() {
               toast({
                 variant: 'destructive',
                 title: 'File Too Large',
-                description: `"${'file.name'}" is larger than the 99MB limit.`
+                description: `"${file.name}" is larger than the 99MB limit.`
               });
               continue;
             }
@@ -436,8 +436,8 @@ function ImageManagementInternal() {
         <div className="p-4 border-b">
             <Progress value={uploadProgress} className="w-full" />
             <div className="flex justify-between items-center text-sm mt-2 text-muted-foreground">
-                <span>{uploadProgress === 100 ? 'Complete!' : 'Uploading media...'} ({`${Math.round(uploadProgress)}`})</span>
-                <span>{`${formatSpeed(uploadSpeed)}`}</span>
+                <span>{uploadProgress === 100 ? 'Complete!' : 'Uploading media...'} ({`${Math.round(uploadProgress)}%`})</span>
+                <span>{formatSpeed(uploadSpeed)}</span>
             </div>
         </div>
         )}
