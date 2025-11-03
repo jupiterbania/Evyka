@@ -7,6 +7,8 @@ import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firest
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import type { User as AppUser } from '@/lib/types';
+import { errorEmitter } from './error-emitter';
+import { FirestorePermissionError } from './errors';
 
 
 interface FirebaseProviderProps {
@@ -75,7 +77,17 @@ const getOrCreateUser = async (firestore: Firestore, user: User): Promise<AppUse
       profileImageUrl: user.photoURL || undefined,
       createdAt: serverTimestamp() as any, // Let server set the timestamp
     };
-    await setDoc(userRef, newUser);
+    // No await here, chain a .catch block to handle errors non-blockingly
+    setDoc(userRef, newUser)
+      .catch(error => {
+        // Emit a detailed, contextual error for debugging security rules.
+        const permissionError = new FirestorePermissionError({
+          path: userRef.path,
+          operation: 'create',
+          requestResourceData: newUser,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
     return { ...newUser, createdAt: new Date() as any }; // Return with a client-side timestamp for immediate use
   }
 };
@@ -112,7 +124,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           try {
             await getOrCreateUser(firestore, firebaseUser);
           } catch (error) {
-            console.error("FirebaseProvider: Error creating user profile:", error);
+            console.error("FirebaseProvider: Error during user processing:", error);
           }
         }
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
