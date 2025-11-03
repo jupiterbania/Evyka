@@ -253,7 +253,7 @@ export function MessageCenter() {
           <div className="flex flex-col items-start">
             <div className="rounded-lg bg-background p-3 max-w-lg shadow-sm">
                 {selectedMessage?.imageUrl && (
-                    <Image src={selectedMessage.imageUrl} alt="Sent image" width={300} height={300} className="rounded-md mb-2" />
+                    <Image src={selectedMessage.imageUrl} alt="Sent image" width={300} height={300} className="rounded-md mb-2 max-w-full h-auto" />
                 )}
                 {selectedMessage?.firstMessage && <p className="text-sm">{selectedMessage.firstMessage}</p>}
             </div>
@@ -285,7 +285,7 @@ export function MessageCenter() {
                             alt="Sent image" 
                             width={300} 
                             height={300} 
-                            className={cn("rounded-md mb-2", reply.status === 'sending' && 'opacity-50')}
+                            className={cn("rounded-md mb-2 max-w-full h-auto", reply.status === 'sending' && 'opacity-50')}
                         />
                         {reply.status === 'sending' && (
                             <div className="absolute inset-0 flex items-center justify-center">
