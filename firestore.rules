@@ -1,25 +1,4 @@
 
-/**
- * @fileoverview Firestore Security Rules for FocusFinds application.
- *
- * Core Philosophy:
- * This ruleset implements a hybrid security model, balancing public read access for certain data with strict owner-only or admin-only write access.
- * The user with the email 'jupiterbania472@gmail.com' is a designated super-admin with immediate privileges.
- *
- * Data Structure:
- * - /users/{userId}: Stores user profiles, accessible only to the user and admins.
- * - /users/{userId}/messages/{messageId}: User-submitted messages. Writable by the user, readable/manageable by admins and the user who created it.
- * - /media/{mediaId}: Stores media metadata, publicly readable but writable only by admins.
- * - /roles_admin/{userId}: Indicates admin privileges; presence of document grants access.
- * - /settings/main: A singleton document for site-wide settings, writeable only by admins.
- *
- * Key Security Decisions:
- * - Users can only read and write their own profile data and their own messages.
- * - Media metadata is publicly readable to enable browsing. Write access is restricted to admins.
- * - The `isDesignatedAdmin()` function grants immediate super-user access to avoid race conditions.
- * - The `settings/main` document is writeable by admins only, allowing for global site settings management.
- * - No user listing is allowed to prevent data scraping.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -32,10 +11,6 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    function isExistingOwner(userId) {
-      return isOwner(userId) && resource != null;
-    }
-
     function isAdmin() {
       return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
     }
@@ -45,33 +20,28 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read, write: if true;
+      // Users can read and update their own profile.
+      allow get, update: if isOwner(userId);
+      // Users can create their own profile.
       allow create: if isOwner(userId);
-      allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
-      allow delete: if isExistingOwner(userId);
+      // No one can list users, only get them by ID.
+      // Admins can delete users.
+      allow delete: if isAdmin() || isDesignatedAdmin();
 
-      // Users can only access message documents within their own user path.
       match /messages/{messageId} {
-        allow read, write: if isOwner(userId);
+        // Users can manage their own messages and replies.
+        // Admins can manage all messages and replies.
+        allow read, write: if isOwner(userId) || isAdmin() || isDesignatedAdmin();
 
         match /replies/{replyId} {
-          allow read, write: if isOwner(userId);
+          allow read, write: if isOwner(userId) || isAdmin() || isDesignatedAdmin();
         }
       }
     }
 
-    // Admins can access any message.
-    match /users/{userId}/messages/{messageId} {
-        allow read, write: if isAdmin() || isDesignatedAdmin();
-
-        match /replies/{replyId} {
-             allow read, write: if isAdmin() || isDesignatedAdmin();
-        }
-    }
-    
-    // Admins can query the entire messages collection group.
+    // This rule allows admins to perform collection group queries on 'messages'.
     match /{path=**}/messages/{messageId} {
-      allow list: if isAdmin() || isDesignatedAdmin();
+      allow read: if isAdmin() || isDesignatedAdmin();
     }
 
     match /media/{mediaId} {
@@ -80,7 +50,8 @@ service cloud.firestore {
     }
 
     match /roles_admin/{userId} {
-      allow get, create, delete: if isAdmin() || (isOwner(userId) && isDesignatedAdmin());
+      allow get: if isAdmin() || isDesignatedAdmin();
+      allow create, delete: if isDesignatedAdmin(); // Only the designated admin can grant/revoke admin roles.
       allow list, update: if false;
     }
 

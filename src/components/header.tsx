@@ -20,7 +20,6 @@ import { useFirestore } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { FirestorePermissionError } from '@/firebase/errors';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 
 export function Header() {
@@ -47,11 +46,7 @@ export function Header() {
             }
         } catch (error) {
             console.error("Error checking or setting up admin role:", error);
-            const permissionError = new FirestorePermissionError({
-                path: adminRoleRef.path,
-                operation: 'get', // Or 'create' if that's where it fails
-            });
-            errorEmitter.emit('permission-error', permissionError);
+            errorEmitter.emit('error', error); // Emit generic error
         }
       }
     };

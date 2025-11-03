@@ -8,7 +8,6 @@ import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import type { User as AppUser } from '@/lib/types';
 import { errorEmitter } from './error-emitter';
-import { FirestorePermissionError } from './errors';
 
 
 interface FirebaseProviderProps {
@@ -80,13 +79,8 @@ const getOrCreateUser = async (firestore: Firestore, user: User): Promise<AppUse
     // No await here, chain a .catch block to handle errors non-blockingly
     setDoc(userRef, newUser)
       .catch(error => {
-        // Emit a detailed, contextual error for debugging security rules.
-        const permissionError = new FirestorePermissionError({
-          path: userRef.path,
-          operation: 'create',
-          requestResourceData: newUser,
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        console.error("Error creating user document:", error);
+        errorEmitter.emit('error', error); // Emit generic error
       });
     return { ...newUser, createdAt: new Date() as any }; // Return with a client-side timestamp for immediate use
   }
