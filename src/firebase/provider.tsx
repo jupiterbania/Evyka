@@ -1,10 +1,13 @@
+
 'use client';
 
 import React, { DependencyList, createContext, useContext, ReactNode, useMemo, useState, useEffect } from 'react';
 import { FirebaseApp } from 'firebase/app';
-import { Firestore } from 'firebase/firestore';
+import { Firestore, doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { Auth, User, onAuthStateChanged } from 'firebase/auth';
-import { FirebaseErrorListener } from '@/components/FirebaseErrorListener'
+import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
+import type { User as AppUser } from '@/lib/types';
+
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -53,6 +56,32 @@ export interface UserHookResult { // Renamed from UserAuthHookResult for consist
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
 /**
+ * Gets or creates a user document in Firestore.
+ * @param firestore - The Firestore instance.
+ * @param user - The Firebase Auth user.
+ * @returns The user document data from Firestore.
+ */
+const getOrCreateUser = async (firestore: Firestore, user: User): Promise<AppUser> => {
+  const userRef = doc(firestore, 'users', user.uid);
+  const userSnap = await getDoc(userRef);
+
+  if (userSnap.exists()) {
+    return userSnap.data() as AppUser;
+  } else {
+    const newUser: AppUser = {
+      id: user.uid,
+      email: user.email || '',
+      username: user.displayName || 'Anonymous',
+      profileImageUrl: user.photoURL || undefined,
+      createdAt: serverTimestamp() as any, // Let server set the timestamp
+    };
+    await setDoc(userRef, newUser);
+    return { ...newUser, createdAt: new Date() as any }; // Return with a client-side timestamp for immediate use
+  }
+};
+
+
+/**
  * FirebaseProvider manages and provides Firebase services and user authentication state.
  */
 export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
@@ -78,7 +107,14 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
 
     const unsubscribe = onAuthStateChanged(
       auth,
-      (firebaseUser) => { // Auth state determined
+      async (firebaseUser) => { // Auth state determined
+        if (firebaseUser) {
+          try {
+            await getOrCreateUser(firestore, firebaseUser);
+          } catch (error) {
+            console.error("FirebaseProvider: Error creating user profile:", error);
+          }
+        }
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
       },
       (error) => { // Auth listener error
@@ -87,7 +123,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       }
     );
     return () => unsubscribe(); // Cleanup
-  }, [auth]); // Depends on the auth instance
+  }, [auth, firestore]); // Depends on the auth instance
 
   // Memoize the context value
   const contextValue = useMemo((): FirebaseContextState => {

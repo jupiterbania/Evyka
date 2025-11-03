@@ -25,4 +25,5 @@ export type User = {
   username: string;
   profileImageUrl?: string;
   isAdmin?: boolean;
+  createdAt: Timestamp;
 }

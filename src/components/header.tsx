@@ -16,7 +16,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, getDoc, getFirestore } from 'firebase/firestore';
 import { useFirestore } from '@/firebase/provider';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect } from 'react';
@@ -49,7 +49,7 @@ export function Header() {
       }
     };
 
-    if (!isUserLoading) {
+    if (!isUserLoading && user) {
       setupAdminRole();
     }
   }, [user, isUserLoading, firestore]);
