@@ -69,6 +69,11 @@ service cloud.firestore {
              allow read, write: if isAdmin() || isDesignatedAdmin();
         }
     }
+    
+    // Admins can query the entire messages collection group.
+    match /{path=**}/messages/{messageId} {
+      allow list: if isAdmin() || isDesignatedAdmin();
+    }
 
     match /media/{mediaId} {
       allow get, list: if true;
