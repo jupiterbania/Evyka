@@ -1,3 +1,4 @@
+
 'use client';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
@@ -193,19 +194,18 @@ export default function Home() {
            };
            addDocumentNonBlocking(mediaCollection, docData);
            setUploadProgress(100);
+           setUploadStatusMessage('URL submitted successfully.');
 
         } else if (mediaFiles && mediaFiles.length > 0) {
           const totalFiles = mediaFiles.length;
-          const isMultiple = totalFiles > 1;
-
+          
           for (let i = 0; i < totalFiles; i++) {
             const file = mediaFiles[i];
+            const isMultiple = totalFiles > 1;
             
-            if (isMultiple) {
-              setUploadStatusMessage(`Uploading file ${i + 1} of ${totalFiles}: "${file.name}"`);
-            } else {
-              setUploadStatusMessage('Uploading media...');
-            }
+            setUploadStatusMessage(`Uploading file ${i + 1} of ${totalFiles}: "${file.name}"`);
+            
+            const startTime = Date.now();
 
             const reader = await new Promise<string>((resolve, reject) => {
               const fileReader = new FileReader();
@@ -216,6 +216,13 @@ export default function Home() {
 
             const isVideo = file.type.startsWith('video/');
             const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo });
+            
+            const endTime = Date.now();
+            const durationInSeconds = (endTime - startTime) / 1000;
+            const speedKBps = (file.size / 1024) / durationInSeconds;
+
+            setUploadStatusMessage(`Uploaded "${file.name}" in ${durationInSeconds.toFixed(1)}s (Avg: ${speedKBps.toFixed(0)} KB/s)`);
+
 
             if (!uploadResult || !uploadResult.mediaUrl) {
               throw new Error('Media URL was not returned from the upload service.');
@@ -248,6 +255,9 @@ export default function Home() {
             
             addDocumentNonBlocking(mediaCollection, docData);
             setUploadProgress(((i + 1) / totalFiles) * 100);
+            if (isMultiple && i < totalFiles - 1) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
           }
         } else if (imageUrl) {
           setUploadProgress(50);
@@ -272,20 +282,22 @@ export default function Home() {
           
           addDocumentNonBlocking(mediaCollection, docData);
           setUploadProgress(100);
+          setUploadStatusMessage('URL submitted successfully.');
         }
 
-        setUploadStatusMessage(
-          mediaFiles && mediaFiles.length > 1
-            ? `Completed uploading ${mediaFiles.length} files!`
-            : 'Upload complete!'
-        );
-        resetUploadForm();
         toast({
           title: mediaFiles && mediaFiles.length > 1 ? `${mediaFiles.length} files Added!` : 'Media Added!',
           description: 'The new media is now live in the gallery.',
         });
-        // Hide progress bar after a short delay
-        setTimeout(() => setIsUploading(false), 2000);
+        
+        if (mediaFiles && mediaFiles.length > 0) {
+          setUploadStatusMessage(`Completed uploading ${mediaFiles.length} files!`);
+        }
+        
+        setTimeout(() => {
+          setIsUploading(false);
+          resetUploadForm();
+        }, 3000);
 
       } catch (error: any) {
         console.error('Upload process failed:', error);
@@ -415,7 +427,7 @@ export default function Home() {
                     <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
                       <div className="grid w-full items-center gap-1.5">
                         <Label htmlFor="mediaFile">Media File(s)</Label>
-                        <Input id="mediaFile" type="file" accept="image/*,video/mp4,video/quicktime" multiple
+                        <Input id="mediaFile" type="file" accept="image/*,video/mp4,video/quicktime,video/x-m4v,video/*" multiple
                           onChange={(e) => {
                               setMediaFiles(e.target.files);
                               if (e.target.files?.length) {
