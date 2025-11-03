@@ -31,11 +31,13 @@ export type User = {
 export type Message = {
     id: string;
     name: string;
-    email?: string;
-    userId?: string;
-    message: string;
+    email: string;
+    userId: string;
+    firstMessage: string;
     createdAt: Timestamp;
     isRead: boolean;
+    lastReplyAt: Timestamp;
+    lastMessageSnippet: string;
 }
 
 export type Reply = {

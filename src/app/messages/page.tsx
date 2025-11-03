@@ -8,7 +8,7 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  where,
+  limit
 } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -17,7 +17,7 @@ import {
   useMemoFirebase,
   useUser,
   addDocumentNonBlocking,
-  useFirebase
+  updateDocumentNonBlocking,
 } from '@/firebase';
 
 import type { Message, Reply } from '@/lib/types';
@@ -47,29 +47,38 @@ export default function UserMessagesPage() {
     }
   }, [user, isUserLoading, router]);
 
-  // This query finds the user's single message thread.
-  const userMessageQuery = useMemoFirebase(
+  // A user only has one message thread, so we query for it.
+  const userMessagesCollection = useMemoFirebase(
     () =>
       user
-        ? query(collection(firestore, 'messages'), where('userId', '==', user.uid), orderBy('createdAt', 'asc'))
+        ? collection(firestore, 'users', user.uid, 'messages')
         : null,
     [firestore, user]
   );
+
+  const userMessageQuery = useMemoFirebase(
+    () =>
+      userMessagesCollection
+        ? query(userMessagesCollection, orderBy('createdAt', 'desc'), limit(1))
+        : null,
+    [userMessagesCollection]
+  );
+
   const { data: messages, isLoading: isMessagesLoading } = useCollection<Message>(userMessageQuery);
   
-  // The user should only have one message document.
-  const userMessage = messages?.[0];
+  // The user should only have one message document (thread).
+  const userMessageThread = messages?.[0];
 
   // This query gets all the replies for that user's message thread.
   const repliesQuery = useMemoFirebase(
     () =>
-      userMessage
+      userMessageThread
         ? query(
-            collection(firestore, 'messages', userMessage.id, 'replies'),
+            collection(firestore, 'users', user!.uid, 'messages', userMessageThread.id, 'replies'),
             orderBy('sentAt', 'asc')
           )
         : null,
-    [firestore, userMessage]
+    [firestore, userMessageThread, user]
   );
   const { data: replies, isLoading: isRepliesLoading } = useCollection<Reply>(repliesQuery);
 
@@ -79,36 +88,48 @@ export default function UserMessagesPage() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [replies, userMessage]);
+  }, [replies, userMessageThread]);
 
 
   const handleSendMessage = async () => {
-    if (!messageText.trim() || !user) return;
+    if (!messageText.trim() || !user || !userMessagesCollection) return;
     setIsSending(true);
 
     try {
-      // If there's no existing message thread, create one first.
-      if (!userMessage) {
-        const messagesCollection = collection(firestore, 'messages');
+      const now = serverTimestamp();
+      const lastMessageSnippet = messageText.substring(0, 100);
+
+      // If there's no existing message thread, create one.
+      if (!userMessageThread) {
         const newMessage: Omit<Message, 'id'> = {
-            message: messageText,
+            firstMessage: messageText,
             userId: user.uid,
             email: user.email || '',
             name: user.displayName || 'New User',
-            createdAt: serverTimestamp() as any,
+            createdAt: now as any,
             isRead: false,
+            lastReplyAt: now as any,
+            lastMessageSnippet,
         };
-        await addDocumentNonBlocking(messagesCollection, newMessage);
-        // We don't add to the replies subcollection here, because the initial message is the thread itself.
+        await addDocumentNonBlocking(userMessagesCollection, newMessage);
       } else {
-        // If a thread exists, just add the new message as a reply.
-        const repliesCollection = collection(firestore, 'messages', userMessage.id, 'replies');
+        // If a thread exists, add the new message as a reply and update the parent thread doc.
+        const threadDocRef = doc(firestore, 'users', user.uid, 'messages', userMessageThread.id);
+        const repliesCollection = collection(threadDocRef, 'replies');
+        
         const newReply: Omit<Reply, 'id'> = {
             message: messageText,
-            sentAt: serverTimestamp() as any,
+            sentAt: now as any,
             isFromAdmin: false, // This is a user's reply
         };
         addDocumentNonBlocking(repliesCollection, newReply);
+
+        // Update the parent thread with last reply info
+        updateDocumentNonBlocking(threadDocRef, {
+          isRead: false, // Mark as unread for the admin
+          lastReplyAt: now,
+          lastMessageSnippet,
+        });
       }
       
       setMessageText('');
@@ -124,7 +145,7 @@ export default function UserMessagesPage() {
     }
   };
   
-  const isLoading = isUserLoading || isMessagesLoading || isRepliesLoading;
+  const isLoading = isUserLoading || isMessagesLoading;
 
   if (isLoading) {
     return (
@@ -138,6 +159,8 @@ export default function UserMessagesPage() {
     );
   }
 
+  const allReplies = replies ?? [];
+
   return (
     <div className="flex flex-col min-h-screen">
       <Header />
@@ -148,21 +171,25 @@ export default function UserMessagesPage() {
           </div>
           
           <div className="flex-grow overflow-y-auto p-4 space-y-4">
-            {userMessage ? (
+            {userMessageThread ? (
               <>
                 {/* Initial Message */}
                 <div className="flex flex-col items-start">
                   <div className={cn('rounded-lg p-3 max-w-lg shadow-sm', 'bg-background')}>
-                    <p className="text-sm">{userMessage?.message}</p>
+                    <p className="text-sm">{userMessageThread?.firstMessage}</p>
                   </div>
                   <span className="text-xs text-muted-foreground mt-1">
-                    {userMessage?.createdAt &&
-                      formatDistanceToNow(userMessage.createdAt.toDate(), { addSuffix: true })}
+                    {userMessageThread?.createdAt &&
+                      formatDistanceToNow(userMessageThread.createdAt.toDate(), { addSuffix: true })}
                   </span>
                 </div>
 
                 {/* Replies */}
-                {replies?.map((reply) => (
+                {isRepliesLoading ? (
+                    <div className="flex justify-center items-center h-full">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    </div>
+                ) : allReplies.map((reply) => (
                   <div
                     key={reply.id}
                     className={cn(

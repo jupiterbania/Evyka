@@ -8,17 +8,16 @@
  *
  * Data Structure:
  * - /users/{userId}: Stores user profiles, accessible only to the user and admins.
+ * - /users/{userId}/messages/{messageId}: User-submitted messages. Writable by the user, readable/manageable by admins and the user who created it.
  * - /media/{mediaId}: Stores media metadata, publicly readable but writable only by admins.
  * - /roles_admin/{userId}: Indicates admin privileges; presence of document grants access.
  * - /settings/main: A singleton document for site-wide settings, writeable only by admins.
- * - /messages/{messageId}: User-submitted messages. Writable by the user, readable/manageable by admins and the user who created it.
  *
  * Key Security Decisions:
- * - Users can only read and write their own profile data.
+ * - Users can only read and write their own profile data and their own messages.
  * - Media metadata is publicly readable to enable browsing. Write access is restricted to admins.
  * - The `isDesignatedAdmin()` function grants immediate super-user access to avoid race conditions.
  * - The `settings/main` document is writeable by admins only, allowing for global site settings management.
- * - User messages can be created by any authenticated user, but are private to the user and admins.
  * - No user listing is allowed to prevent data scraping.
  */
 rules_version = '2';
@@ -51,6 +50,24 @@ service cloud.firestore {
       allow create: if isOwner(userId);
       allow update: if isExistingOwner(userId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(userId);
+
+      // Users can only access message documents within their own user path.
+      match /messages/{messageId} {
+        allow read, write: if isOwner(userId);
+
+        match /replies/{replyId} {
+          allow read, write: if isOwner(userId);
+        }
+      }
+    }
+
+    // Admins can access any message.
+    match /users/{userId}/messages/{messageId} {
+        allow read, write: if isAdmin() || isDesignatedAdmin();
+
+        match /replies/{replyId} {
+             allow read, write: if isAdmin() || isDesignatedAdmin();
+        }
     }
 
     match /media/{mediaId} {
@@ -66,21 +83,6 @@ service cloud.firestore {
     match /settings/main {
       allow get: if true;
       allow create, update, delete: if isAdmin() || isDesignatedAdmin();
-    }
-    
-    match /messages/{messageId} {
-      allow create: if isSignedIn() && isOwner(request.resource.data.userId);
-      allow get: if isAdmin() || isDesignatedAdmin() || isOwner(resource.data.userId);
-      allow list: if isAdmin() || isDesignatedAdmin() || (isSignedIn() && request.query.where.userId == request.auth.uid);
-      allow update, delete: if isAdmin() || isDesignatedAdmin();
-      
-      match /replies/{replyId} {
-        // The original sender (owner of the message doc) and admins can read replies.
-        allow get, list: if isAdmin() || isDesignatedAdmin() || isOwner(get(/databases/$(database)/documents/messages/$(messageId)).data.userId);
-        // The user who owns the message and admins can send replies.
-        allow create: if (isAdmin() || isDesignatedAdmin()) || (isSignedIn() && isOwner(get(/databases/$(database)/documents/messages/$(messageId)).data.userId));
-        allow update, delete: if false;
-      }
     }
   }
 }

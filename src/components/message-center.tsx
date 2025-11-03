@@ -1,13 +1,14 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import {
   collection,
   doc,
   orderBy,
   query,
   serverTimestamp,
+  collectionGroup,
 } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -30,7 +31,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogFooter,
-  DialogClose,
 } from '@/components/ui/dialog';
 import {
   Table,
@@ -44,14 +44,16 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
-import { Send, ArrowLeft } from 'lucide-react';
+import { Send, ArrowLeft, Loader2 } from 'lucide-react';
 
 export function MessageCenter() {
   const firestore = useFirestore();
   const { toast } = useToast();
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
+  // Query across all users' message collections.
   const messagesQuery = useMemoFirebase(
-    () => query(collection(firestore, 'messages'), orderBy('createdAt', 'desc')),
+    () => query(collectionGroup(firestore, 'messages'), orderBy('lastReplyAt', 'desc')),
     [firestore]
   );
   const { data: messages, isLoading } = useCollection<Message>(messagesQuery);
@@ -60,41 +62,51 @@ export function MessageCenter() {
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
 
+  // Get replies for the currently selected message thread.
   const repliesQuery = useMemoFirebase(
     () =>
       selectedMessage
         ? query(
-            collection(firestore, 'messages', selectedMessage.id, 'replies'),
+            collection(firestore, 'users', selectedMessage.userId, 'messages', selectedMessage.id, 'replies'),
             orderBy('sentAt', 'asc')
           )
         : null,
     [firestore, selectedMessage]
   );
-  const { data: replies } = useCollection<Reply>(repliesQuery);
+  const { data: replies, isLoading: areRepliesLoading } = useCollection<Reply>(repliesQuery);
 
   const handleRowClick = (message: Message) => {
     setSelectedMessage(message);
     if (!message.isRead) {
-      const docRef = doc(firestore, 'messages', message.id);
+      const docRef = doc(firestore, 'users', message.userId, 'messages', message.id);
       updateDocumentNonBlocking(docRef, { isRead: true });
     }
   };
-
+  
   const handleSendReply = async () => {
-    if (!replyText || !selectedMessage || !firestore) return;
+    if (!replyText.trim() || !selectedMessage) return;
     setIsReplying(true);
+
     try {
-      const repliesCollection = collection(
-        firestore,
-        'messages',
-        selectedMessage.id,
-        'replies'
-      );
-      addDocumentNonBlocking(repliesCollection, {
+      const now = serverTimestamp();
+      const lastMessageSnippet = replyText.substring(0, 100);
+
+      const threadDocRef = doc(firestore, 'users', selectedMessage.userId, 'messages', selectedMessage.id);
+      const repliesCollection = collection(threadDocRef, 'replies');
+
+      const newReply: Omit<Reply, 'id'> = {
         message: replyText,
-        sentAt: serverTimestamp(),
+        sentAt: now as any,
         isFromAdmin: true,
+      };
+
+      // Non-blocking writes
+      addDocumentNonBlocking(repliesCollection, newReply);
+      updateDocumentNonBlocking(threadDocRef, {
+        lastReplyAt: now,
+        lastMessageSnippet,
       });
+
       setReplyText('');
       toast({ title: 'Reply Sent!' });
     } catch (error: any) {
@@ -108,6 +120,13 @@ export function MessageCenter() {
     }
   };
 
+  useEffect(() => {
+    if(selectedMessage) {
+        messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [replies, selectedMessage]);
+
+
   const renderDetailView = () => (
     <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
       <DialogContent className="max-w-2xl h-[80vh] flex flex-col">
@@ -119,7 +138,7 @@ export function MessageCenter() {
             <div>
                 <DialogTitle>Conversation with {selectedMessage?.name}</DialogTitle>
                 <DialogDescription>
-                    {selectedMessage?.email || 'Anonymous User'}
+                    {selectedMessage?.email}
                 </DialogDescription>
             </div>
           </div>
@@ -128,7 +147,7 @@ export function MessageCenter() {
           {/* Initial Message */}
           <div className="flex flex-col items-start">
             <div className="rounded-lg bg-background p-3 max-w-lg shadow-sm">
-              <p className="text-sm">{selectedMessage?.message}</p>
+              <p className="text-sm">{selectedMessage?.firstMessage}</p>
             </div>
             <span className="text-xs text-muted-foreground mt-1">
               {selectedMessage?.createdAt &&
@@ -137,7 +156,11 @@ export function MessageCenter() {
           </div>
 
           {/* Replies */}
-          {replies?.map((reply) => (
+          {areRepliesLoading ? (
+             <div className="flex justify-center items-center h-full">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+             </div>
+          ) : replies?.map((reply) => (
             <div
               key={reply.id}
               className={cn(
@@ -160,6 +183,7 @@ export function MessageCenter() {
               </span>
             </div>
           ))}
+           <div ref={messagesEndRef} />
         </div>
         <DialogFooter className="pt-4 border-t">
           <div className="flex w-full gap-2">
@@ -168,9 +192,15 @@ export function MessageCenter() {
               value={replyText}
               onChange={(e) => setReplyText(e.target.value)}
               className="flex-grow"
+              onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendReply();
+                  }
+                }}
             />
-            <Button onClick={handleSendReply} disabled={isReplying || !replyText}>
-              <Send className="h-4 w-4" />
+            <Button onClick={handleSendReply} disabled={isReplying || !replyText.trim()}>
+              {isReplying ? <Loader2 className="animate-spin" /> : <Send />}
               <span className="sr-only">Send</span>
             </Button>
           </div>
@@ -187,7 +217,7 @@ export function MessageCenter() {
             <TableHeader>
               <TableRow>
                 <TableHead>From</TableHead>
-                <TableHead>Message</TableHead>
+                <TableHead>Last Message</TableHead>
                 <TableHead className="w-[150px] text-right">Received</TableHead>
               </TableRow>
             </TableHeader>
@@ -211,7 +241,10 @@ export function MessageCenter() {
                   <TableRow
                     key={message.id}
                     onClick={() => handleRowClick(message)}
-                    className="cursor-pointer"
+                    className={cn(
+                        "cursor-pointer",
+                        !message.isRead && "bg-muted/50 hover:bg-muted"
+                    )}
                   >
                     <TableCell>
                       <div className="font-medium">{message.name}</div>
@@ -222,11 +255,11 @@ export function MessageCenter() {
                       )}
                     </TableCell>
                     <TableCell className="max-w-sm truncate text-muted-foreground">
-                      {message.message}
+                      {message.lastMessageSnippet}
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
-                      {message.createdAt &&
-                        formatDistanceToNow(message.createdAt.toDate(), {
+                      {message.lastReplyAt &&
+                        formatDistanceToNow(message.lastReplyAt.toDate(), {
                           addSuffix: true,
                         })}
                     </TableCell>
