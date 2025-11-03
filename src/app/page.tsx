@@ -255,9 +255,6 @@ export default function Home() {
             
             addDocumentNonBlocking(mediaCollection, docData);
             setUploadProgress(((i + 1) / totalFiles) * 100);
-            if (isMultiple && i < totalFiles - 1) {
-              await new Promise(resolve => setTimeout(resolve, 2000));
-            }
           }
         } else if (imageUrl) {
           setUploadProgress(50);
@@ -297,7 +294,7 @@ export default function Home() {
         setTimeout(() => {
           setIsUploading(false);
           resetUploadForm();
-        }, 3000);
+        }, 1000);
 
       } catch (error: any) {
         console.error('Upload process failed:', error);
@@ -585,4 +582,6 @@ export default function Home() {
 
     
     
+    
+
     
