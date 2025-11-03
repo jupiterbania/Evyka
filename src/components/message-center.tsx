@@ -53,7 +53,7 @@ export function MessageCenter() {
 
   // Query across all users' message collections.
   const messagesQuery = useMemoFirebase(
-    () => query(collectionGroup(firestore, 'messages'), orderBy('lastReplyAt', 'desc')),
+    () => firestore ? query(collectionGroup(firestore, 'messages'), orderBy('lastReplyAt', 'desc')) : null,
     [firestore]
   );
   const { data: messages, isLoading } = useCollection<Message>(messagesQuery);
