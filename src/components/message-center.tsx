@@ -11,11 +11,8 @@ import {
   collectionGroup,
 } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
-import {
-  useCollection,
-  useFirestore,
-  useMemoFirebase,
-} from '@/firebase';
+import { useFirestore } from 'reactfire';
+import { useCollection } from 'react-firebase-hooks/firestore';
 import {
   addDocumentNonBlocking,
   updateDocumentNonBlocking,
@@ -52,18 +49,19 @@ export function MessageCenter() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Query across all users' message collections.
-  const messagesQuery = useMemoFirebase(
-    () => firestore ? query(collectionGroup(firestore, 'messages'), orderBy('lastReplyAt', 'desc')) : null,
+  const messagesQuery = useMemo(
+    () => query(collectionGroup(firestore, 'messages'), orderBy('lastReplyAt', 'desc')),
     [firestore]
   );
-  const { data: messages, isLoading } = useCollection<Message>(messagesQuery);
+  const [messagesSnapshot, isLoading, error] = useCollection(messagesQuery);
+  const messages = useMemo(() => messagesSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Message)), [messagesSnapshot]);
 
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
 
   // Get replies for the currently selected message thread.
-  const repliesQuery = useMemoFirebase(
+  const repliesQuery = useMemo(
     () =>
       selectedMessage
         ? query(
@@ -73,7 +71,30 @@ export function MessageCenter() {
         : null,
     [firestore, selectedMessage]
   );
-  const { data: replies, isLoading: areRepliesLoading } = useCollection<Reply>(repliesQuery);
+  const [repliesSnapshot, areRepliesLoading, repliesError] = useCollection(repliesQuery);
+  const replies = useMemo(() => repliesSnapshot?.docs.map(doc => ({ id: doc.id, ...doc.data() } as Reply)), [repliesSnapshot]);
+
+
+  useEffect(() => {
+    if (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Error loading messages',
+            description: error.message,
+        });
+    }
+  }, [error, toast]);
+
+  useEffect(() => {
+    if (repliesError) {
+        toast({
+            variant: 'destructive',
+            title: 'Error loading replies',
+            description: repliesError.message,
+        });
+    }
+  }, [repliesError, toast]);
+
 
   const handleRowClick = (message: Message) => {
     setSelectedMessage(message);
