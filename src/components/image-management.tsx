@@ -57,8 +57,7 @@ import { Progress } from './ui/progress';
 
 export function ImageManagement() {
   const firestore = useFirestore();
-  const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
-  const { data: mediaItems, isLoading } = useCollection<MediaType>(mediaCollection);
+  const { data: mediaItems, isLoading } = useCollection<MediaType>(useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]));
 
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
@@ -191,6 +190,7 @@ export function ImageManagement() {
 
   const handleUpload = () => {
     if (!firestore) return;
+    const mediaCollectionRef = collection(firestore, 'media');
     if (!mediaFiles?.length && !imageUrl && !videoUrl) {
       toast({
         variant: 'destructive',
@@ -209,7 +209,7 @@ export function ImageManagement() {
       try {
         if (videoUrl) {
           simulateProgress(50 * 1024 * 1024, 5000); // Simulate 50MB upload over 5s
-          addDocumentNonBlocking(mediaCollection, {
+          addDocumentNonBlocking(mediaCollectionRef, {
             ...newMedia,
             mediaUrl: videoUrl,
             mediaType: 'video',
@@ -281,7 +281,7 @@ export function ImageManagement() {
                 docData.dominantColor = dominantColor;
             }
 
-            addDocumentNonBlocking(mediaCollection, docData);
+            addDocumentNonBlocking(mediaCollectionRef, docData);
             
             // Mark current file as complete and pause
             if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
@@ -311,7 +311,7 @@ export function ImageManagement() {
             
             docData.dominantColor = '#F0F4F8';
 
-            addDocumentNonBlocking(mediaCollection, docData);
+            addDocumentNonBlocking(mediaCollectionRef, docData);
             if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
             setUploadProgress(100);
         }
@@ -587,5 +587,3 @@ export function ImageManagement() {
     </Card>
   );
 }
-
-    
