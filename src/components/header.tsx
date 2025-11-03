@@ -1,4 +1,3 @@
-
 'use client';
 import Link from 'next/link';
 import { Logo } from './logo';
@@ -57,10 +56,10 @@ export function Header() {
       }
     };
 
-    if (!isUserLoading && user) {
+    if (!isUserLoading && user && firestore) {
       setupAdminRole();
     }
-  }, [user, isUserLoading, firestore]);
+  }, [user, isUserLoading, firestore, designatedAdminEmail]);
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
