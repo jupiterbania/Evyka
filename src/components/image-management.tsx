@@ -44,7 +44,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
-import { Upload, Edit, Trash2, MoreHorizontal, Film, ImageIcon } from 'lucide-react';
+import { Upload, Edit, Trash2, MoreHorizontal, Film, ImageIcon, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
@@ -455,7 +455,11 @@ function ImageManagementInternal() {
           <TableBody>
             {isLoading && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center h-24">Loading media...</TableCell>
+                <TableCell colSpan={4} className="h-24 text-center">
+                    <div className="flex justify-center items-center">
+                        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                    </div>
+                </TableCell>
               </TableRow>
             )}
             {!isLoading && mediaItems?.map((media) => (
@@ -598,7 +602,9 @@ export function ImageManagement() {
     return (
         <Card>
             <CardContent className="p-4 flex justify-center items-center h-48">
-                <p>Initializing...</p>
+                <div className="flex justify-center items-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
             </CardContent>
         </Card>
     );
