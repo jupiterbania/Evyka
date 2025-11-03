@@ -61,6 +61,14 @@ const uploadMediaFlow = ai.defineFlow(
         useUniqueFileName: true,
       };
 
+      if (input.isVideo) {
+        // For videos, ask ImageKit to generate a thumbnail.
+        // This will add a thumbnailUrl to the response.
+        uploadOptions.transformation = {
+            pre: "media-thumbnail-generator"
+        };
+      }
+
       const response = await imagekit.upload(uploadOptions);
 
       if (!response.url) {
@@ -68,12 +76,9 @@ const uploadMediaFlow = ai.defineFlow(
         throw new Error('ImageKit response did not include a URL.');
       }
       
-      // Handle cases where video thumbnail is in a metadata object
-      const thumbnailUrl = response.thumbnailUrl || (response.metadata as any)?.thumbnailUrl;
-
       return {
         mediaUrl: response.url,
-        thumbnailUrl: thumbnailUrl,
+        thumbnailUrl: response.thumbnailUrl, // This will be present for videos and undefined for images.
       };
 
     } catch (error: any) {
