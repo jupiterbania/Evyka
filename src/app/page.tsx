@@ -49,7 +49,7 @@ export default function Home() {
   const { toast } = useToast();
   const galleryRef = useRef<HTMLElement>(null);
   
-  const mediaCollection = useMemoFirebase(() => collection(firestore, 'media'), [firestore]);
+  const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
   const { data: media, isLoading } = useCollection<MediaType>(mediaCollection);
 
   const [filter, setFilter] = useState<'image' | 'video' | 'nude'>('image');
