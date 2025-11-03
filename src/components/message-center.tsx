@@ -47,9 +47,9 @@ export function MessageCenter() {
   const { toast } = useToast();
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  // Query across all users' message collections.
+  // Query across all users' message collections without server-side ordering.
   const messagesQuery = useMemoFirebase(
-    () => firestore ? query(collectionGroup(firestore, 'messages'), orderBy('lastReplyAt', 'desc')) : null,
+    () => firestore ? collectionGroup(firestore, 'messages') : null,
     [firestore]
   );
   const {data: messages, isLoading, error} = useCollection<Message>(messagesQuery);
@@ -57,6 +57,16 @@ export function MessageCenter() {
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
+
+  // Sort messages on the client side
+  const sortedMessages = useMemo(() => {
+    if (!messages) return [];
+    return [...messages].sort((a, b) => {
+      const timeA = a.lastReplyAt?.toMillis() || 0;
+      const timeB = b.lastReplyAt?.toMillis() || 0;
+      return timeB - timeA;
+    });
+  }, [messages]);
 
   // Get replies for the currently selected message thread.
   const repliesQuery = useMemoFirebase(
@@ -248,7 +258,7 @@ export function MessageCenter() {
                   </TableCell>
                 </TableRow>
               )}
-              {!isLoading && messages?.length === 0 && (
+              {!isLoading && sortedMessages?.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={3} className="text-center h-24">
                     No messages yet.
@@ -256,7 +266,7 @@ export function MessageCenter() {
                 </TableRow>
               )}
               {!isLoading &&
-                messages?.map((message) => (
+                sortedMessages?.map((message) => (
                   <TableRow
                     key={message.id}
                     onClick={() => handleRowClick(message)}
