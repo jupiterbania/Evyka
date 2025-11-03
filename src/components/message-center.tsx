@@ -11,7 +11,7 @@ import {
   collectionGroup,
 } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
-import { useFirestore, useCollection } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
 import {
   addDocumentNonBlocking,
   updateDocumentNonBlocking,
@@ -48,18 +48,18 @@ export function MessageCenter() {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   // Query across all users' message collections.
-  const messagesQuery = useMemo(
+  const messagesQuery = useMemoFirebase(
     () => firestore ? query(collectionGroup(firestore, 'messages'), orderBy('lastReplyAt', 'desc')) : null,
     [firestore]
   );
-  const {data: messages, isLoading, error} = useCollection<Message>(messagesQuery as any);
+  const {data: messages, isLoading, error} = useCollection<Message>(messagesQuery);
 
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
   const [replyText, setReplyText] = useState('');
   const [isReplying, setIsReplying] = useState(false);
 
   // Get replies for the currently selected message thread.
-  const repliesQuery = useMemo(
+  const repliesQuery = useMemoFirebase(
     () =>
       selectedMessage && firestore
         ? query(
@@ -69,7 +69,7 @@ export function MessageCenter() {
         : null,
     [firestore, selectedMessage]
   );
-  const {data: replies, isLoading: areRepliesLoading, error: repliesError} = useCollection<Reply>(repliesQuery as any);
+  const {data: replies, isLoading: areRepliesLoading, error: repliesError} = useCollection<Reply>(repliesQuery);
 
 
   useEffect(() => {
