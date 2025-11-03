@@ -238,6 +238,10 @@ export default function Home() {
             
             addDocumentNonBlocking(mediaCollection, docData);
             setUploadProgress(((i + 1) / totalFiles) * 100);
+
+            if (isMultiple && i < totalFiles - 1) {
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
           }
         } else if (imageUrl) {
           setUploadProgress(25);
@@ -538,6 +542,8 @@ export default function Home() {
     </div>
   );
 }
+
+    
 
     
 
