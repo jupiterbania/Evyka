@@ -55,7 +55,7 @@ import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 
-export function ImageManagement() {
+function ImageManagementInternal() {
   const firestore = useFirestore();
   const mediaItemsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
   const { data: mediaItems, isLoading } = useCollection<MediaType>(mediaItemsQuery);
@@ -587,6 +587,23 @@ export function ImageManagement() {
       </CardContent>
     </Card>
   );
+}
+
+export function ImageManagement() {
+  const firestore = useFirestore();
+
+  // This guard prevents the component from rendering until firestore is available.
+  if (!firestore) {
+    return (
+        <Card>
+            <CardContent className="p-4 flex justify-center items-center h-48">
+                <p>Initializing...</p>
+            </CardContent>
+        </Card>
+    );
+  }
+
+  return <ImageManagementInternal />;
 }
 
     
