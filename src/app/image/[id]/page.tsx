@@ -98,12 +98,12 @@ export default function ImagePage() {
   const firestore = useFirestore();
 
   const mediaDocRef = useMemoFirebase(
-    () => (mediaId ? doc(firestore, 'media', mediaId) : null),
+    () => (firestore && mediaId ? doc(firestore, 'media', mediaId) : null),
     [firestore, mediaId]
   );
   const { data: media, isLoading: isMediaLoading } = useDoc<MediaType>(mediaDocRef);
 
-  const mediaCollection = useMemoFirebase(() => collection(firestore, 'media'), [firestore]);
+  const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
   const { data: allMedia, isLoading: isAllMediaLoading } = useCollection<MediaType>(mediaCollection);
 
   const recommendedMedia = useMemo(() => {
