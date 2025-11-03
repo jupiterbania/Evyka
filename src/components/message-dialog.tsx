@@ -92,18 +92,12 @@ export function MessageDialog({ trigger }: MessageDialogProps) {
     }
   };
 
-  const Trigger = trigger ? Slot : 'button';
-  const triggerProps = trigger ? { children: trigger } : {};
+  const TriggerComponent = trigger ? <Slot>{trigger}</Slot> : <Button variant="outline">Message Us</Button>;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
-        <Trigger
-          className="text-sm font-medium hover:text-primary"
-          {...triggerProps}
-        >
-          {trigger ? undefined : 'Message Us'}
-        </Trigger>
+        {TriggerComponent}
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
