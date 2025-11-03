@@ -120,7 +120,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
     const unsubscribe = onAuthStateChanged(
       auth,
       async (firebaseUser) => { // Auth state determined
-        if (firebaseUser) {
+        if (firebaseUser && firestore) { // Ensure firestore is available
           try {
             await getOrCreateUser(firestore, firebaseUser);
           } catch (error) {
