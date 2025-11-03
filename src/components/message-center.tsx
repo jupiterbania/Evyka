@@ -53,7 +53,7 @@ export function MessageCenter() {
 
   const messagesQuery = useMemoFirebase(() => 
     firestore 
-      ? query(collectionGroup(firestore, 'messages'), orderBy('lastReplyAt', 'desc')) 
+      ? query(collectionGroup(firestore, 'messages')) // Removed orderBy
       : null,
     [firestore]
   );
