@@ -11,12 +11,14 @@
  * - /media/{mediaId}: Stores media metadata, publicly readable but writable only by admins.
  * - /roles_admin/{userId}: Indicates admin privileges; presence of document grants access.
  * - /settings/main: A singleton document for site-wide settings, writeable only by admins.
+ * - /messages/{messageId}: User-submitted messages. Writable by anyone, but readable/manageable only by admins.
  *
  * Key Security Decisions:
  * - Users can only read and write their own profile data.
  * - Media metadata is publicly readable to enable browsing. Write access is restricted to admins.
  * - The `isDesignatedAdmin()` function grants immediate super-user access to avoid race conditions.
  * - The `settings/main` document is writeable by admins only, allowing for global site settings management.
+ * - User messages can be created by anyone but only managed by admins to ensure privacy.
  * - No user listing is allowed to prevent data scraping.
  */
 rules_version = '2';
@@ -66,6 +68,19 @@ service cloud.firestore {
     match /settings/main {
       allow get: if true;
       allow create, update, delete: if isAdmin() || isDesignatedAdmin();
+    }
+    
+    match /messages/{messageId} {
+      allow create: if true;
+      allow get, list, update, delete: if isAdmin() || isDesignatedAdmin();
+      
+      match /replies/{replyId} {
+        // The original sender (owner of the message doc) and admins can read replies.
+        allow get, list: if isAdmin() || isDesignatedAdmin() || isOwner(resource.data.userId);
+        // Only admins can create replies.
+        allow create: if isAdmin() || isDesignatedAdmin();
+        allow update, delete: if false;
+      }
     }
   }
 }

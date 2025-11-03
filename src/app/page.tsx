@@ -1,3 +1,4 @@
+
 'use client';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
@@ -32,12 +33,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, Film, ImageIcon, AlertTriangle, Loader2 } from 'lucide-react';
+import { Upload, Film, ImageIcon, AlertTriangle, Loader2, MessageSquare } from 'lucide-react';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
+import { MessageDialog } from '@/components/message-dialog';
+import Link from 'next/link';
 
 
 export default function Home() {
@@ -387,6 +390,21 @@ export default function Home() {
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline">
                 Explore Gallery
               </h2>
+               {isAdmin ? (
+                  <Button asChild>
+                    <Link href="/admin/messages">
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      View Messages
+                    </Link>
+                  </Button>
+                ) : (
+                  <MessageDialog 
+                    trigger={<Button variant="outline">
+                      <MessageSquare className="mr-2 h-4 w-4" />
+                      Send me a personal message
+                    </Button>}
+                  />
+                )}
             </div>
             
             <div className="flex justify-center mb-6 sm:mb-8">
@@ -590,5 +608,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

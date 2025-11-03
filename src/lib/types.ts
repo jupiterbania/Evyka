@@ -27,3 +27,20 @@ export type User = {
   isAdmin?: boolean;
   createdAt: Timestamp;
 }
+
+export type Message = {
+    id: string;
+    name: string;
+    email?: string;
+    userId?: string;
+    message: string;
+    createdAt: Timestamp;
+    isRead: boolean;
+}
+
+export type Reply = {
+    id: string;
+    message: string;
+    sentAt: Timestamp;
+    isFromAdmin: boolean;
+}
