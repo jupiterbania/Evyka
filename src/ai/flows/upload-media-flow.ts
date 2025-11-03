@@ -10,7 +10,7 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import ImageKit from 'imagekit';
+import { v2 as cloudinary } from 'cloudinary';
 
 const UploadMediaInputSchema = z.object({
   mediaDataUri: z
@@ -28,61 +28,62 @@ const UploadMediaOutputSchema = z.object({
 });
 export type UploadMediaOutput = z.infer<typeof UploadMediaOutputSchema>;
 
+
 export async function uploadMedia(input: UploadMediaInput): Promise<UploadMediaOutput> {
-  const imageKitConfig = {
-    publicKey: 'public_3BzpFL5pqk2Qn42+6s7TAa0gFqc=',
-    privateKey: 'private_gDgJMY3xa9l+pkjMH6r2OIg3UfA=',
-    urlEndpoint: 'https://ik.imagekit.io/oco6vyb1z',
+  const cloudinaryConfig = {
+    cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!,
+    api_key: process.env.CLOUDINARY_API_KEY!,
+    api_secret: process.env.CLOUDINARY_API_SECRET!,
   };
-  return uploadMediaFlow({ ...input, ...imageKitConfig });
+  return uploadMediaFlow({ ...input, ...cloudinaryConfig });
 }
 
 const uploadMediaFlow = ai.defineFlow(
   {
     name: 'uploadMediaFlow',
     inputSchema: UploadMediaInputSchema.extend({
-      publicKey: z.string(),
-      privateKey: z.string(),
-      urlEndpoint: z.string(),
+      cloud_name: z.string(),
+      api_key: z.string(),
+      api_secret: z.string(),
     }),
     outputSchema: UploadMediaOutputSchema,
   },
   async (input) => {
-    const imagekit = new ImageKit({
-      publicKey: input.publicKey,
-      privateKey: input.privateKey,
-      urlEndpoint: input.urlEndpoint,
+    cloudinary.config({
+        cloud_name: input.cloud_name,
+        api_key: input.api_key,
+        api_secret: input.api_secret,
     });
 
     try {
       const uploadOptions: any = {
-        file: input.mediaDataUri,
-        fileName: `media-${Date.now()}`,
-        useUniqueFileName: true,
+        resource_type: input.isVideo ? 'video' : 'image',
+        use_unique_filename: true,
       };
 
       if (input.isVideo) {
-        // For videos, ask ImageKit to generate a thumbnail.
-        // This will add a thumbnailUrl to the response.
-        uploadOptions.transformation = {
-            pre: "media-thumbnail-generator"
-        };
+        // For videos, generate a thumbnail automatically
+        uploadOptions.eager = [
+          { width: 400, height: 300, crop: "pad" },
+          { width: 260, height: 200, crop: "crop", gravity: "north"}
+        ];
       }
+      
+      const response = await cloudinary.uploader.upload(input.mediaDataUri, uploadOptions);
 
-      const response = await imagekit.upload(uploadOptions);
-
-      if (!response.url) {
-        console.error('ImageKit full response on failure:', JSON.stringify(response, null, 2));
-        throw new Error('ImageKit response did not include a URL.');
+      if (!response.secure_url) {
+        console.error('Cloudinary full response on failure:', JSON.stringify(response, null, 2));
+        throw new Error('Cloudinary response did not include a URL.');
       }
       
       return {
-        mediaUrl: response.url,
-        thumbnailUrl: response.thumbnailUrl, // This will be present for videos and undefined for images.
+        mediaUrl: response.secure_url,
+        // Cloudinary returns eager transformations in an array. We'll take the first one as thumbnail.
+        thumbnailUrl: response.eager && response.eager.length > 0 ? response.eager[0].secure_url : undefined,
       };
 
     } catch (error: any) {
-        console.error('ImageKit upload failed:', error);
+        console.error('Cloudinary upload failed:', error);
         throw new Error(`Media upload failed: ${error.message}`);
     }
   }
