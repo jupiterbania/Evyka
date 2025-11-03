@@ -259,7 +259,7 @@ export default function UserMessagesPage() {
       <main className="flex-grow container mx-auto px-4 py-8 flex flex-col">
         <div className="max-w-3xl mx-auto border rounded-lg flex flex-col h-[75vh] bg-card w-full">
           <div className="p-4 border-b">
-            <h1 className="text-xl font-bold font-headline">Your Conversation with Admin</h1>
+            <h1 className="text-xl font-bold font-headline">Send personal to Eveyka</h1>
           </div>
           
           <div className="flex-grow overflow-y-auto p-4 space-y-4">
