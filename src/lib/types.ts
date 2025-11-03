@@ -47,6 +47,7 @@ export type Reply = {
     imageUrl?: string;
     sentAt: Timestamp;
     isFromAdmin: boolean;
+    isRead?: boolean; // Added for read receipts
     status?: 'sending' | 'sent' | 'error';
     localImagePreviewUrl?: string; // For optimistic UI
 }

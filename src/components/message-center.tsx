@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -8,6 +9,7 @@ import {
   query,
   serverTimestamp,
   collectionGroup,
+  writeBatch,
 } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
@@ -26,8 +28,8 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
   DialogTrigger,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Table,
@@ -41,7 +43,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
-import { Send, ArrowLeft, Loader2, Image as ImageIcon, X, Check, Clock, AlertTriangle } from 'lucide-react';
+import { Send, ArrowLeft, Loader2, Image as ImageIcon, X, Clock, AlertTriangle, Check, CheckCheck } from 'lucide-react';
 import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { ScrollArea } from './ui/scroll-area';
@@ -54,7 +56,7 @@ export function MessageCenter() {
 
   const messagesQuery = useMemoFirebase(() => 
     firestore 
-      ? query(collectionGroup(firestore, 'messages')) // Removed orderBy
+      ? query(collectionGroup(firestore, 'messages'))
       : null,
     [firestore]
   );
@@ -72,7 +74,6 @@ export function MessageCenter() {
 
   const sortedMessages = useMemo(() => {
     if (!messages) return [];
-    // This sorting is a fallback if the query fails due to missing index.
     return [...messages].sort((a, b) => {
       const timeA = a.lastReplyAt?.toMillis() || a.createdAt?.toMillis() || 0;
       const timeB = b.lastReplyAt?.toMillis() || b.createdAt?.toMillis() || 0;
@@ -95,7 +96,6 @@ export function MessageCenter() {
   useEffect(() => {
     if (error) {
        if (error.message.includes('firestore/failed-precondition')) {
-          // Fallback to client-side sorting if index is missing
           toast({
             variant: 'destructive',
             title: 'Index Missing',
@@ -125,6 +125,7 @@ export function MessageCenter() {
     if (!firestore) return;
     setSelectedMessage(message);
     setOptimisticReplies([]);
+    // Mark the main message thread as read by the admin.
     if (!message.isRead) {
       const docRef = doc(firestore, 'users', message.userId, 'messages', message.id);
       updateDocumentNonBlocking(docRef, { isRead: true });
@@ -202,6 +203,7 @@ export function MessageCenter() {
       updateDocumentNonBlocking(threadDocRef, {
         lastReplyAt: serverTime,
         lastMessageSnippet,
+        isRead: true, // Ensure it remains read
       });
 
       setOptimisticReplies(prev => prev.map(r => r.id === optimisticId ? { ...r, status: 'sent' } : r));
@@ -241,21 +243,32 @@ export function MessageCenter() {
       scrollToBottom();
     }
   }, [allReplies, selectedMessage]);
+  
+  // Logic to mark user messages as read
+  useEffect(() => {
+    if (replies && firestore && selectedMessage) {
+        const unreadUserReplies = replies.filter(r => !r.isFromAdmin && !r.isRead);
+        if (unreadUserReplies.length > 0) {
+            const batch = writeBatch(firestore);
+            unreadUserReplies.forEach(reply => {
+                const replyRef = doc(firestore, 'users', selectedMessage.userId, 'messages', selectedMessage.id, 'replies', reply.id);
+                batch.update(replyRef, { isRead: true });
+            });
+            batch.commit().catch(err => console.error("Error marking replies as read: ", err));
+        }
+    }
+  }, [replies, firestore, selectedMessage]);
 
   const renderStatusIcon = (reply: Reply) => {
-    if (!reply.isFromAdmin) return null; // Only show for admin's messages
-
-    switch (reply.status) {
-        case 'sending':
-            return <Clock className="h-3 w-3 text-muted-foreground" />;
-        case 'sent':
-            return <Check className="h-4 w-4 text-primary" />;
-        case 'error':
-            return <AlertTriangle className="h-4 w-4 text-destructive" />;
-        default:
-            // For real messages from Firestore that don't have a status
-            return <Check className="h-4 w-4 text-primary" />;
+    if (reply.isFromAdmin) {
+        // Admin messages
+        if (reply.status === 'error') return <AlertTriangle className="h-4 w-4 text-destructive" />;
+        if (reply.status === 'sending') return <Clock className="h-3 w-3 text-muted-foreground" />;
+        if (reply.isRead) return <CheckCheck className="h-4 w-4 text-blue-500" />;
+        return <Check className="h-4 w-4 text-muted-foreground" />;
     }
+    // User messages - no status icon needed for admin
+    return null;
   }
 
 
@@ -277,26 +290,30 @@ export function MessageCenter() {
           <div className="p-4 space-y-4">
             {/* Initial Message */}
             {selectedMessage && (
-              <div className="flex flex-col items-start" onClick={() => setSelectedTimestamp(selectedMessage.id)}>
-                  <div className={cn('rounded-lg p-2 max-w-lg shadow-sm', 'bg-background')}>
-                      {selectedMessage?.imageUrl && (
-                          <Dialog>
-                              <DialogTrigger>
-                                  <Image src={selectedMessage.imageUrl} alt="Sent image" width={200} height={200} className="rounded-md mb-1 max-w-[200px] h-auto cursor-pointer" />
-                              </DialogTrigger>
-                              <DialogContent className="max-w-3xl max-h-[80vh] p-0">
-                                  <DialogTitle className="sr-only">Enlarged image view</DialogTitle>
-                                  <Image src={selectedMessage.imageUrl} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
-                              </DialogContent>
-                          </Dialog>
-                      )}
-                      {selectedMessage?.firstMessage && <p className="text-sm break-words px-1 pb-1">{selectedMessage.firstMessage}</p>}
-                  </div>
-                  {selectedTimestamp === selectedMessage.id && selectedMessage.createdAt && (
-                    <span className="text-xs text-muted-foreground mt-1 self-start">
+              <div onClick={() => setSelectedTimestamp(selectedMessage.id)}>
+                <div className="flex items-end gap-2 justify-start">
+                    <div className={cn('rounded-lg p-2 max-w-lg shadow-sm', 'bg-background')}>
+                        {selectedMessage?.imageUrl && (
+                            <Dialog>
+                                <DialogTrigger>
+                                    <Image src={selectedMessage.imageUrl} alt="Sent image" width={200} height={200} className="rounded-md mb-1 max-w-[200px] h-auto cursor-pointer" />
+                                </DialogTrigger>
+                                <DialogContent className="max-w-3xl max-h-[80vh] p-0">
+                                    <DialogTitle className="sr-only">Enlarged image view</DialogTitle>
+                                    <Image src={selectedMessage.imageUrl} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
+                                </DialogContent>
+                            </Dialog>
+                        )}
+                        {selectedMessage?.firstMessage && <p className="text-sm break-words px-1 pb-1">{selectedMessage.firstMessage}</p>}
+                    </div>
+                </div>
+                {selectedTimestamp === selectedMessage.id && selectedMessage.createdAt && (
+                  <div className="flex items-end gap-2 justify-start">
+                    <span className="text-xs text-muted-foreground mt-1">
                       {formatDistanceToNow(selectedMessage.createdAt.toDate(), { addSuffix: true })}
                     </span>
-                  )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -306,52 +323,52 @@ export function MessageCenter() {
                 <Loader2 className="h-8 w-8 animate-spin text-primary" />
               </div>
             ) : allReplies.map((reply) => (
-              <div
-                key={reply.id}
-                className={cn('flex flex-col', reply.isFromAdmin ? 'items-end' : 'items-start')}
-                onClick={() => setSelectedTimestamp(reply.id)}
-              >
+              <div key={reply.id} onClick={() => setSelectedTimestamp(reply.id)}>
                 <div
-                  className={cn(
-                    'rounded-lg p-2 max-w-lg shadow-sm relative',
-                    reply.isFromAdmin ? 'bg-primary text-primary-foreground' : 'bg-background'
-                  )}
+                  className={cn('flex items-end gap-2', reply.isFromAdmin ? 'justify-end' : 'justify-start')}
                 >
-                  {(reply.imageUrl || reply.localImagePreviewUrl) && (
-                      <div className="relative mb-1">
-                          <Dialog>
-                            <DialogTrigger asChild>
-                              <div className="relative">
-                                  <Image 
-                                      src={reply.localImagePreviewUrl || reply.imageUrl!} 
-                                      alt="Sent image" 
-                                      width={200} 
-                                      height={200} 
-                                      className={cn("rounded-md max-w-[200px] h-auto cursor-pointer", reply.status === 'sending' && 'opacity-50')}
-                                  />
-                                  {reply.status === 'sending' && (
-                                      <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-md">
-                                          <Loader2 className="h-8 w-8 animate-spin text-white" />
-                                      </div>
-                                  )}
-                              </div>
-                            </DialogTrigger>
-                            <DialogContent className="max-w-3xl max-h-[80vh] p-0">
-                                <DialogTitle className="sr-only">Enlarged image view</DialogTitle>
-                                <Image src={reply.localImagePreviewUrl || reply.imageUrl!} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
-                            </DialogContent>
-                          </Dialog>
-                      </div>
+                  <div
+                    className={cn(
+                      'rounded-lg p-2 max-w-lg shadow-sm flex flex-col',
+                      reply.isFromAdmin ? 'bg-primary text-primary-foreground' : 'bg-background'
                     )}
-                  {reply.message && <p className="text-sm break-words px-1 pb-4">{reply.message}</p>}
-                  <div className="absolute bottom-1 right-2 flex items-center gap-1">
-                      {renderStatusIcon(reply)}
+                  >
+                    {(reply.imageUrl || reply.localImagePreviewUrl) && (
+                        <div className="relative mb-1">
+                            <Dialog>
+                              <DialogTrigger asChild>
+                                <div className="relative">
+                                    <Image 
+                                        src={reply.localImagePreviewUrl || reply.imageUrl!} 
+                                        alt="Sent image" 
+                                        width={200} 
+                                        height={200} 
+                                        className={cn("rounded-md max-w-[200px] h-auto cursor-pointer", reply.status === 'sending' && 'opacity-50')}
+                                    />
+                                    {reply.status === 'sending' && (
+                                        <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-md">
+                                            <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                        </div>
+                                    )}
+                                </div>
+                              </DialogTrigger>
+                              <DialogContent className="max-w-3xl max-h-[80vh] p-0">
+                                  <DialogTitle className="sr-only">Enlarged image view</DialogTitle>
+                                  <Image src={reply.localImagePreviewUrl || reply.imageUrl!} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
+                              </DialogContent>
+                            </Dialog>
+                        </div>
+                      )}
+                    {reply.message && <p className="text-sm break-words px-1 pb-1">{reply.message}</p>}
                   </div>
                 </div>
                 {selectedTimestamp === reply.id && reply.sentAt && (
-                  <span className={cn("text-xs text-muted-foreground mt-1", reply.isFromAdmin ? 'self-end' : 'self-start')}>
-                    {reply.sentAt && formatDistanceToNow(reply.sentAt instanceof Date ? reply.sentAt : reply.sentAt.toDate(), { addSuffix: true })}
-                  </span>
+                  <div className={cn("flex items-center gap-1 mt-1", reply.isFromAdmin ? 'justify-end' : 'justify-start')}>
+                    <span className="text-xs text-muted-foreground">
+                      {reply.sentAt && formatDistanceToNow(reply.sentAt instanceof Date ? reply.sentAt : reply.sentAt.toDate(), { addSuffix: true })}
+                    </span>
+                     {renderStatusIcon(reply)}
+                  </div>
                 )}
               </div>
             ))}

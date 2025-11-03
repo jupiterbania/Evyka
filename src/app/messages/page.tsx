@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -7,7 +8,8 @@ import {
   orderBy,
   query,
   serverTimestamp,
-  limit
+  limit,
+  writeBatch
 } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -27,11 +29,12 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-import { Send, Loader2, Image as ImageIcon, X, Check, Clock, AlertTriangle } from 'lucide-react';
+import { Send, Loader2, Image as ImageIcon, X, Clock, AlertTriangle, Check, CheckCheck } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function UserMessagesPage() {
   const { user, isUserLoading } = useUser();
@@ -46,7 +49,6 @@ export default function UserMessagesPage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [optimisticReplies, setOptimisticReplies] = useState<Reply[]>([]);
-  const [viewingImage, setViewingImage] = useState<string | null>(null);
   const [selectedTimestamp, setSelectedTimestamp] = useState<string | null>(null);
 
 
@@ -99,6 +101,22 @@ export default function UserMessagesPage() {
   useEffect(() => {
     scrollToBottom();
   }, [replies, userMessageThread, optimisticReplies]);
+  
+  // Logic to mark admin messages as read
+  useEffect(() => {
+    if (replies && firestore && user && userMessageThread) {
+        const unreadAdminReplies = replies.filter(r => r.isFromAdmin && !r.isRead);
+        if (unreadAdminReplies.length > 0) {
+            const batch = writeBatch(firestore);
+            unreadAdminReplies.forEach(reply => {
+                const replyRef = doc(firestore, 'users', user.uid, 'messages', userMessageThread.id, 'replies', reply.id);
+                batch.update(replyRef, { isRead: true });
+            });
+            batch.commit().catch(err => console.error("Error marking replies as read: ", err));
+        }
+    }
+  }, [replies, firestore, user, userMessageThread]);
+
 
   const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -129,6 +147,7 @@ export default function UserMessagesPage() {
       message: messageText,
       sentAt: now as any, // Temporary client-side date
       isFromAdmin: false,
+      isRead: false,
       status: 'sending',
       localImagePreviewUrl: imagePreview ?? undefined,
     };
@@ -180,6 +199,7 @@ export default function UserMessagesPage() {
             imageUrl: finalImageUrl,
             sentAt: serverTime as any,
             isFromAdmin: false,
+            isRead: false,
         };
         addDocumentNonBlocking(repliesCollectionRef, newReply);
 
@@ -239,17 +259,19 @@ export default function UserMessagesPage() {
   const renderStatusIcon = (reply: Reply) => {
     if (reply.isFromAdmin) return null; // Only show for user's messages
 
-    switch (reply.status) {
-        case 'sending':
-            return <Clock className="h-3 w-3 text-muted-foreground" />;
-        case 'sent':
-            return <Check className="h-4 w-4 text-primary" />;
-        case 'error':
-            return <AlertTriangle className="h-4 w-4 text-destructive" />;
-        default:
-            // For real messages from Firestore that don't have a status
-            return <Check className="h-4 w-4 text-primary" />;
+    if (reply.status === 'error') {
+        return <AlertTriangle className="h-4 w-4 text-destructive" />;
     }
+    if (reply.status === 'sending') {
+        return <Clock className="h-3 w-3 text-muted-foreground" />;
+    }
+    // Check if the overall thread is read by admin, apply to all user messages
+    if (userMessageThread?.isRead) {
+        return <CheckCheck className="h-4 w-4 text-blue-500" />;
+    }
+    
+    // `sent` status or default for persisted messages
+    return <Check className="h-4 w-4 text-muted-foreground" />;
 }
 
 
@@ -262,100 +284,104 @@ export default function UserMessagesPage() {
             <h1 className="text-xl font-bold font-headline">Send personal to Eveyka</h1>
           </div>
           
-          <div className="flex-grow overflow-y-auto p-4 space-y-4">
-            {userMessageThread ? (
-              <>
-                {/* Initial Message */}
-                <div className="flex flex-col items-start" onClick={() => setSelectedTimestamp(userMessageThread.id)}>
-                    <div className={cn('rounded-lg p-3 max-w-lg shadow-sm', 'bg-background')}>
-                         {userMessageThread.imageUrl && (
-                            <Dialog>
-                                <DialogTrigger>
-                                    <Image src={userMessageThread.imageUrl} alt="Sent image" width={200} height={200} className="rounded-md mb-2 max-w-[200px] h-auto cursor-pointer" />
-                                </DialogTrigger>
-                                <DialogContent className="max-w-3xl max-h-[80vh] p-0">
-                                    <DialogTitle className="sr-only">Enlarged image view</DialogTitle>
-                                    <Image src={userMessageThread.imageUrl} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
-                                </DialogContent>
-                            </Dialog>
-                         )}
-                        {userMessageThread.firstMessage && <p className="text-sm break-words px-1 pb-1">{userMessageThread.firstMessage}</p>}
-                    </div>
-                  {selectedTimestamp === userMessageThread.id && userMessageThread.createdAt && (
-                    <span className="text-xs text-muted-foreground mt-1 self-start">
-                        {formatDistanceToNow(userMessageThread.createdAt.toDate(), { addSuffix: true })}
-                    </span>
-                  )}
-                </div>
-
-                {/* Replies */}
-                {isRepliesLoading && !allReplies.length ? (
-                    <div className="flex justify-center items-center h-full">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                    </div>
-                ) : allReplies.map((reply) => (
-                  <div
-                    key={reply.id}
-                    className={cn(
-                      'flex flex-col',
-                      !reply.isFromAdmin ? 'items-end' : 'items-start'
-                    )}
-                    onClick={() => setSelectedTimestamp(reply.id)}
-                  >
-                    <div
-                      className={cn(
-                        'rounded-lg p-2 max-w-lg shadow-sm relative',
-                        !reply.isFromAdmin
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-background'
-                      )}
-                    >
-                      {(reply.imageUrl || reply.localImagePreviewUrl) && (
-                        <div className="relative mb-1">
-                            <Dialog>
-                                <DialogTrigger asChild>
-                                    <div className="relative">
-                                        <Image 
-                                            src={reply.localImagePreviewUrl || reply.imageUrl!} 
-                                            alt="Sent image" 
-                                            width={200} 
-                                            height={200} 
-                                            className={cn("rounded-md max-w-[200px] h-auto cursor-pointer", reply.status === 'sending' && 'opacity-50')}
-                                        />
-                                        {reply.status === 'sending' && (
-                                            <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-md">
-                                                <Loader2 className="h-8 w-8 animate-spin text-white" />
-                                            </div>
-                                        )}
-                                    </div>
-                                </DialogTrigger>
-                                <DialogContent className="max-w-3xl max-h-[80vh] p-0">
-                                  <DialogTitle className="sr-only">Enlarged image view</DialogTitle>
-                                    <Image src={reply.localImagePreviewUrl || reply.imageUrl!} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
-                                </DialogContent>
-                            </Dialog>
-                        </div>
-                      )}
-                      {reply.message && <p className="text-sm break-words px-1 pb-4">{reply.message}</p>}
-                      <div className="absolute bottom-1 right-2 flex items-center gap-1">
-                        {renderStatusIcon(reply)}
+          <ScrollArea className="flex-grow">
+            <div className="p-4 space-y-4">
+              {userMessageThread ? (
+                <>
+                  {/* Initial Message */}
+                  <div className="flex items-end gap-2" onClick={() => setSelectedTimestamp(userMessageThread.id)}>
+                      <div className={cn('rounded-lg p-2 max-w-lg shadow-sm', 'bg-background')}>
+                           {userMessageThread.imageUrl && (
+                              <Dialog>
+                                  <DialogTrigger>
+                                      <Image src={userMessageThread.imageUrl} alt="Sent image" width={200} height={200} className="rounded-md mb-2 max-w-[200px] h-auto cursor-pointer" />
+                                  </DialogTrigger>
+                                  <DialogContent className="max-w-3xl max-h-[80vh] p-0">
+                                      <DialogTitle className="sr-only">Enlarged image view</DialogTitle>
+                                      <Image src={userMessageThread.imageUrl} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
+                                  </DialogContent>
+                              </Dialog>
+                           )}
+                          {userMessageThread.firstMessage && <p className="text-sm break-words px-1 pb-1">{userMessageThread.firstMessage}</p>}
                       </div>
-                    </div>
-                    {selectedTimestamp === reply.id && reply.sentAt && (
-                        <span className={cn("text-xs text-muted-foreground mt-1", !reply.isFromAdmin ? 'self-end' : 'self-start')}>
-                           {reply.sentAt && formatDistanceToNow(reply.sentAt instanceof Date ? reply.sentAt : reply.sentAt.toDate(), { addSuffix: true })}
-                        </span>
-                    )}
                   </div>
-                ))}
-              </>
-            ) : (
-               <div className="text-center text-muted-foreground flex-grow flex items-center justify-center">
-                   <p>Send a message to start the conversation.</p>
-               </div>
-            )}
-             <div ref={messagesEndRef} />
-          </div>
+                  {selectedTimestamp === userMessageThread.id && userMessageThread.createdAt && (
+                    <div className="flex items-end gap-2">
+                      <span className="text-xs text-muted-foreground mt-1">
+                          {formatDistanceToNow(userMessageThread.createdAt.toDate(), { addSuffix: true })}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Replies */}
+                  {isRepliesLoading && !allReplies.length ? (
+                      <div className="flex justify-center items-center h-full">
+                          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      </div>
+                  ) : allReplies.map((reply) => (
+                    <div key={reply.id} onClick={() => setSelectedTimestamp(reply.id)}>
+                      <div
+                        className={cn(
+                          'flex items-end gap-2',
+                          !reply.isFromAdmin ? 'justify-end' : 'justify-start'
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            'rounded-lg p-2 max-w-lg shadow-sm flex flex-col',
+                            !reply.isFromAdmin
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-background'
+                          )}
+                        >
+                          {(reply.imageUrl || reply.localImagePreviewUrl) && (
+                            <div className="relative mb-1">
+                                <Dialog>
+                                    <DialogTrigger asChild>
+                                        <div className="relative">
+                                            <Image 
+                                                src={reply.localImagePreviewUrl || reply.imageUrl!} 
+                                                alt="Sent image" 
+                                                width={200} 
+                                                height={200} 
+                                                className={cn("rounded-md max-w-[200px] h-auto cursor-pointer", reply.status === 'sending' && 'opacity-50')}
+                                            />
+                                            {reply.status === 'sending' && (
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-md">
+                                                    <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                                </div>
+                                            )}
+                                        </div>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-3xl max-h-[80vh] p-0">
+                                      <DialogTitle className="sr-only">Enlarged image view</DialogTitle>
+                                        <Image src={reply.localImagePreviewUrl || reply.imageUrl!} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
+                          )}
+                          {reply.message && <p className="text-sm break-words px-1 pb-1">{reply.message}</p>}
+                        </div>
+                      </div>
+                      {selectedTimestamp === reply.id && reply.sentAt && (
+                          <div className={cn("flex items-center gap-1 mt-1", !reply.isFromAdmin ? 'justify-end' : 'justify-start')}>
+                             <span className="text-xs text-muted-foreground">
+                                {reply.sentAt && formatDistanceToNow(reply.sentAt instanceof Date ? reply.sentAt : reply.sentAt.toDate(), { addSuffix: true })}
+                             </span>
+                             {renderStatusIcon(reply)}
+                          </div>
+                      )}
+                    </div>
+                  ))}
+                </>
+              ) : (
+                 <div className="text-center text-muted-foreground flex-grow flex items-center justify-center">
+                     <p>Send a message to start the conversation.</p>
+                 </div>
+              )}
+               <div ref={messagesEndRef} />
+            </div>
+          </ScrollArea>
 
           <div className="p-4 border-t bg-background">
              {imagePreview && (
