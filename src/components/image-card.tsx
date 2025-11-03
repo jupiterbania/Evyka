@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { Media as MediaType } from '@/lib/types';
@@ -205,6 +206,31 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
     return () => clearInterval(interval);
   }, [mediaItem.uploadDate, mediaItem.id, initialCounts]);
 
+  useEffect(() => {
+    const video = videoRef.current;
+    if (video) {
+        const handleTimeUpdate = () => {
+            if (video.currentTime >= 3) {
+                video.currentTime = 0;
+            }
+        };
+        video.addEventListener('timeupdate', handleTimeUpdate);
+
+        // Attempt to play the video. This might be blocked by the browser.
+        const playPromise = video.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(error => {
+                // Autoplay was prevented.
+                // You can optionally show a play button to the user here.
+                console.log("Autoplay was prevented for video: ", mediaItem.id);
+            });
+        }
+
+        return () => {
+            video.removeEventListener('timeupdate', handleTimeUpdate);
+        };
+    }
+  }, [videoRef, mediaItem.id]);
 
   const formatCount = (count: number | null): string => {
     if (count === null) return '...';
@@ -378,7 +404,6 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
               ref={videoRef}
               src={mediaItem.mediaUrl}
               poster={posterUrl}
-              autoPlay
               muted
               loop
               playsInline
