@@ -10,7 +10,7 @@ import { useMemo } from "react";
 export function DashboardStats() {
     const firestore = useFirestore();
     
-    const mediaQuery = useMemoFirebase(() => collection(firestore, 'media'), [firestore]);
+    const mediaQuery = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
     const { data: mediaItems, isLoading: mediaLoading } = useCollection<Media>(mediaQuery);
 
     const imageCount = useMemo(() => mediaItems?.filter(i => i.mediaType === 'image').length ?? 0, [mediaItems]);
