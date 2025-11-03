@@ -59,7 +59,11 @@ export function Header() {
     const provider = new GoogleAuthProvider();
     try {
       await signInWithPopup(auth, provider);
-    } catch (error) {
+    } catch (error: any) {
+      // Don't show an error if the user cancels the sign-in popup
+      if (error.code === 'auth/popup-closed-by-user' || error.code === 'auth/cancelled-popup-request') {
+        return;
+      }
       console.error('Error signing in with Google', error);
       toast({
         variant: "destructive",
