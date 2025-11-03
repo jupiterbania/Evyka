@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
@@ -57,7 +58,7 @@ import { Progress } from './ui/progress';
 
 function ImageManagementInternal() {
   const firestore = useFirestore();
-  const mediaItemsQuery = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
+  const mediaItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'media') : null), [firestore]);
   const { data: mediaItems, isLoading } = useCollection<MediaType>(mediaItemsQuery);
 
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
@@ -605,5 +606,3 @@ export function ImageManagement() {
 
   return <ImageManagementInternal />;
 }
-
-    
