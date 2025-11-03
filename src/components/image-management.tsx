@@ -63,6 +63,7 @@ function ImageManagementInternal() {
   const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatusMessage, setUploadStatusMessage] = useState('');
   
   const [newMedia, setNewMedia] = useState({ title: '', description: '' });
   const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
@@ -172,6 +173,7 @@ function ImageManagementInternal() {
     setUploadDialogOpen(false);
     setIsUploading(true);
     setUploadProgress(0);
+    setUploadStatusMessage('Starting upload...');
 
     const performUpload = async () => {
       try {
@@ -190,8 +192,12 @@ function ImageManagementInternal() {
 
           for (let i = 0; i < totalFiles; i++) {
             const file = mediaFiles[i];
-            const progressStart = (i / totalFiles) * 100;
-            const progressEnd = ((i + 1) / totalFiles) * 100;
+
+            if (isMultiple) {
+              setUploadStatusMessage(`Uploading file ${i + 1} of ${totalFiles}: "${file.name}"`);
+            } else {
+              setUploadStatusMessage('Uploading media...');
+            }
 
             if (file.size > 99 * 1024 * 1024) {
               toast({
@@ -201,8 +207,6 @@ function ImageManagementInternal() {
               });
               continue;
             }
-            
-            setUploadProgress(progressStart + 5);
 
             const reader = await new Promise<string>((resolve, reject) => {
               const fileReader = new FileReader();
@@ -211,15 +215,11 @@ function ImageManagementInternal() {
               fileReader.onerror = (error) => reject(error);
             });
             
-            setUploadProgress(progressStart + 20);
-
             const isVideo = file.type.startsWith('video/');
             const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo });
             if (!uploadResult || !uploadResult.mediaUrl) {
               throw new Error('Media URL was not returned from the upload service.');
             }
-            
-            setUploadProgress(progressStart + 80);
             
             const mediaType = isVideo ? 'video' : 'image';
             let dominantColor = '#F0F4F8';
@@ -249,7 +249,7 @@ function ImageManagementInternal() {
             }
 
             addDocumentNonBlocking(mediaCollectionRef, docData);
-            setUploadProgress(progressEnd);
+            setUploadProgress(((i + 1) / totalFiles) * 100);
           }
         } else if (imageUrl) {
             setUploadProgress(50);
@@ -258,8 +258,6 @@ function ImageManagementInternal() {
                 throw new Error('Media URL was not returned from the upload service.');
             }
             
-            setUploadProgress(80);
-
             const docData: any = {
                 ...newMedia,
                 mediaUrl: uploadResult.mediaUrl,
@@ -277,13 +275,19 @@ function ImageManagementInternal() {
             setUploadProgress(100);
         }
         
-        setIsUploading(false);
+        setUploadStatusMessage(
+          mediaFiles && mediaFiles.length > 1
+            ? `Completed uploading ${mediaFiles.length} files!`
+            : 'Upload complete!'
+        );
     
         resetUploadForm();
         toast({
           title: mediaFiles && mediaFiles.length > 1 ? `Upload Complete!` : 'Media Uploaded!',
           description: 'The new media is now live in the gallery.',
         });
+
+        setTimeout(() => setIsUploading(false), 2000);
       } catch (error: any) {
         console.error('Upload process failed:', error);
         toast({
@@ -394,7 +398,7 @@ function ImageManagementInternal() {
         <div className="p-4 border-b">
             <Progress value={uploadProgress} className="w-full" />
             <div className="text-sm mt-2 text-muted-foreground text-center">
-                <span>{uploadProgress === 100 ? 'Complete!' : 'Uploading media...'} ({`${Math.round(uploadProgress)}%`})</span>
+                <span>{uploadStatusMessage}</span>
             </div>
         </div>
         )}
@@ -569,5 +573,7 @@ export function ImageManagement() {
 
   return <ImageManagementInternal />;
 }
+
+    
 
     

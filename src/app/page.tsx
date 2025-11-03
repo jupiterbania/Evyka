@@ -84,6 +84,7 @@ export default function Home() {
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadStatusMessage, setUploadStatusMessage] = useState('');
   const [newMedia, setNewMedia] = useState({ title: '', description: '' });
   const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
   const [imageUrl, setImageUrl] = useState('');
@@ -175,6 +176,7 @@ export default function Home() {
     setUploadDialogOpen(false);
     setIsUploading(true);
     setUploadProgress(0);
+    setUploadStatusMessage('Starting upload...');
 
     const performUpload = async () => {
       try {
@@ -198,10 +200,12 @@ export default function Home() {
 
           for (let i = 0; i < totalFiles; i++) {
             const file = mediaFiles[i];
-            const progressStart = (i / totalFiles) * 100;
-            const progressEnd = ((i + 1) / totalFiles) * 100;
             
-            setUploadProgress(progressStart + 5);
+            if (isMultiple) {
+              setUploadStatusMessage(`Uploading file ${i + 1} of ${totalFiles}: "${file.name}"`);
+            } else {
+              setUploadStatusMessage('Uploading media...');
+            }
 
             const reader = await new Promise<string>((resolve, reject) => {
               const fileReader = new FileReader();
@@ -209,8 +213,6 @@ export default function Home() {
               fileReader.onload = () => resolve(fileReader.result as string);
               fileReader.onerror = (error) => reject(error);
             });
-            
-            setUploadProgress(progressStart + 20);
 
             const isVideo = file.type.startsWith('video/');
             const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo });
@@ -218,8 +220,6 @@ export default function Home() {
             if (!uploadResult || !uploadResult.mediaUrl) {
               throw new Error('Media URL was not returned from the upload service.');
             }
-            
-            setUploadProgress(progressStart + 80);
 
             const mediaType: 'image' | 'video' = isVideo ? 'video' : 'image';
             
@@ -247,7 +247,7 @@ export default function Home() {
             }
             
             addDocumentNonBlocking(mediaCollection, docData);
-            setUploadProgress(progressEnd);
+            setUploadProgress(((i + 1) / totalFiles) * 100);
           }
         } else if (imageUrl) {
           setUploadProgress(50);
@@ -256,8 +256,6 @@ export default function Home() {
               throw new Error('Media URL was not returned from the upload service.');
           }
           
-          setUploadProgress(80);
-
           const docData: any = {
               ...newMedia,
               mediaUrl: uploadResult.mediaUrl,
@@ -276,12 +274,18 @@ export default function Home() {
           setUploadProgress(100);
         }
 
-        setIsUploading(false);
+        setUploadStatusMessage(
+          mediaFiles && mediaFiles.length > 1
+            ? `Completed uploading ${mediaFiles.length} files!`
+            : 'Upload complete!'
+        );
         resetUploadForm();
         toast({
           title: mediaFiles && mediaFiles.length > 1 ? `${mediaFiles.length} files Added!` : 'Media Added!',
           description: 'The new media is now live in the gallery.',
         });
+        // Hide progress bar after a short delay
+        setTimeout(() => setIsUploading(false), 2000);
 
       } catch (error: any) {
         console.error('Upload process failed:', error);
@@ -487,7 +491,7 @@ export default function Home() {
               <div className="mb-4">
                 <Progress value={uploadProgress} className="w-full" />
                 <div className="text-sm mt-2 text-muted-foreground text-center">
-                    <span>{uploadProgress === 100 ? 'Complete!' : 'Uploading media...'} ({Math.round(uploadProgress)}%)</span>
+                    <span>{uploadStatusMessage}</span>
                 </div>
               </div>
             )}
@@ -567,5 +571,6 @@ export default function Home() {
   );
 }
 
+    
     
     
