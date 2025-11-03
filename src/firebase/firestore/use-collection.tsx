@@ -74,8 +74,8 @@ export function useCollection<T = any>(
       },
       (error: FirestoreError) => {
         const path =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
+          'path' in memoizedTargetRefOrQuery
+            ? memoizedTargetRefOrQuery.path
             : (memoizedTargetRefOrQuery as Query)._query.path.toString();
 
         const contextualError = new FirestorePermissionError({
