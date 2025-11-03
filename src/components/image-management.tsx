@@ -220,15 +220,15 @@ export function ImageManagement() {
         } else if (mediaFiles && mediaFiles.length > 0) {
           const totalFiles = mediaFiles.length;
           const isMultiple = totalFiles > 1;
-          const totalSize = Array.from(mediaFiles).reduce((acc, file) => acc + file.size, 0);
-
-          if (totalSize > 0) {
-            const estimatedDuration = Math.max(totalSize / 500000, 2000) * totalFiles; // Estimate based on 500KB/s
-            simulateProgress(totalSize, estimatedDuration);
-          }
 
           for (let i = 0; i < totalFiles; i++) {
             const file = mediaFiles[i];
+
+            // Reset and start progress for the current file
+            setUploadProgress(0);
+            setUploadSpeed(0);
+            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+
             if (file.size > 99 * 1024 * 1024) {
               toast({
                 variant: 'destructive',
@@ -237,6 +237,9 @@ export function ImageManagement() {
               });
               continue;
             }
+            
+            const estimatedDuration = Math.max(file.size / 500000, 2000); // Estimate based on 500KB/s
+            simulateProgress(file.size, estimatedDuration);
 
             const reader = await new Promise<string>((resolve, reject) => {
               const fileReader = new FileReader();
@@ -280,12 +283,14 @@ export function ImageManagement() {
 
             addDocumentNonBlocking(mediaCollection, docData);
             
+            // Mark current file as complete and pause
+            if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
+            setUploadProgress(100);
+
             if (isMultiple && i < totalFiles - 1) {
               await new Promise(resolve => setTimeout(resolve, 2000));
             }
           }
-          if (progressIntervalRef.current) clearInterval(progressIntervalRef.current);
-          setUploadProgress(100);
         } else if (imageUrl) {
             simulateProgress(5 * 1024 * 1024, 3000); // Simulate 5MB upload over 3s
             const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
@@ -429,7 +434,7 @@ export function ImageManagement() {
         <div className="p-4 border-b">
             <Progress value={uploadProgress} className="w-full" />
             <div className="flex justify-between items-center text-sm mt-2 text-muted-foreground">
-                <span>Uploading media... ({Math.round(uploadProgress)}%)</span>
+                <span>{uploadProgress === 100 ? 'Complete!' : 'Uploading media...'} ({Math.round(uploadProgress)}%)</span>
                 <span>{formatSpeed(uploadSpeed)}</span>
             </div>
         </div>
@@ -582,3 +587,5 @@ export function ImageManagement() {
     </Card>
   );
 }
+
+    
