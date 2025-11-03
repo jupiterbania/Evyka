@@ -178,9 +178,8 @@ export default function UserMessagesPage() {
       const lastMessageSnippet = finalImageUrl ? '📷 Image' : messageText.substring(0, 100);
 
       if (!userMessageThread) {
-        const newMessage: Omit<Message, 'id'> = {
+        const newMessage: Omit<Message, 'id'> & { imageUrl?: string } = {
             firstMessage: messageText,
-            imageUrl: finalImageUrl,
             userId: user.uid,
             email: user.email || '',
             name: user.displayName || 'New User',
@@ -189,18 +188,23 @@ export default function UserMessagesPage() {
             lastReplyAt: serverTime as any,
             lastMessageSnippet,
         };
+        if (finalImageUrl) {
+            newMessage.imageUrl = finalImageUrl;
+        }
         await addDocumentNonBlocking(userMessagesCollection, newMessage);
       } else {
         const threadDocRef = doc(firestore, 'users', user.uid, 'messages', userMessageThread.id);
         const repliesCollectionRef = collection(threadDocRef, 'replies');
         
-        const newReply: Omit<Reply, 'id' | 'status' | 'localImagePreviewUrl'> = {
+        const newReply: Omit<Reply, 'id' | 'status' | 'localImagePreviewUrl'> & { imageUrl?: string } = {
             message: messageText,
-            imageUrl: finalImageUrl,
             sentAt: serverTime as any,
             isFromAdmin: false,
             isRead: false,
         };
+        if (finalImageUrl) {
+            newReply.imageUrl = finalImageUrl;
+        }
         addDocumentNonBlocking(repliesCollectionRef, newReply);
 
         updateDocumentNonBlocking(threadDocRef, {
