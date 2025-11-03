@@ -16,9 +16,9 @@ import {
   useFirestore,
   useMemoFirebase,
   useUser,
-  addDocumentNonBlocking,
-  updateDocumentNonBlocking,
 } from '@/firebase';
+import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+
 
 import type { Message, Reply } from '@/lib/types';
 import { Header } from '@/components/header';
@@ -50,7 +50,7 @@ export default function UserMessagesPage() {
   // A user only has one message thread, so we query for it.
   const userMessagesCollection = useMemoFirebase(
     () =>
-      user
+      firestore && user
         ? collection(firestore, 'users', user.uid, 'messages')
         : null,
     [firestore, user]
@@ -72,9 +72,9 @@ export default function UserMessagesPage() {
   // This query gets all the replies for that user's message thread.
   const repliesQuery = useMemoFirebase(
     () =>
-      userMessageThread
+      firestore && user && userMessageThread
         ? query(
-            collection(firestore, 'users', user!.uid, 'messages', userMessageThread.id, 'replies'),
+            collection(firestore, 'users', user.uid, 'messages', userMessageThread.id, 'replies'),
             orderBy('sentAt', 'asc')
           )
         : null,
@@ -92,7 +92,7 @@ export default function UserMessagesPage() {
 
 
   const handleSendMessage = async () => {
-    if (!messageText.trim() || !user || !userMessagesCollection) return;
+    if (!messageText.trim() || !user || !firestore || !userMessagesCollection) return;
     setIsSending(true);
 
     try {
