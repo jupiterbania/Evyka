@@ -14,39 +14,20 @@ service cloud.firestore {
       return isSignedIn() && get(/databases/$(database)/documents/media/$(mediaId)).data.authorId == request.auth.uid;
     }
 
-    function isAdmin() {
-      return isSignedIn() && exists(/databases/$(database)/documents/roles_admin/$(request.auth.uid));
-    }
-    
-    function isDesignatedAdmin() {
-      return request.auth != null && request.auth.token.email == 'jupiterbania472@gmail.com';
-    }
-
     match /users/{userId} {
       // Users can read and update their own profile.
       allow get, update: if isOwner(userId);
       // Users can create their own profile.
       allow create: if isOwner(userId);
-      // No one can list users, only get them by ID.
-      // Admins can delete users.
-      allow delete: if isAdmin() || isDesignatedAdmin();
+      // Users can delete their own profile.
+      allow delete: if isOwner(userId);
     }
 
     match /media/{mediaId} {
       allow get, list: if true;
       allow create: if isSignedIn();
-      allow update, delete: if isMediaOwner(mediaId) || isAdmin() || isDesignatedAdmin();
-    }
-
-    match /roles_admin/{userId} {
-      allow get: if isAdmin() || isDesignatedAdmin();
-      allow create, delete: if isDesignatedAdmin(); // Only the designated admin can grant/revoke admin roles.
-      allow list, update: if false;
-    }
-
-    match /settings/main {
-      allow get: if true;
-      allow create, update, delete: if isAdmin() || isDesignatedAdmin();
+      // Only the user who created the media can update or delete it.
+      allow update, delete: if isMediaOwner(mediaId);
     }
   }
 }

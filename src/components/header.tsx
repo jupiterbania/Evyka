@@ -4,7 +4,7 @@ import { Logo } from './logo';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from './ui/sheet';
 import { Menu, LogIn, LogOut, Plus, User as UserIcon } from 'lucide-react';
-import { useUser, useAuth, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useUser, useAuth, useFirestore, useMemoFirebase } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import {
   DropdownMenu,
@@ -15,11 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { doc, setDoc, serverTimestamp, getDoc } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect } from 'react';
-import { errorEmitter } from '@/firebase/error-emitter';
-import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { UniversalUploader } from './universal-uploader';
 
 
@@ -28,34 +24,6 @@ export function Header() {
   const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
-
-  const designatedAdminEmail = 'jupiterbania472@gmail.com';
-  const isAdmin = user?.email === designatedAdminEmail;
-
-  useEffect(() => {
-    const setupAdminRole = async () => {
-      if (user && user.email === designatedAdminEmail && firestore) {
-        const adminRoleRef = doc(firestore, 'roles_admin', user.uid);
-        try {
-            const adminRoleSnap = await getDoc(adminRoleRef);
-            if (!adminRoleSnap.exists()) {
-              const roleData = {
-                email: user.email,
-                grantedAt: serverTimestamp(),
-              };
-              setDocumentNonBlocking(adminRoleRef, roleData);
-            }
-        } catch (error) {
-            console.error("Error checking or setting up admin role:", error);
-            errorEmitter.emit('permission-error', error as any);
-        }
-      }
-    };
-
-    if (!isUserLoading && user && firestore) {
-      setupAdminRole();
-    }
-  }, [user, isUserLoading, firestore, designatedAdminEmail]);
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
@@ -112,18 +80,12 @@ export function Header() {
               <nav className="grid gap-4 py-4">
                 <Link href="/" className="text-lg font-semibold hover:text-primary">Home</Link>
                 <Link href="/#gallery" className="text-lg font-semibold hover:text-primary">Gallery</Link>
-                {isAdmin && (
-                  <Link href="/admin" className="text-lg font-semibold hover:text-primary">Admin</Link>
-                )}
               </nav>
             </SheetContent>
           </Sheet>
           <nav className="hidden sm:flex items-center gap-6 text-sm font-medium">
              <Link href="/" className="text-foreground/60 transition-colors hover:text-foreground/80">Home</Link>
              <Link href="/#gallery" className="text-foreground/60 transition-colors hover:text-foreground/80">Gallery</Link>
-             {isAdmin && (
-                <Link href="/admin" className="text-foreground/60 transition-colors hover:text-foreground/80">Admin</Link>
-              )}
           </nav>
         </div>
         

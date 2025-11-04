@@ -158,16 +158,6 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
   const auth = useAuth();
   const router = useRouter();
   const { toast } = useToast();
-
-  const designatedAdminEmail = 'jupiterbania472@gmail.com';
-  const isAdmin = user?.email === designatedAdminEmail;
-
-  const [isEditDialogOpen, setEditDialogOpen] = useState(false);
-  const [isDeleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editedMedia, setEditedMedia] = useState<Partial<MediaType> & { id: string } | null>(null);
-  const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
-  const [isUploadingThumbnail, setIsUploadingThumbnail] = useState(false);
-
   const videoRef = useRef<HTMLVideoElement>(null);
 
   const [likeCount, setLikeCount] = useState<number | null>(null);
@@ -240,78 +230,6 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
     return count.toLocaleString();
   };
 
-  const handleEditClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditedMedia(mediaItem);
-    setThumbnailFile(null);
-    setEditDialogOpen(true);
-  };
-
-  const handleSaveEdit = async () => {
-    if (!editedMedia || !firestore) return;
-
-    const docRef = doc(firestore, 'media', editedMedia.id);
-    let finalUpdates: Partial<MediaType> = {
-      title: editedMedia.title,
-      description: editedMedia.description,
-      thumbnailUrl: editedMedia.thumbnailUrl,
-    };
-
-    if (thumbnailFile) {
-        setIsUploadingThumbnail(true);
-        try {
-            const reader = await new Promise<string>((resolve, reject) => {
-              const fileReader = new FileReader();
-              fileReader.readAsDataURL(thumbnailFile);
-              fileReader.onload = () => resolve(fileReader.result as string);
-              fileReader.onerror = (error) => reject(error);
-            });
-            const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo: false });
-
-            if (!uploadResult || !uploadResult.mediaUrl) {
-                throw new Error("Thumbnail upload failed to return a URL.");
-            }
-            finalUpdates.thumbnailUrl = uploadResult.mediaUrl;
-
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Thumbnail Upload Failed',
-                description: error.message || "Could not upload the new thumbnail.",
-            });
-            setIsUploadingThumbnail(false);
-            return; // Don't close dialog if thumbnail upload fails
-        } finally {
-            setIsUploadingThumbnail(false);
-        }
-    }
-
-    updateDocumentNonBlocking(docRef, finalUpdates);
-    toast({
-      title: 'Media Updated',
-      description: 'The media details have been successfully updated.',
-    });
-    setEditDialogOpen(false);
-    setEditedMedia(null);
-    setThumbnailFile(null);
-  };
-
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setDeleteDialogOpen(true);
-  };
-
-  const confirmDelete = () => {
-    if (!mediaItem || !firestore) return;
-    const docRef = doc(firestore, 'media', mediaItem.id);
-    deleteDocumentNonBlocking(docRef);
-    toast({
-      title: 'Media Deleted',
-      description: 'The media has been successfully removed.',
-      variant: 'destructive',
-    });
-    setDeleteDialogOpen(false);
-  };
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -354,38 +272,6 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
       initiateAnonymousSignIn(auth);
     }
     router.push(`/image/${mediaItem.id}`);
-  };
-
-
-  const renderAdminMenu = () => {
-    if (!isAdmin) {
-      return null;
-    }
-
-    return (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={(e) => e.stopPropagation()}>
-              <MoreVertical className="h-5 w-5" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuLabel>Admin Actions</DropdownMenuLabel>
-            <DropdownMenuItem onClick={handleEditClick}>
-              <Edit className="mr-2 h-4 w-4" />
-              <span>Edit Details</span>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={handleDeleteClick}
-              className="text-destructive focus:text-destructive focus:bg-destructive/10"
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              <span>Delete Media</span>
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-    );
   };
 
   const isVideo = mediaItem.mediaType === 'video';
@@ -467,114 +353,9 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
                     <Share2 className="h-4 w-4" />
                     <span className="sr-only">Share</span>
                 </Button>
-                {isAdmin && renderAdminMenu()}
             </div>
         </CardFooter>
       </Card>
-
-      {/* Admin Modals */}
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the
-              media "{mediaItem.title}" from the gallery.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmDelete}
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Media</DialogTitle>
-            <DialogDescription>
-              Update the details for "{editedMedia?.title}".
-            </DialogDescription>
-          </DialogHeader>
-          {editedMedia && (
-            <div className="grid gap-4 py-4">
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="edit-title">Title</Label>
-                <Input
-                  id="edit-title"
-                  value={editedMedia.title || ''}
-                  onChange={(e) =>
-                    setEditedMedia((p) => (p ? { ...p, title: e.target.value } : null))
-                  }
-                />
-              </div>
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="edit-description">Description</Label>
-                <Textarea
-                  id="edit-description"
-                  value={editedMedia.description || ''}
-                  onChange={(e) =>
-                    setEditedMedia((p) =>
-                      p ? { ...p, description: e.target.value } : null
-                    )
-                  }
-                />
-              </div>
-               {mediaItem.mediaType === 'video' && (
-                <>
-                  <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="edit-thumbnail-url">Thumbnail URL</Label>
-                    <Input
-                      id="edit-thumbnail-url"
-                      value={editedMedia.thumbnailUrl || ''}
-                      onChange={(e) =>
-                        setEditedMedia((p) => (p ? { ...p, thumbnailUrl: e.target.value } : null))
-                      }
-                      placeholder="https://example.com/thumbnail.jpg"
-                    />
-                  </div>
-                  <div className="relative my-1">
-                      <div className="absolute inset-0 flex items-center">
-                          <span className="w-full border-t" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                          <span className="bg-background px-2 text-muted-foreground">OR</span>
-                      </div>
-                  </div>
-                  <div className="grid w-full items-center gap-1.5">
-                    <Label htmlFor="edit-thumbnail-file">Upload New Thumbnail</Label>                    <Input
-                      id="edit-thumbnail-file"
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => setThumbnailFile(e.target.files ? e.target.files[0] : null)}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-          <DialogFooter className="flex-col-reverse sm:flex-row">
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">
-                Cancel
-              </Button>
-            </DialogClose>
-            <Button onClick={handleSaveEdit} disabled={isUploadingThumbnail}>
-                {isUploadingThumbnail ? (
-                    'Uploading...'
-                ) : (
-                    'Save Changes'
-                )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </>
   );
 }
