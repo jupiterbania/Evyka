@@ -39,10 +39,12 @@ export type Message = {
     isRead: boolean;
     lastReplyAt: Timestamp;
     lastMessageSnippet: string;
+    tempId?: string; // For optimistic UI
 }
 
 export type Reply = {
     id: string;
+    tempId?: string; // For optimistic UI
     message?: string;
     imageUrl?: string;
     sentAt: Timestamp;

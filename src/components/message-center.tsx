@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -169,7 +170,7 @@ export function MessageCenter() {
   };
 
   const handleSendReply = async () => {
-    if ((!replyText.trim() && !imageFile) || !selectedMessage || !firestore || isReplying) return;
+    if ((!replyText.trim() && !imageFile) || !selectedMessage || !firestore) return;
     
     setIsReplying(true);
     const optimisticId = uuidv4();
@@ -177,6 +178,7 @@ export function MessageCenter() {
 
     const optimisticReply: Reply = {
       id: optimisticId,
+      tempId: optimisticId,
       message: replyText,
       sentAt: now as any,
       isFromAdmin: true,
@@ -213,6 +215,7 @@ export function MessageCenter() {
       const repliesCollectionRef = collection(threadDocRef, 'replies');
 
       const newReply: any = {
+        tempId: optimisticId,
         message: replyText,
         sentAt: serverTime,
         isFromAdmin: true,
@@ -221,8 +224,6 @@ export function MessageCenter() {
 
       if (finalImageUrl) {
           newReply.imageUrl = finalImageUrl;
-      } else {
-          delete newReply.imageUrl;
       }
 
       addDocumentNonBlocking(repliesCollectionRef, newReply);
@@ -249,12 +250,7 @@ export function MessageCenter() {
   const allReplies = useMemo(() => {
     const persistedReplies = replies || [];
     const unconfirmedOptimistic = optimisticReplies.filter(optimistic => 
-        !persistedReplies.some(p => 
-            p.sentAt && optimistic.sentAt &&
-            p.isFromAdmin && // only filter admin's optimistic messages
-            p.message === optimistic.message &&
-            Math.abs(p.sentAt.toMillis() - optimistic.sentAt.getTime()) < 5000
-        )
+        !persistedReplies.some(p => p.tempId === optimistic.tempId)
     );
 
     const combined = [...persistedReplies, ...unconfirmedOptimistic];

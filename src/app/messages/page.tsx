@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -146,6 +147,7 @@ export default function UserMessagesPage() {
 
     const optimisticMessage: Reply = {
       id: optimisticId,
+      tempId: optimisticId,
       message: messageText,
       sentAt: now as any,
       isFromAdmin: false,
@@ -186,6 +188,7 @@ export default function UserMessagesPage() {
       if (!userMessageThread) {
         // This is the first message of a new thread.
         const newMessage: any = {
+            tempId: optimisticId,
             firstMessage: messageText,
             userId: user.uid,
             email: user.email || '',
@@ -198,10 +201,8 @@ export default function UserMessagesPage() {
 
         if (finalImageUrl) {
             newMessage.imageUrl = finalImageUrl;
-        } else {
-            delete newMessage.imageUrl;
         }
-
+        
         const newDocRef = await addDocumentNonBlocking(userMessagesCollection, newMessage);
         // After the document is created, we can clear the optimistic message as the real one will appear.
         if (newDocRef) {
@@ -214,6 +215,7 @@ export default function UserMessagesPage() {
         const repliesCollectionRef = collection(threadDocRef, 'replies');
         
         const newReply: any = {
+            tempId: optimisticId,
             message: messageText,
             sentAt: serverTime,
             isFromAdmin: false,
@@ -222,8 +224,6 @@ export default function UserMessagesPage() {
 
         if (finalImageUrl) {
             newReply.imageUrl = finalImageUrl;
-        } else {
-            delete newReply.imageUrl;
         }
         
         addDocumentNonBlocking(repliesCollectionRef, newReply);
@@ -258,13 +258,7 @@ export default function UserMessagesPage() {
   const allReplies = useMemo(() => {
     const persistedReplies = replies || [];
     const unconfirmedOptimistic = optimisticReplies.filter(optimistic => 
-        !persistedReplies.some(p => 
-            p.sentAt && optimistic.sentAt &&
-            !p.isFromAdmin && // only filter user's optimistic messages
-            p.message === optimistic.message &&
-            // This is a bit tricky. We assume if a message with same text is sent within 5s, it's the same.
-            Math.abs(p.sentAt.toMillis() - optimistic.sentAt.getTime()) < 5000
-        )
+        !persistedReplies.some(p => p.tempId === optimistic.tempId)
     );
 
     const combined = [...persistedReplies, ...unconfirmedOptimistic];
@@ -323,9 +317,9 @@ export default function UserMessagesPage() {
               ) : userMessageThread ? (
                 <>
                   {/* Initial Message */}
-                  <div className="flex items-end gap-2" onClick={() => setSelectedTimestamp(userMessageThread.id)}>
+                   <div className="flex items-end gap-2" onClick={() => setSelectedTimestamp(userMessageThread.id)}>
                       <div className={cn('rounded-lg p-2 max-w-lg shadow-sm', 'bg-background')}>
-                           {userMessageThread.imageUrl && (
+                          {userMessageThread.imageUrl && (
                               <Dialog>
                                   <DialogTrigger>
                                       <Image src={userMessageThread.imageUrl} alt="Sent image" width={200} height={200} className="rounded-md mb-2 max-w-[200px] h-auto cursor-pointer" />
@@ -335,7 +329,7 @@ export default function UserMessagesPage() {
                                       <Image src={userMessageThread.imageUrl} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
                                   </DialogContent>
                               </Dialog>
-                           )}
+                          )}
                           {userMessageThread.firstMessage && <p className="text-sm break-words px-1 pb-1">{userMessageThread.firstMessage}</p>}
                       </div>
                   </div>
