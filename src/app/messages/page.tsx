@@ -246,23 +246,21 @@ export default function UserMessagesPage() {
   const isLoading = isUserLoading || isMessagesLoading;
   
   const allReplies = useMemo(() => {
+    // Start with confirmed replies from the server
     const persistedReplies = replies || [];
   
-    // Filter out optimistic replies that have already been confirmed by the server.
-    // An optimistic reply is confirmed if a persisted reply has the same text and an actual server timestamp.
-    // We check for a non-local timestamp to identify persisted replies.
+    // Filter optimistic replies to only include those not yet confirmed by the server
     const unconfirmedOptimistic = optimisticReplies.filter(optimistic => {
-      // Don't show optimistic replies if they've been confirmed.
+      // An optimistic reply is considered "confirmed" if a reply with a matching message content
+      // and a server-generated timestamp (not a local Date object) exists.
+      // This is a more robust check than just comparing message content.
       const isConfirmed = persistedReplies.some(
-        persisted =>
-          !persisted.status && // Persisted replies don't have a local 'status'
-          persisted.message === optimistic.message &&
-          (persisted.imageUrl === optimistic.localImagePreviewUrl || (!persisted.imageUrl && !optimistic.localImagePreviewUrl))
+        p => p.message === optimistic.message && !(p.sentAt instanceof Date)
       );
       return !isConfirmed;
     });
   
-    // Combine the two lists and sort by date.
+    // Combine the lists and sort by date.
     const combined = [...persistedReplies, ...unconfirmedOptimistic];
     return combined.sort((a, b) => {
       const timeA = a.sentAt instanceof Date ? a.sentAt.getTime() : a.sentAt?.toMillis() || 0;
@@ -387,7 +385,14 @@ export default function UserMessagesPage() {
                                 </Dialog>
                             </div>
                           )}
-                          {reply.message && <p className="text-sm break-words px-1 pb-1">{reply.message}</p>}
+                           {reply.message && (
+                            <div className="flex items-center gap-2 px-1 pb-1">
+                              <p className="text-sm break-words">{reply.message}</p>
+                              {reply.status === 'sending' && !reply.localImagePreviewUrl && (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                       {selectedTimestamp === reply.id && reply.sentAt && (
@@ -434,7 +439,14 @@ export default function UserMessagesPage() {
                                   </Dialog>
                               </div>
                             )}
-                            {reply.message && <p className="text-sm break-words px-1 pb-1">{reply.message}</p>}
+                             {reply.message && (
+                                <div className="flex items-center gap-2 px-1 pb-1">
+                                  <p className="text-sm break-words">{reply.message}</p>
+                                  {reply.status === 'sending' && !reply.localImagePreviewUrl && (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  )}
+                                </div>
+                              )}
                           </div>
                         </div>
                         {selectedTimestamp === reply.id && reply.sentAt && (
