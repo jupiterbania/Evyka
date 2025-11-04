@@ -161,6 +161,7 @@ export function MessageCenter() {
       message: replyText,
       sentAt: now as any,
       isFromAdmin: true,
+      isRead: false,
       status: 'sending',
       localImagePreviewUrl: imagePreview ?? undefined,
     };
@@ -196,6 +197,7 @@ export function MessageCenter() {
         message: replyText,
         sentAt: serverTime,
         isFromAdmin: true,
+        isRead: false,
         imageUrl: finalImageUrl,
       };
 
@@ -225,16 +227,23 @@ export function MessageCenter() {
   };
   
   const allReplies = useMemo(() => {
-    const combined = [...(replies || [])];
-    optimisticReplies.forEach(optimistic => {
-        if (!combined.find(r => r.id === optimistic.id)) {
-            combined.push(optimistic);
-        }
+    // Start with confirmed replies from the server
+    const persistedReplies = replies || [];
+  
+    // Filter optimistic replies to only include those not yet confirmed by the server
+    const unconfirmedOptimistic = optimisticReplies.filter(optimistic => {
+      const isConfirmed = persistedReplies.some(
+        p => p.message === optimistic.message && !(p.sentAt instanceof Date)
+      );
+      return !isConfirmed;
     });
+  
+    // Combine the lists and sort by date.
+    const combined = [...persistedReplies, ...unconfirmedOptimistic];
     return combined.sort((a, b) => {
-        const timeA = a.sentAt instanceof Date ? a.sentAt.getTime() : a.sentAt?.toMillis() || 0;
-        const timeB = b.sentAt instanceof Date ? b.sentAt.getTime() : b.sentAt?.toMillis() || 0;
-        return timeA - timeB;
+      const timeA = a.sentAt instanceof Date ? a.sentAt.getTime() : a.sentAt?.toMillis() || 0;
+      const timeB = b.sentAt instanceof Date ? b.sentAt.getTime() : b.sentAt?.toMillis() || 0;
+      return timeA - timeB;
     });
   }, [replies, optimisticReplies]);
   
@@ -363,7 +372,14 @@ export function MessageCenter() {
                             </Dialog>
                         </div>
                       )}
-                    {reply.message && <p className="text-sm break-words px-1 pb-1">{reply.message}</p>}
+                    {reply.message && (
+                        <div className="flex items-center gap-2 px-1 pb-1">
+                          <p className="text-sm break-words">{reply.message}</p>
+                          {reply.status === 'sending' && !reply.localImagePreviewUrl && (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          )}
+                        </div>
+                      )}
                   </div>
                 </div>
                 {selectedTimestamp === reply.id && reply.sentAt && (
