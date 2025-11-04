@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useRef, useEffect } from 'react';
@@ -13,45 +14,50 @@ function ReelCard({ media }: { media: MediaType }) {
     const videoRef = useRef<HTMLVideoElement>(null);
 
     useEffect(() => {
+        const videoElement = videoRef.current;
+        if (!videoElement) return;
+
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
-                    const videoElement = videoRef.current;
-                    if (!videoElement) return;
-
                     if (entry.isIntersecting) {
-                        // Attempt to play the video when it becomes visible
                         videoElement.play().catch(error => {
-                            // If autoplay is blocked, the video will be muted and then played.
-                            // This is a common browser policy.
                             if (error.name === 'NotAllowedError') {
-                                console.warn("Autoplay was prevented. Muting video to attempt playback.", media.id);
                                 videoElement.muted = true;
                                 videoElement.play().catch(e => console.error("Muted autoplay also failed:", e));
-                            } else {
-                                console.error("Video play failed for an unknown reason:", error);
                             }
                         });
                     } else {
-                        // Pause the video when it goes out of view
                         videoElement.pause();
                     }
                 });
             },
-            { threshold: 0.5 } // Trigger when 50% of the video is visible
+            { threshold: 0.5 }
         );
 
-        const currentVideoRef = videoRef.current;
-        if (currentVideoRef) {
-            observer.observe(currentVideoRef);
-        }
+        observer.observe(videoElement);
 
         return () => {
-            if (currentVideoRef) {
-                observer.unobserve(currentVideoRef);
+            if (videoElement) {
+                // Before unobserving, explicitly pause and clean up the video source
+                videoElement.pause();
+                videoElement.src = ''; 
+                observer.unobserve(videoElement);
             }
         };
     }, [media.id]);
+
+    const handleVideoClick = () => {
+        const videoElement = videoRef.current;
+        if (videoElement) {
+            if (videoElement.paused) {
+                videoElement.play();
+            } else {
+                videoElement.pause();
+            }
+        }
+    };
+
 
     return (
         <div className="relative h-full w-full flex-shrink-0 snap-center flex items-center justify-center bg-black">
@@ -62,8 +68,9 @@ function ReelCard({ media }: { media: MediaType }) {
                 playsInline
                 className="w-full h-full object-contain"
                 poster={media.thumbnailUrl}
+                onClick={handleVideoClick}
             />
-            <div className="absolute bottom-10 left-0 p-4 bg-gradient-to-t from-black/60 to-transparent w-full text-white">
+            <div className="absolute bottom-10 left-0 p-4 bg-gradient-to-t from-black/60 to-transparent w-full text-white pointer-events-none">
                 <h3 className="font-bold text-lg drop-shadow-md">{media.title}</h3>
                 <p className="text-sm drop-shadow-sm">{media.description}</p>
             </div>
