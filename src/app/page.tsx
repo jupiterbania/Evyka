@@ -1,3 +1,4 @@
+
 'use client';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
@@ -219,6 +220,7 @@ export default function Home() {
             const file = mediaFiles[i];
             const isMultiple = totalFiles > 1;
             
+            setUploadProgress(0); // Reset progress for new file
             setUploadCounts(prev => ({ ...prev, current: i + 1 }));
             setUploadStatusMessage(`Uploading file ${i + 1} of ${totalFiles}: "${file.name}"`);
             
@@ -232,7 +234,14 @@ export default function Home() {
             });
 
             const isVideo = file.type.startsWith('video/');
+            // A simple progress simulation
+            const progressInterval = setInterval(() => {
+              setUploadProgress(prev => Math.min(prev + 10, 90));
+            }, 300);
+
             const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo });
+            clearInterval(progressInterval);
+            setUploadProgress(100);
             
             const endTime = Date.now();
             const durationInSeconds = (endTime - startTime) / 1000;
@@ -271,9 +280,9 @@ export default function Home() {
             }
             
             addDocumentNonBlocking(mediaCollection, docData);
-            setUploadProgress(((i + 1) / totalFiles) * 100);
 
             if (isMultiple && i < totalFiles - 1) {
+              setUploadProgress(0); // Hide progress bar during wait
               setUploadStatusMessage(`Waiting 5 seconds before next upload...`);
               await new Promise(resolve => setTimeout(resolve, 5000));
             }
@@ -532,7 +541,7 @@ export default function Home() {
                     <span className="font-medium">{uploadCounts.current} / {uploadCounts.total}</span>
                   )}
                 </div>
-                <Progress value={uploadProgress} className="w-full h-2" />
+                {uploadProgress > 0 && <Progress value={uploadProgress} className="w-full h-2" />}
                 <div className="text-sm mt-2 text-muted-foreground text-center">
                     <span>{uploadStatusMessage}</span>
                 </div>
@@ -613,3 +622,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
