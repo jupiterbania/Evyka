@@ -13,16 +13,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose,
-} from '@/components/ui/dialog';
-import {
     AlertDialog,
     AlertDialogAction,
     AlertDialogCancel,
@@ -40,40 +30,35 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import Image from 'next/image';
-import { Upload, Edit, Trash2, MoreHorizontal, Film, ImageIcon, Loader2 } from 'lucide-react';
+import { Edit, Trash2, MoreHorizontal, Film, ImageIcon, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent } from './ui/card';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, doc, serverTimestamp } from 'firebase/firestore';
-import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { collection, doc } from 'firebase/firestore';
+import { deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Textarea } from './ui/textarea';
 import { Checkbox } from './ui/checkbox';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
-import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { Badge } from './ui/badge';
-import { Progress } from './ui/progress';
 
 function ImageManagementInternal() {
   const firestore = useFirestore();
   const mediaItemsQuery = useMemoFirebase(() => (firestore ? collection(firestore, 'media') : null), [firestore]);
   const { data: mediaItems, isLoading } = useCollection<MediaType>(mediaItemsQuery);
-
-  const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
-  const [isEditDialogOpen, setEditDialogOpen] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [uploadStatusMessage, setUploadStatusMessage] = useState('');
   
-  const [newMedia, setNewMedia] = useState({ title: '', description: '' });
-  const [isReel, setIsReel] = useState(false);
-  const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
-  const [imageUrl, setImageUrl] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
-  const [uploadCounts, setUploadCounts] = useState({ current: 0, total: 0 });
-
+  const [isEditDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedMedia, setSelectedMedia] = useState<Partial<MediaType> & { id: string } | null>(null);
   const [mediaToDelete, setMediaToDelete] = useState<MediaType | null>(null);
   const [thumbnailFile, setThumbnailFile] = useState<File | null>(null);
@@ -154,294 +139,10 @@ function ImageManagementInternal() {
       });
     setMediaToDelete(null);
   }
-  
-  const resetUploadForm = () => {
-    setNewMedia({ title: '', description: '' });
-    setMediaFiles(null);
-    setImageUrl('');
-    setVideoUrl('');
-    setIsReel(false);
-    setUploadDialogOpen(false);
-    setIsUploading(false);
-    setUploadCounts({ current: 0, total: 0 });
-    setUploadProgress(null);
-    setUploadStatusMessage('');
-  };
-  
-  const uploadMediaWithProgress = async (
-    input: { mediaDataUri: string, isVideo?: boolean },
-    onProgress: (progress: number) => void
-  ) => {
-    onProgress(10);
-    const promise = uploadMedia(input);
-    
-    const progressInterval = setInterval(() => {
-      onProgress(Math.random() * 40 + 20); // Simulate progress between 20% and 60%
-    }, 500);
-  
-    try {
-      const result = await promise;
-      clearInterval(progressInterval);
-      onProgress(100);
-      return result;
-    } catch (error) {
-      clearInterval(progressInterval);
-      onProgress(0); // Reset progress on error
-      throw error;
-    }
-  };
-
-  const handleUpload = async () => {
-    if (!firestore) return;
-    const mediaCollectionRef = collection(firestore, 'media');
-    if (!mediaFiles?.length && !imageUrl && !videoUrl) {
-      toast({
-        variant: 'destructive',
-        title: 'Upload Error',
-        description: 'Please select a file or provide an image/video URL.',
-      });
-      return;
-    }
-  
-    setUploadDialogOpen(false);
-    setIsUploading(true);
-    setUploadProgress(0);
-    setUploadStatusMessage('Preparing upload...');
-    
-    const performUpload = async () => {
-      try {
-        if (mediaFiles && mediaFiles.length > 0) {
-          const filesArray = Array.from(mediaFiles);
-          
-          const validFiles = filesArray.filter(file => {
-            if (file.size > 99 * 1024 * 1024) {
-              toast({
-                variant: 'destructive',
-                title: 'File Too Large',
-                description: `"${file.name}" is over 99MB and will be skipped.`,
-              });
-              return false;
-            }
-            return true;
-          });
-
-          if (validFiles.length === 0) throw new Error("No valid files to upload.");
-
-          setUploadCounts({ current: 0, total: validFiles.length });
-          let uploadedCount = 0;
-
-          for (let i = 0; i < validFiles.length; i++) {
-            const file = validFiles[i];
-            setUploadCounts(prev => ({ ...prev, current: i + 1 }));
-            setUploadStatusMessage(`Uploading file ${i + 1} of ${validFiles.length}: ${file.name}`);
-            setUploadProgress(0);
-
-            try {
-              const mediaDataUri = await new Promise<string>((resolve, reject) => {
-                const reader = new FileReader();
-                reader.readAsDataURL(file);
-                reader.onload = () => resolve(reader.result as string);
-                reader.onerror = error => reject(error);
-              });
-              
-              const isVideo = file.type.startsWith('video/');
-              const uploadResult = await uploadMediaWithProgress({ mediaDataUri, isVideo }, setUploadProgress);
-              
-              const docData: any = {
-                title: filesArray.length > 1 ? '' : newMedia.title,
-                description: newMedia.description,
-                mediaUrl: uploadResult.mediaUrl,
-                thumbnailUrl: uploadResult.thumbnailUrl,
-                mediaType: isVideo ? 'video' : 'image',
-                uploadDate: serverTimestamp(),
-              };
-
-              if (isVideo) {
-                  docData.isReel = isReel;
-              }
-              
-              addDocumentNonBlocking(mediaCollectionRef, docData);
-              uploadedCount++;
-
-              if (i < validFiles.length - 1) {
-                setUploadStatusMessage(`Waiting 2 seconds...`);
-                setUploadProgress(null);
-                await new Promise(resolve => setTimeout(resolve, 2000));
-              }
-
-            } catch (fileError: any) {
-               toast({
-                variant: 'destructive',
-                title: `Failed to upload ${file.name}`,
-                description: fileError.message || "An unknown error occurred.",
-              });
-            }
-          }
-
-          toast({
-            title: `Upload Complete`,
-            description: `${uploadedCount} of ${validFiles.length} files were successfully uploaded.`,
-          });
-          setUploadStatusMessage('Completed!');
-
-        } else if (imageUrl) {
-          setUploadStatusMessage('Uploading from URL...');
-          const uploadResult = await uploadMediaWithProgress({ mediaDataUri: imageUrl, isVideo: false }, setUploadProgress);
-          
-          addDocumentNonBlocking(mediaCollectionRef, {
-            ...newMedia,
-            mediaUrl: uploadResult.mediaUrl,
-            thumbnailUrl: uploadResult.thumbnailUrl,
-            mediaType: 'image',
-            uploadDate: serverTimestamp(),
-            dominantColor: '#F0F4F8',
-          });
-          setUploadStatusMessage('URL uploaded successfully.');
-
-        } else if (videoUrl) {
-          setUploadStatusMessage('Submitting Video URL...');
-          setUploadProgress(50);
-          addDocumentNonBlocking(mediaCollectionRef, {
-            ...newMedia,
-            mediaUrl: videoUrl,
-            mediaType: 'video',
-            isReel: isReel,
-            uploadDate: serverTimestamp(),
-          });
-          setUploadProgress(100);
-          setUploadStatusMessage('Video URL submitted.');
-        }
-        
-        setTimeout(() => {
-          resetUploadForm();
-        }, 3000);
-
-      } catch (error: any) {
-        console.error('Upload process failed:', error.message || error);
-        toast({
-          variant: 'destructive',
-          title: 'Upload Failed',
-          description: error.message || 'An unknown error occurred during upload.',
-        });
-        resetUploadForm();
-      }
-    };
-    performUpload();
-  };
-
-  const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
 
   return (
     <Card>
       <CardContent className="p-0">
-      <div className="flex justify-end p-4 border-b">
-        <Dialog open={isUploadDialogOpen} onOpenChange={setUploadDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Upload className="mr-2 h-4 w-4" />
-              Upload Media
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Upload New Media</DialogTitle>
-              <DialogDescription>
-                 Select files, or provide an image/video URL. Max size is 99MB.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="mediaFile-admin">Media File(s)</Label>
-                <Input id="mediaFile-admin" type="file" accept="image/*,video/mp4,video/quicktime,video/x-m4v,video/*" multiple
-                    onChange={(e) => {
-                        setMediaFiles(e.target.files);
-                        if (e.target.files?.length) {
-                          setImageUrl('');
-                          setVideoUrl('');
-                        }
-                    }}
-                    disabled={!!imageUrl || !!videoUrl}
-                />
-              </div>
-              <div className="relative my-2">
-                  <div className="absolute inset-0 flex items-center">
-                      <span className="w-full border-t" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase">
-                      <span className="bg-background px-2 text-muted-foreground">OR</span>
-                  </div>
-              </div>
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="imageUrl-admin">Image URL</Label>
-                <Input id="imageUrl-admin" type="text" placeholder="https://example.com/image.png" 
-                  value={imageUrl} 
-                  onChange={(e) => {
-                      setImageUrl(e.target.value);
-                      if (e.target.value) {
-                        setMediaFiles(null);
-                        setVideoUrl('');
-                      }
-                  }}
-                  disabled={!!mediaFiles?.length || !!videoUrl}
-                />
-              </div>
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="videoUrl-admin">Video URL</Label>
-                <Input id="videoUrl-admin" type="text" placeholder="https://youtube.com/watch?v=..." 
-                  value={videoUrl} 
-                  onChange={(e) => {
-                      setVideoUrl(e.target.value);
-                      if (e.target.value) {
-                        setMediaFiles(null);
-                        setImageUrl('');
-                      }
-                  }}
-                  disabled={!!mediaFiles?.length || !!imageUrl}
-                />
-              </div>
-              
-              {( (mediaFiles && Array.from(mediaFiles).some(f => f.type.startsWith('video/'))) || !!videoUrl) && (
-                  <div className="flex items-center space-x-2 mt-4">
-                      <Checkbox id="is-reel-admin" checked={isReel} onCheckedChange={(checked) => setIsReel(checked as boolean)} />
-                      <Label htmlFor="is-reel-admin">This is a short-form video (Reel)</Label>
-                  </div>
-              )}
-
-              {showTitleInput && (
-                <div className="grid w-full items-center gap-1.5 mt-4">
-                    <Label htmlFor="title-admin">Title</Label>
-                    <Input id="title-admin" type="text" placeholder="A beautiful landscape" value={newMedia.title} onChange={(e) => setNewMedia({...newMedia, title: e.target.value})} />
-                </div>
-              )}
-              <div className="grid w-full items-center gap-1.5">
-                <Label htmlFor="description-admin">Description</Label>
-                <Textarea id="description-admin" placeholder="A detailed description of the media." value={newMedia.description} onChange={(e) => setNewMedia({...newMedia, description: e.target.value})}/>
-              </div>
-            </div>
-            <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
-                <DialogClose asChild>
-                    <Button type="button" variant="secondary" onClick={resetUploadForm}>Cancel</Button>
-                </DialogClose>
-                <Button type="submit" onClick={handleUpload}>
-                    Upload
-                </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      {isUploading && (
-        <div className="p-4 border-b space-y-2">
-            <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">{uploadStatusMessage}</span>
-                {uploadCounts.total > 1 && (
-                  <span className="font-medium">{uploadCounts.current} / {uploadCounts.total}</span>
-                )}
-            </div>
-            {uploadProgress !== null && <Progress value={uploadProgress} className="w-full h-2" />}
-        </div>
-        )}
-
       <div className="relative w-full overflow-auto">
         <Table>
           <TableHeader>

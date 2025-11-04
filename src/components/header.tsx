@@ -1,10 +1,9 @@
-
 'use client';
 import Link from 'next/link';
 import { Logo } from './logo';
 import { Button } from './ui/button';
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from './ui/sheet';
-import { Menu, LogIn, LogOut, MessageSquare } from 'lucide-react';
+import { Menu, LogIn, LogOut, MessageSquare, Plus } from 'lucide-react';
 import { useUser, useAuth, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
 import {
@@ -18,11 +17,12 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import { doc, setDoc, serverTimestamp, getDoc, query, collection, where, limit } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { setDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { cn } from '@/lib/utils';
 import type { Message, Reply } from '@/lib/types';
+import { UniversalUploader } from './universal-uploader';
 
 
 export function Header() {
@@ -184,6 +184,14 @@ export function Header() {
             <div className="w-8 h-8 bg-muted rounded-full animate-pulse" />
           ) : user ? (
             <>
+            { isAdmin && (
+              <UniversalUploader>
+                <Button variant="ghost" size="icon">
+                  <Plus className="h-5 w-5" />
+                  <span className="sr-only">Upload Media</span>
+                </Button>
+              </UniversalUploader>
+            )}
             { !isAdmin && (
               <Button variant="ghost" size="icon" asChild className="relative">
                 <Link href="/messages">
