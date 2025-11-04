@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   collectionGroup,
   writeBatch,
+  where,
 } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
@@ -49,6 +50,33 @@ import { v4 as uuidv4 } from 'uuid';
 import { ScrollArea } from './ui/scroll-area';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 
+
+function UnreadReplyCount({ message }: { message: Message }) {
+    const firestore = useFirestore();
+    
+    const unreadRepliesQuery = useMemoFirebase(() => {
+        if (firestore) {
+            return query(
+                collection(firestore, 'users', message.userId, 'messages', message.id, 'replies'),
+                where('isFromAdmin', '==', false),
+                where('isRead', '==', false)
+            );
+        }
+        return null;
+    }, [firestore, message]);
+    
+    const { data: unreadReplies } = useCollection<Reply>(unreadRepliesQuery);
+    
+    const count = unreadReplies?.length ?? 0;
+
+    if (count === 0) return null;
+
+    return (
+        <Badge variant="destructive" className="ml-2">
+            {count} New
+        </Badge>
+    );
+}
 
 export function MessageCenter() {
   const firestore = useFirestore();
@@ -216,16 +244,18 @@ export function MessageCenter() {
 
       const newReply: any = {
         tempId: optimisticId,
-        message: replyText,
         sentAt: serverTime,
         isFromAdmin: true,
         isRead: false,
       };
 
-      if (finalImageUrl) {
-          newReply.imageUrl = finalImageUrl;
+      if (replyText) {
+        newReply.message = replyText;
       }
-
+      if (finalImageUrl) {
+        newReply.imageUrl = finalImageUrl;
+      }
+      
       addDocumentNonBlocking(repliesCollectionRef, newReply);
       updateDocumentNonBlocking(threadDocRef, {
         lastReplyAt: serverTime,
@@ -502,12 +532,10 @@ export function MessageCenter() {
                     className={cn('cursor-pointer', !message.isRead && 'bg-muted/50 hover:bg-muted')}
                   >
                     <TableCell>
-                      <div className="font-medium">{message.name}</div>
-                      {!message.isRead && (
-                        <Badge variant="default" className="mt-1">
-                          New
-                        </Badge>
-                      )}
+                      <div className="font-medium flex items-center">
+                        {message.name}
+                        {!message.isRead && <UnreadReplyCount message={message} />}
+                      </div>
                     </TableCell>
                     <TableCell className="max-w-sm truncate text-muted-foreground">
                       {message.lastMessageSnippet}

@@ -83,7 +83,7 @@ export default function Home() {
 
   // --- Unread Messages Logic ---
   const unreadMessagesQuery = useMemoFirebase(
-    () => (firestore && isAdmin ? query(collection(firestore, 'messages'), where('isRead', '==', false)) : null),
+    () => (firestore && isAdmin ? query(collectionGroup(firestore, 'messages'), where('isRead', '==', false)) : null),
     [firestore, isAdmin]
   );
   const { data: unreadMessages } = useCollectionGroup<Message>(unreadMessagesQuery);
