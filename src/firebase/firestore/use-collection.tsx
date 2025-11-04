@@ -11,6 +11,7 @@ import {
   CollectionReference,
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '../errors';
 
 /** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
@@ -23,6 +24,10 @@ export interface UseCollectionResult<T> {
   data: WithId<T>[] | null; // Document data with ID, or null.
   isLoading: boolean;       // True if loading.
   error: FirestoreError | Error | null; // Error object, or null.
+}
+
+function isPermissionError(error: any): error is FirestoreError {
+    return error.code === 'permission-denied';
 }
 
 /**
@@ -73,11 +78,16 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (error: FirestoreError) => {
+        if (isPermissionError(error)) {
+            const path = 'path' in memoizedTargetRefOrQuery ? memoizedTargetRefOrQuery.path : 'unknown path';
+            const customError = new FirestorePermissionError('list', path, {}, error);
+            errorEmitter.emit('permission-error', customError);
+        } else {
+            console.error("useCollection error:", error);
+        }
         setError(error);
         setData(null);
         setIsLoading(false);
-        // trigger global error propagation
-        errorEmitter.emit('error', error);
       }
     );
 

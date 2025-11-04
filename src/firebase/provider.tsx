@@ -80,7 +80,8 @@ const getOrCreateUser = async (firestore: Firestore, user: User): Promise<AppUse
     setDoc(userRef, newUser)
       .catch(error => {
         console.error("Error creating user document:", error);
-        errorEmitter.emit('error', error); // Emit generic error
+        // This is a critical error but we won't use the permission-error emitter
+        // as it's a fundamental part of login. A console error is sufficient.
       });
     return { ...newUser, createdAt: new Date() as any }; // Return with a client-side timestamp for immediate use
   }

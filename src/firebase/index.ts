@@ -48,4 +48,5 @@ export * from './firestore/use-doc';
 export * from './non-blocking-updates';
 export * from './non-blocking-login';
 export * from './error-emitter';
+export * from './errors';
 
