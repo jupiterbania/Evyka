@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useMemo } from 'react';
@@ -195,6 +194,7 @@ export default function UserMessagesPage() {
         }
 
         const newDocRef = await addDocumentNonBlocking(userMessagesCollection, newMessage);
+        // After the document is created, we can clear the optimistic message as the real one will appear.
         if (newDocRef) {
           setOptimisticReplies(prev => prev.filter(r => r.id !== optimisticId));
         }
@@ -296,10 +296,10 @@ export default function UserMessagesPage() {
 
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col h-screen bg-background">
       <Header />
-      <main className="flex-grow container mx-auto px-4 py-8 flex flex-col">
-        <div className="max-w-3xl mx-auto border rounded-lg flex flex-col h-[75vh] bg-card w-full">
+      <main className="flex-grow flex flex-col min-h-0">
+        <div className="flex flex-col flex-grow bg-card h-full">
           <div className="p-4 border-b">
             <h1 className="text-xl font-bold font-headline">Send personal to Eveyka</h1>
           </div>
@@ -505,5 +505,3 @@ export default function UserMessagesPage() {
     </div>
   );
 }
-
-    
