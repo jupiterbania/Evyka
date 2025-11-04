@@ -1,4 +1,3 @@
-
 import { Timestamp } from "firebase/firestore";
 
 export type Media = {
@@ -12,6 +11,9 @@ export type Media = {
   isReel?: boolean; // To identify short-form vertical videos
   uploadDate: Timestamp;
   dominantColor?: string;
+  authorId?: string; // ID of the user who uploaded it
+  authorName?: string;
+  authorPhotoUrl?: string;
 };
 
 export type SiteSettings = {
@@ -27,30 +29,4 @@ export type User = {
   profileImageUrl?: string;
   isAdmin?: boolean;
   createdAt: Timestamp;
-}
-
-export type Message = {
-    id: string;
-    name: string;
-    email: string;
-    userId: string;
-    firstMessage?: string;
-    imageUrl?: string;
-    createdAt: Timestamp;
-    isRead: boolean;
-    lastReplyAt: Timestamp;
-    lastMessageSnippet: string;
-    tempId?: string; // For optimistic UI
-}
-
-export type Reply = {
-    id: string;
-    tempId?: string; // For optimistic UI
-    message?: string;
-    imageUrl?: string;
-    sentAt: Timestamp;
-    isFromAdmin: boolean;
-    isRead?: boolean; // Added for read receipts
-    status?: 'sending' | 'sent' | 'error';
-    localImagePreviewUrl?: string; // For optimistic UI
 }

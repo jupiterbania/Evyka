@@ -1,4 +1,3 @@
-
 {
   "entities": {
     "User": {
@@ -77,6 +76,19 @@
         "dominantColor": {
           "type": "string",
           "description": "The dominant color of an image, used for UI theming."
+        },
+        "authorId": {
+            "type": "string",
+            "description": "The ID of the user who uploaded the media."
+        },
+        "authorName": {
+            "type": "string",
+            "description": "The name of the user who uploaded the media."
+        },
+        "authorPhotoUrl": {
+            "type": "string",
+            "description": "The profile photo URL of the user who uploaded the media.",
+            "format": "uri"
         }
       },
       "required": [
@@ -84,7 +96,8 @@
         "title",
         "mediaUrl",
         "mediaType",
-        "uploadDate"
+        "uploadDate",
+        "authorId"
       ]
     },
     "SiteSettings": {
@@ -102,80 +115,6 @@
           "description": "The AI hint for the hero image."
         }
       }
-    },
-    "Message": {
-      "title": "Message",
-      "description": "Represents a message thread started by a user.",
-      "type": "object",
-      "properties": {
-        "name": {
-          "type": "string",
-          "description": "Name of the sender at the time of creation."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email of the sender.",
-          "format": "email"
-        },
-        "userId": {
-            "type": "string",
-            "description": "User ID of the sender."
-        },
-        "firstMessage": {
-          "type": "string",
-          "description": "The initial message that started the thread."
-        },
-        "imageUrl": {
-          "type": "string",
-          "description": "URL of an image sent with the first message.",
-          "format": "uri"
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "Timestamp when the thread was created.",
-          "format": "date-time"
-        },
-        "isRead": {
-          "type": "boolean",
-          "description": "Indicates if the admin has read the latest message."
-        },
-        "lastReplyAt": {
-          "type": "string",
-          "description": "Timestamp of the last reply in the thread.",
-          "format": "date-time"
-        },
-        "lastMessageSnippet": {
-            "type": "string",
-            "description": "A snippet of the last message sent in the thread."
-        }
-      },
-      "required": ["name", "email", "userId", "createdAt"]
-    },
-    "Reply": {
-      "title": "Reply",
-      "description": "Represents a reply within a message thread.",
-      "type": "object",
-      "properties": {
-        "message": {
-          "type": "string",
-          "description": "The content of the reply."
-        },
-        "imageUrl": {
-          "type": "string",
-          "description": "URL of an image sent with the reply.",
-          "format": "uri"
-        },
-        "sentAt": {
-          "type": "string",
-          "description": "Timestamp when the reply was sent.",
-          "format": "date-time"
-        },
-        "isFromAdmin": {
-          "type": "boolean",
-          "description": "True if the reply is from an admin."
-        }
-      },
-      "required": ["sentAt"]
     }
   },
   "auth": {
@@ -197,42 +136,6 @@
             {
               "name": "userId",
               "description": "The unique identifier of the user."
-            }
-          ],
-          "collections": [
-            {
-              "path": "/messages/{messageId}",
-              "definition": {
-                "entityName": "Message",
-                "schema": {
-                  "$ref": "#/backend/entities/Message"
-                },
-                "description": "Stores message threads initiated by the user.",
-                "params": [
-                  {
-                    "name": "messageId",
-                    "description": "The unique identifier of the message thread."
-                  }
-                ],
-                "collections": [
-                  {
-                     "path": "/replies/{replyId}",
-                      "definition": {
-                        "entityName": "Reply",
-                        "schema": {
-                          "$ref": "#/backend/entities/Reply"
-                        },
-                        "description": "Stores replies within a specific message thread.",
-                        "params": [
-                           {
-                              "name": "replyId",
-                              "description": "The unique ID of the reply."
-                           }
-                        ]
-                      }
-                  }
-                ]
-              }
             }
           ]
         }

@@ -1,4 +1,3 @@
-
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -9,6 +8,10 @@ service cloud.firestore {
 
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isMediaOwner(mediaId) {
+      return isSignedIn() && get(/databases/$(database)/documents/media/$(mediaId)).data.authorId == request.auth.uid;
     }
 
     function isAdmin() {
@@ -27,26 +30,12 @@ service cloud.firestore {
       // No one can list users, only get them by ID.
       // Admins can delete users.
       allow delete: if isAdmin() || isDesignatedAdmin();
-
-      match /messages/{messageId} {
-        // Users can manage their own messages and replies.
-        // Admins can manage all messages and replies.
-        allow read, write: if isOwner(userId) || isAdmin() || isDesignatedAdmin();
-
-        match /replies/{replyId} {
-          allow read, write: if isOwner(userId) || isAdmin() || isDesignatedAdmin();
-        }
-      }
-    }
-
-    // This rule allows admins to perform collection group queries on 'messages'.
-    match /{path=**}/messages/{messageId} {
-      allow read: if isAdmin() || isDesignatedAdmin();
     }
 
     match /media/{mediaId} {
       allow get, list: if true;
-      allow create, update, delete: if isAdmin() || isDesignatedAdmin();
+      allow create: if isSignedIn();
+      allow update, delete: if isMediaOwner(mediaId) || isAdmin() || isDesignatedAdmin();
     }
 
     match /roles_admin/{userId} {

@@ -1,21 +1,14 @@
-
 'use client';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
 import { ImageCard } from '@/components/image-card';
 import Image from 'next/image';
-import type { Media as MediaType, SiteSettings, Message } from '@/lib/types';
-import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser, useCollectionGroup } from '@/firebase';
-import { collection, doc, serverTimestamp, query, where, collectionGroup } from 'firebase/firestore';
-import { useMemo, useState, useRef, Fragment, useEffect } from 'react';
-import { useToast } from '@/hooks/use-toast';
+import type { Media as MediaType, SiteSettings } from '@/lib/types';
+import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
+import { useMemo, useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,9 +19,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Loader2, MessageSquare, ChevronDown, AlertTriangle, Film, ImageIcon, Video } from 'lucide-react';
+import { Loader2, AlertTriangle, ImageIcon, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { MessageDialog } from '@/components/message-dialog';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
@@ -37,7 +29,6 @@ export default function Home() {
   const firestore = useFirestore();
   const { user } = useUser();
   const galleryRef = useRef<HTMLElement>(null);
-  const router = useRouter();
   
   const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
   const { data: media, isLoading } = useCollection<MediaType>(mediaCollection);
@@ -71,22 +62,6 @@ export default function Home() {
   
   const heroImageUrl = settings?.heroImageUrl;
   const heroImageHint = settings?.heroImageHint;
-
-  const designatedAdminEmail = 'jupiterbania472@gmail.com';
-  const isAdmin = user?.email === designatedAdminEmail;
-
-  // --- Unread Messages Logic ---
-  const allMessagesQuery = useMemoFirebase(
-    () => (firestore && isAdmin ? query(collectionGroup(firestore, 'messages')) : null),
-    [firestore, isAdmin]
-  );
-  const { data: allMessages } = useCollectionGroup<Message>(allMessagesQuery);
-  const unreadCount = useMemo(() => {
-    if (!allMessages) return 0;
-    // Client-side filter
-    return allMessages.filter(msg => !msg.isRead).length;
-  }, [allMessages]);
-  // --- End Unread Messages Logic ---
 
   // State for age gate
   const [isAgeGateOpen, setAgeGateOpen] = useState(false);
@@ -201,26 +176,6 @@ export default function Home() {
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline">
                 Explore Gallery
               </h2>
-               {isAdmin ? (
-                  <Button asChild className="relative">
-                    <Link href="/admin/messages">
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      View Messages
-                      {unreadCount > 0 && (
-                        <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-destructive text-xs font-bold text-destructive-foreground">
-                          {unreadCount}
-                        </span>
-                      )}
-                    </Link>
-                  </Button>
-                ) : (
-                  <MessageDialog 
-                    trigger={<Button variant="outline">
-                      <MessageSquare className="mr-2 h-4 w-4" />
-                      Send me a personal message
-                    </Button>}
-                  />
-                )}
             </div>
             
             <div className="flex justify-center mb-6 sm:mb-8">
