@@ -332,7 +332,7 @@ export default function Home() {
         }, 3000);
 
       } catch (error: any) {
-        console.error('Upload process failed:', error);
+        console.error('Upload process failed:', error.message || error);
         toast({
           variant: 'destructive',
           title: 'Upload Process Failed',
