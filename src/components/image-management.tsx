@@ -50,6 +50,7 @@ import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Textarea } from './ui/textarea';
+import { Checkbox } from './ui/checkbox';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { Badge } from './ui/badge';
@@ -67,6 +68,7 @@ function ImageManagementInternal() {
   const [uploadStatusMessage, setUploadStatusMessage] = useState('');
   
   const [newMedia, setNewMedia] = useState({ title: '', description: '' });
+  const [isReel, setIsReel] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
   const [imageUrl, setImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
@@ -93,6 +95,7 @@ function ImageManagementInternal() {
         title: selectedMedia.title,
         description: selectedMedia.description,
         thumbnailUrl: selectedMedia.thumbnailUrl,
+        isReel: selectedMedia.isReel,
     };
 
     if (thumbnailFile) {
@@ -157,6 +160,7 @@ function ImageManagementInternal() {
     setMediaFiles(null);
     setImageUrl('');
     setVideoUrl('');
+    setIsReel(false);
     setUploadDialogOpen(false);
     setIsUploading(false);
     setUploadCounts({ current: 0, total: 0 });
@@ -244,13 +248,17 @@ function ImageManagementInternal() {
               const uploadResult = await uploadMediaWithProgress({ mediaDataUri, isVideo }, setUploadProgress);
               
               const docData: any = {
-                title: validFiles.length > 1 ? '' : newMedia.title,
+                title: filesArray.length > 1 ? '' : newMedia.title,
                 description: newMedia.description,
                 mediaUrl: uploadResult.mediaUrl,
                 thumbnailUrl: uploadResult.thumbnailUrl,
                 mediaType: isVideo ? 'video' : 'image',
                 uploadDate: serverTimestamp(),
               };
+
+              if (isVideo) {
+                  docData.isReel = isReel;
+              }
               
               addDocumentNonBlocking(mediaCollectionRef, docData);
               uploadedCount++;
@@ -297,6 +305,7 @@ function ImageManagementInternal() {
             ...newMedia,
             mediaUrl: videoUrl,
             mediaType: 'video',
+            isReel: isReel,
             uploadDate: serverTimestamp(),
           });
           setUploadProgress(100);
@@ -390,6 +399,14 @@ function ImageManagementInternal() {
                   disabled={!!mediaFiles?.length || !!imageUrl}
                 />
               </div>
+              
+              {( (mediaFiles && Array.from(mediaFiles).some(f => f.type.startsWith('video/'))) || !!videoUrl) && (
+                  <div className="flex items-center space-x-2 mt-4">
+                      <Checkbox id="is-reel-admin" checked={isReel} onCheckedChange={(checked) => setIsReel(checked as boolean)} />
+                      <Label htmlFor="is-reel-admin">This is a short-form video (Reel)</Label>
+                  </div>
+              )}
+
               {showTitleInput && (
                 <div className="grid w-full items-center gap-1.5 mt-4">
                     <Label htmlFor="title-admin">Title</Label>
@@ -462,8 +479,8 @@ function ImageManagementInternal() {
                 <TableCell className="font-medium truncate max-w-xs">{media.title}</TableCell>
                 <TableCell>
                   <Badge variant={media.mediaType === 'video' ? 'default' : 'secondary'} className="capitalize">
-                    {media.mediaType === 'video' ? <Film className="mr-1.5 h-3.5 w-3.5" /> : <ImageIcon className="mr-1.5 h-3.5 w-3.5" />}
-                    {media.mediaType}
+                    {media.isReel ? <Film className="mr-1.5 h-3.5 w-3.5" /> : media.mediaType === 'video' ? <Film className="mr-1.5 h-3.5 w-3.5" /> : <ImageIcon className="mr-1.5 h-3.5 w-3.5" />}
+                    {media.isReel ? 'Reel' : media.mediaType}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-center px-4">
@@ -520,7 +537,7 @@ function ImageManagementInternal() {
                     Update the details for this media item.
                 </DialogDescription>
                 </DialogHeader>
-                {selectedMedia && <div className="grid gap-4 py-4">
+                {selectedMedia && <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
                     <div className="grid w-full items-center gap-1.5">
                         <Label htmlFor="edit-title">Title</Label>
                         <Input id="edit-title" value={selectedMedia.title || ''} onChange={(e) => setSelectedMedia(p => p ? {...p, title: e.target.value} : null)} />
@@ -531,7 +548,11 @@ function ImageManagementInternal() {
                     </div>
                      {selectedMedia.mediaType === 'video' && (
                       <>
-                        <div className="grid w-full items-center gap-1.5">
+                        <div className="flex items-center space-x-2 mt-2">
+                          <Checkbox id="edit-is-reel" checked={selectedMedia.isReel} onCheckedChange={(checked) => setSelectedMedia(p => p ? {...p, isReel: checked as boolean} : null)} />
+                          <Label htmlFor="edit-is-reel">This is a short-form video (Reel)</Label>
+                        </div>
+                        <div className="grid w-full items-center gap-1.5 mt-4">
                           <Label htmlFor="edit-thumbnail-url">Thumbnail URL</Label>
                           <Input
                             id="edit-thumbnail-url"
@@ -595,5 +616,3 @@ export function ImageManagement() {
 
   return <ImageManagementInternal />;
 }
-
-    

@@ -6,10 +6,16 @@ import { ImageCard } from '@/components/image-card';
 import Image from 'next/image';
 import type { Media as MediaType, SiteSettings, Message } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser, useCollectionGroup } from '@/firebase';
-import { collection, doc, serverTimestamp, query, collectionGroup } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, query, where } from 'firebase/firestore';
 import { useMemo, useState, useRef, Fragment, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -32,8 +38,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
-import { Upload, Film, ImageIcon, AlertTriangle, Loader2, MessageSquare } from 'lucide-react';
+import { Upload, Film, ImageIcon, AlertTriangle, Loader2, MessageSquare, ChevronDown } from 'lucide-react';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
@@ -41,6 +48,7 @@ import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
 import { MessageDialog } from '@/components/message-dialog';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 
 export default function Home() {
@@ -48,6 +56,7 @@ export default function Home() {
   const { user } = useUser();
   const { toast } = useToast();
   const galleryRef = useRef<HTMLElement>(null);
+  const router = useRouter();
   
   const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
   const { data: media, isLoading } = useCollection<MediaType>(mediaCollection);
@@ -67,7 +76,11 @@ export default function Home() {
     if (filter === 'nude') {
       return sortedMedia.filter(item => item.isNude);
     }
-    // Default filter for 'image' or 'video' should not show nudes
+    if (filter === 'video') {
+      // Exclude reels from the main video gallery
+      return sortedMedia.filter(item => item.mediaType === 'video' && !item.isReel && !item.isNude);
+    }
+    // Default filter for 'image' should not show nudes
     return sortedMedia.filter(item => item.mediaType === filter && !item.isNude);
   }, [sortedMedia, filter]);
 
@@ -83,7 +96,7 @@ export default function Home() {
 
   // --- Unread Messages Logic ---
   const allMessagesQuery = useMemoFirebase(
-    () => (firestore && isAdmin ? collectionGroup(firestore, 'messages') : null),
+    () => (firestore && isAdmin ? query(collection(firestore, 'messages')) : null),
     [firestore, isAdmin]
   );
   const { data: allMessages } = useCollectionGroup<Message>(allMessagesQuery);
@@ -100,6 +113,7 @@ export default function Home() {
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadStatusMessage, setUploadStatusMessage] = useState('');
   const [newMedia, setNewMedia] = useState({ title: '', description: '' });
+  const [isReel, setIsReel] = useState(false);
   const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
   const [imageUrl, setImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
@@ -174,6 +188,7 @@ export default function Home() {
     setMediaFiles(null);
     setImageUrl('');
     setVideoUrl('');
+    setIsReel(false);
     setUploadDialogOpen(false);
     setIsUploading(false);
     setUploadCounts({ current: 0, total: 0 });
@@ -264,7 +279,7 @@ export default function Home() {
               const uploadResult = await uploadMediaWithProgress({ mediaDataUri, isVideo }, setUploadProgress);
               
               const docData: any = {
-                title: validFiles.length > 1 ? '' : newMedia.title,
+                title: filesArray.length > 1 ? '' : newMedia.title,
                 description: newMedia.description,
                 mediaUrl: uploadResult.mediaUrl,
                 thumbnailUrl: uploadResult.thumbnailUrl,
@@ -272,6 +287,10 @@ export default function Home() {
                 uploadDate: serverTimestamp(),
                 isNude: isForNudes
               };
+              
+              if (isVideo) {
+                  docData.isReel = isReel;
+              }
               
               addDocumentNonBlocking(mediaCollection, docData);
               uploadedCount++;
@@ -304,7 +323,8 @@ export default function Home() {
           const uploadResult = await uploadMediaWithProgress({ mediaDataUri: imageUrl, isVideo: false }, setUploadProgress);
 
           addDocumentNonBlocking(mediaCollection, {
-            ...newMedia,
+            title: newMedia.title,
+            description: newMedia.description,
             mediaUrl: uploadResult.mediaUrl,
             thumbnailUrl: uploadResult.thumbnailUrl,
             mediaType: 'image',
@@ -318,9 +338,11 @@ export default function Home() {
           setUploadStatusMessage('Submitting Video URL...');
           setUploadProgress(50);
           addDocumentNonBlocking(mediaCollection, {
-            ...newMedia,
+            title: newMedia.title,
+            description: newMedia.description,
             mediaUrl: videoUrl,
-            mediaType: 'video', 
+            mediaType: 'video',
+            isReel: isReel,
             uploadDate: serverTimestamp(),
             isNude: isForNudes,
           });
@@ -333,7 +355,7 @@ export default function Home() {
         }, 3000);
 
       } catch (error: any) {
-        console.error('Upload process failed:', error.message || error);
+        console.error('Upload process failed:', error);
         toast({
           variant: 'destructive',
           title: 'Upload Process Failed',
@@ -426,10 +448,24 @@ export default function Home() {
                     <ImageIcon className="mr-2 h-4 w-4" />
                     Images
                 </Button>
-                <Button variant={filter === 'video' ? 'default' : 'ghost'} onClick={() => setFilter('video')} className="px-4 py-2 h-auto">
-                    <Film className="mr-2 h-4 w-4" />
-                    Videos
-                </Button>
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant={filter === 'video' ? 'default' : 'ghost'} className="px-4 py-2 h-auto">
+                            <Film className="mr-2 h-4 w-4" />
+                            Videos
+                            <ChevronDown className="ml-2 h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                        <DropdownMenuItem onClick={() => setFilter('video')}>
+                            Videos
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => router.push('/reels')}>
+                            Reels
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+
                 <Button 
                   variant={filter === 'nude' ? 'default' : 'ghost'}
                   onClick={handleNudesClick} 
@@ -459,7 +495,7 @@ export default function Home() {
                     <DialogHeader>
                       <DialogTitle>Upload New Media</DialogTitle>
                       <DialogDescription>
-                        Select files or provide a URL to add to the '{filter}' category. Max size is 99MB.
+                        Select files or provide a URL to add to the gallery. Max size is 99MB.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
@@ -512,6 +548,14 @@ export default function Home() {
                           disabled={!!mediaFiles?.length || !!imageUrl}
                         />
                       </div>
+                      
+                      {( (mediaFiles && Array.from(mediaFiles).some(f => f.type.startsWith('video/'))) || !!videoUrl) && (
+                        <div className="flex items-center space-x-2 mt-4">
+                            <Checkbox id="is-reel" checked={isReel} onCheckedChange={(checked) => setIsReel(checked as boolean)} />
+                            <Label htmlFor="is-reel">This is a short-form video (Reel)</Label>
+                        </div>
+                      )}
+
                       {showTitleInput && (
                           <div className="grid w-full items-center gap-1.5 mt-4">
                               <Label htmlFor="title">Title</Label>
@@ -623,5 +667,3 @@ export default function Home() {
     </div>
   );
 }
-
-    

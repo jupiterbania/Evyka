@@ -9,6 +9,7 @@ export type Media = {
   thumbnailUrl?: string; // For videos
   mediaType: 'image' | 'video';
   isNude?: boolean;
+  isReel?: boolean; // To identify short-form vertical videos
   uploadDate: Timestamp;
   dominantColor?: string;
 };
