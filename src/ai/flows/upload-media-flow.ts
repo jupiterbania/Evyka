@@ -66,20 +66,22 @@ const uploadMediaFlow = ai.defineFlow(
       
       const response = await cloudinary.uploader.upload(input.mediaDataUri, uploadOptions);
 
-      if (!response.secure_url) {
+      if (!response || !response.secure_url) {
         console.error('Cloudinary full response on failure:', JSON.stringify(response, null, 2));
-        throw new Error('Cloudinary response did not include a URL.');
+        throw new Error('Cloudinary response did not include a secure_url. Check server logs for details.');
       }
       
       return {
         mediaUrl: response.secure_url,
         // Cloudinary returns eager transformations in an array. We'll take the first one as thumbnail.
-        thumbnailUrl: response.eager && response.eager.length > 0 ? response.eager[0].secure_url : undefined,
+        thumbnailUrl: response.eager && response.eager.length > 0 ? response.eager[0].secure_url : response.secure_url,
       };
 
     } catch (error: any) {
         console.error('Cloudinary upload failed:', error);
-        throw new Error(`Media upload failed: ${error.message}`);
+        // Ensure a descriptive error message is thrown.
+        const errorMessage = error.message || JSON.stringify(error);
+        throw new Error(`Media upload failed: ${errorMessage}`);
     }
   }
 );
