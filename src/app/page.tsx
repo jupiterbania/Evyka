@@ -1,4 +1,3 @@
-
 'use client';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
@@ -103,6 +102,7 @@ export default function Home() {
   const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
   const [imageUrl, setImageUrl] = useState('');
   const [videoUrl, setVideoUrl] = useState('');
+  const [uploadCounts, setUploadCounts] = useState({ current: 0, total: 0 });
 
   // State for age gate
   const [isAgeGateOpen, setAgeGateOpen] = useState(false);
@@ -174,6 +174,7 @@ export default function Home() {
     setImageUrl('');
     setVideoUrl('');
     setUploadDialogOpen(false);
+    setUploadCounts({ current: 0, total: 0 });
   };
 
   const handleUpload = () => {
@@ -191,6 +192,7 @@ export default function Home() {
     setIsUploading(true);
     setUploadProgress(0);
     setUploadStatusMessage('Starting upload...');
+    setUploadCounts({ current: 0, total: mediaFiles?.length || 1 });
 
     const performUpload = async () => {
       try {
@@ -211,11 +213,13 @@ export default function Home() {
 
         } else if (mediaFiles && mediaFiles.length > 0) {
           const totalFiles = mediaFiles.length;
+          setUploadCounts({ current: 0, total: totalFiles });
           
           for (let i = 0; i < totalFiles; i++) {
             const file = mediaFiles[i];
             const isMultiple = totalFiles > 1;
             
+            setUploadCounts(prev => ({ ...prev, current: i + 1 }));
             setUploadStatusMessage(`Uploading file ${i + 1} of ${totalFiles}: "${file.name}"`);
             
             const startTime = Date.now();
@@ -276,6 +280,7 @@ export default function Home() {
           }
         } else if (imageUrl) {
           setUploadProgress(50);
+          setUploadCounts({ current: 1, total: 1 });
           const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
           if (!uploadResult || !uploadResult.mediaUrl) {
               throw new Error('Media URL was not returned from the upload service.');
@@ -520,8 +525,14 @@ export default function Home() {
 
 
             {isUploading && (
-              <div className="mb-4">
-                <Progress value={uploadProgress} className="w-full" />
+              <div className="mb-4 space-y-2">
+                <div className="flex justify-between items-center text-sm">
+                  <span className="text-muted-foreground">Uploading...</span>
+                  {uploadCounts.total > 1 && (
+                    <span className="font-medium">{uploadCounts.current} / {uploadCounts.total}</span>
+                  )}
+                </div>
+                <Progress value={uploadProgress} className="w-full h-2" />
                 <div className="text-sm mt-2 text-muted-foreground text-center">
                     <span>{uploadStatusMessage}</span>
                 </div>
