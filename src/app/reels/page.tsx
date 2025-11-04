@@ -22,6 +22,7 @@ function ReelCard({ media }: { media: MediaType }) {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting) {
                         videoElement.play().catch(error => {
+                            // Autoplay was prevented. Mute and try again.
                             if (error.name === 'NotAllowedError') {
                                 videoElement.muted = true;
                                 videoElement.play().catch(e => console.error("Muted autoplay also failed:", e));
@@ -32,21 +33,20 @@ function ReelCard({ media }: { media: MediaType }) {
                     }
                 });
             },
-            { threshold: 0.5 }
+            { threshold: 0.5 } // Play when 50% of the video is visible
         );
 
         observer.observe(videoElement);
 
         return () => {
             if (videoElement) {
-                // Before unobserving, explicitly pause and clean up the video source
                 videoElement.pause();
-                videoElement.src = ''; 
+                videoElement.src = '';
                 observer.unobserve(videoElement);
             }
         };
     }, [media.id]);
-
+    
     const handleVideoClick = () => {
         const videoElement = videoRef.current;
         if (videoElement) {
