@@ -35,7 +35,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Upload, Film, ImageIcon, AlertTriangle, Loader2, MessageSquare } from 'lucide-react';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
-import { uploadMultipleMedia } from '@/ai/flows/upload-multiple-media-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -97,7 +96,7 @@ export default function Home() {
   // State for upload dialog
   const [isUploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [uploadStatusMessage, setUploadStatusMessage] = useState('');
   const [newMedia, setNewMedia] = useState({ title: '', description: '' });
   const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
@@ -175,9 +174,33 @@ export default function Home() {
     setImageUrl('');
     setVideoUrl('');
     setUploadDialogOpen(false);
+    setIsUploading(false);
     setUploadCounts({ current: 0, total: 0 });
-    setUploadProgress(0);
+    setUploadProgress(null);
     setUploadStatusMessage('');
+  };
+
+  const uploadMediaWithProgress = async (
+    input: { mediaDataUri: string, isVideo?: boolean },
+    onProgress: (progress: number) => void
+  ) => {
+    onProgress(10);
+    const promise = uploadMedia(input);
+    
+    const progressInterval = setInterval(() => {
+      onProgress(Math.random() * 40 + 20); // Simulate progress between 20% and 60%
+    }, 500);
+  
+    try {
+      const result = await promise;
+      clearInterval(progressInterval);
+      onProgress(100);
+      return result;
+    } catch (error) {
+      clearInterval(progressInterval);
+      onProgress(0); // Reset progress on error
+      throw error;
+    }
   };
 
   const handleUpload = async () => {
@@ -195,7 +218,6 @@ export default function Home() {
     setIsUploading(true);
     setUploadProgress(0);
     setUploadStatusMessage('Preparing upload...');
-    setUploadCounts({ current: 0, total: mediaFiles?.length || 1 });
 
     const performUpload = async () => {
       try {
@@ -204,7 +226,6 @@ export default function Home() {
         if (mediaFiles && mediaFiles.length > 0) {
           const filesArray = Array.from(mediaFiles);
           
-          // Filter out files that are too large
           const validFiles = filesArray.filter(file => {
             if (file.size > 99 * 1024 * 1024) {
               toast({
@@ -222,64 +243,65 @@ export default function Home() {
           }
 
           setUploadCounts({ current: 0, total: validFiles.length });
-          setUploadStatusMessage('Reading files...');
+          let uploadedCount = 0;
+          
+          for (let i = 0; i < validFiles.length; i++) {
+            const file = validFiles[i];
+            setUploadCounts(prev => ({ ...prev, current: i + 1 }));
+            setUploadStatusMessage(`Uploading file ${i + 1} of ${validFiles.length}: ${file.name}`);
+            setUploadProgress(0);
 
-          const mediaItemsToUpload = await Promise.all(
-            validFiles.map(file => 
-              new Promise<{mediaDataUri: string; isVideo: boolean, originalFilename: string}>((resolve, reject) => {
+            try {
+              const mediaDataUri = await new Promise<string>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.readAsDataURL(file);
-                reader.onload = () => resolve({
-                  mediaDataUri: reader.result as string,
-                  isVideo: file.type.startsWith('video/'),
-                  originalFilename: file.name,
-                });
+                reader.onload = () => resolve(reader.result as string);
                 reader.onerror = error => reject(error);
-              })
-            )
-          );
+              });
 
-          setUploadStatusMessage(`Starting upload of ${validFiles.length} files...`);
-
-          const { results } = await uploadMultipleMedia({ mediaItems: mediaItemsToUpload });
-          
-          setUploadStatusMessage(`Processing ${results.length} uploaded files...`);
-
-          const newDocs = await Promise.all(results.map(async (result, index) => {
-              setUploadCounts(prev => ({ ...prev, current: index + 1 }));
+              const isVideo = file.type.startsWith('video/');
+              const uploadResult = await uploadMediaWithProgress({ mediaDataUri, isVideo }, setUploadProgress);
+              
               const docData: any = {
-                title: validFiles.length > 1 ? '' : newMedia.title,
+                title: validFiles.length > 1 ? file.name.split('.').slice(0, -1).join('.') : newMedia.title,
                 description: newMedia.description,
-                mediaUrl: result.mediaUrl,
-                thumbnailUrl: result.thumbnailUrl,
-                mediaType: result.isVideo ? 'video' : 'image',
+                mediaUrl: uploadResult.mediaUrl,
+                thumbnailUrl: uploadResult.thumbnailUrl,
+                mediaType: isVideo ? 'video' : 'image',
                 uploadDate: serverTimestamp(),
                 isNude: isForNudes
               };
               
-              if (!result.isVideo) {
-                 docData.dominantColor = '#F0F4F8'; // Placeholder, color extraction can be added
+              addDocumentNonBlocking(mediaCollection, docData);
+              uploadedCount++;
+
+              // Pause between uploads if it's not the last file
+              if (i < validFiles.length - 1) {
+                setUploadStatusMessage(`Waiting 2 seconds...`);
+                setUploadProgress(null); // Hide progress bar during pause
+                await new Promise(resolve => setTimeout(resolve, 2000));
               }
-              return docData;
-          }));
 
-          // Non-blocking writes to Firestore
-          newDocs.forEach(docData => addDocumentNonBlocking(mediaCollection, docData));
+            } catch (fileError: any) {
+              toast({
+                variant: 'destructive',
+                title: `Failed to upload ${file.name}`,
+                description: fileError.message || "An unknown error occurred.",
+              });
+              // Skip to the next file
+            }
+          }
 
-          setUploadProgress(100);
           toast({
-            title: `${results.length} files Added!`,
-            description: 'The new media is now live in the gallery.',
+            title: `Upload Complete`,
+            description: `${uploadedCount} of ${validFiles.length} files were successfully uploaded.`,
           });
-          setUploadStatusMessage(`Completed uploading ${results.length} of ${validFiles.length} files!`);
+          setUploadStatusMessage(`Completed!`);
 
-
-        } else if (imageUrl) { // Single URL upload (Image)
-          setUploadProgress(20);
+        } else if (imageUrl) {
           setUploadStatusMessage('Uploading from URL...');
-          const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
-          if (!uploadResult?.mediaUrl) throw new Error('URL upload failed.');
-          
+          const uploadResult = await uploadMediaWithProgress({ mediaDataUri: imageUrl, isVideo: false }, setUploadProgress);
+
           addDocumentNonBlocking(mediaCollection, {
             ...newMedia,
             mediaUrl: uploadResult.mediaUrl,
@@ -289,10 +311,10 @@ export default function Home() {
             isNude: isForNudes,
             dominantColor: '#F0F4F8',
           });
-          setUploadProgress(100);
           setUploadStatusMessage('URL uploaded successfully.');
 
-        } else if (videoUrl) { // Single URL upload (Video)
+        } else if (videoUrl) {
+          setUploadStatusMessage('Submitting Video URL...');
           setUploadProgress(50);
           addDocumentNonBlocking(mediaCollection, {
             ...newMedia,
@@ -306,7 +328,6 @@ export default function Home() {
         }
 
         setTimeout(() => {
-          setIsUploading(false);
           resetUploadForm();
         }, 3000);
 
@@ -314,10 +335,10 @@ export default function Home() {
         console.error('Upload process failed:', error);
         toast({
           variant: 'destructive',
-          title: 'Upload Failed',
-          description: error.message || 'An unknown error occurred during media processing.',
+          title: 'Upload Process Failed',
+          description: error.message || 'An unknown error occurred during the upload process.',
         });
-        setIsUploading(false); // Stay on the screen to show the error
+        resetUploadForm();
       }
     };
 
@@ -523,7 +544,7 @@ export default function Home() {
                     <span className="font-medium">{uploadCounts.current} / {uploadCounts.total}</span>
                   )}
                 </div>
-                {uploadProgress > 0 && <Progress value={uploadProgress} className="w-full h-2" />}
+                {uploadProgress !== null && <Progress value={uploadProgress} className="w-full h-2" />}
               </div>
             )}
             
