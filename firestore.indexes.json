@@ -1,4 +1,3 @@
-
 {
   "indexes": [
     {
@@ -6,18 +5,12 @@
       "queryScope": "COLLECTION_GROUP",
       "fields": [
         {
-          "fieldPath": "lastReplyAt",
-          "order": "DESCENDING"
-        }
-      ]
-    },
-    {
-      "collectionGroup": "messages",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        {
           "fieldPath": "isRead",
           "order": "ASCENDING"
+        },
+        {
+          "fieldPath": "lastReplyAt",
+          "order": "DESCENDING"
         }
       ]
     }
