@@ -130,7 +130,7 @@ export default function UserMessagesPage() {
   }
 
   const handleSendMessage = async () => {
-    if ((!messageText.trim() && !imageFile) || isUserLoading) return;
+    if ((!messageText.trim() && !imageFile) || isUserLoading || isSending) return;
     if (!user || !firestore || !userMessagesCollection) {
         toast({
             variant: "destructive",
@@ -198,6 +198,8 @@ export default function UserMessagesPage() {
 
         if (finalImageUrl) {
             newMessage.imageUrl = finalImageUrl;
+        } else {
+            delete newMessage.imageUrl;
         }
 
         const newDocRef = await addDocumentNonBlocking(userMessagesCollection, newMessage);
@@ -220,6 +222,8 @@ export default function UserMessagesPage() {
 
         if (finalImageUrl) {
             newReply.imageUrl = finalImageUrl;
+        } else {
+            delete newReply.imageUrl;
         }
         
         addDocumentNonBlocking(repliesCollectionRef, newReply);
@@ -255,9 +259,11 @@ export default function UserMessagesPage() {
     const persistedReplies = replies || [];
     const unconfirmedOptimistic = optimisticReplies.filter(optimistic => 
         !persistedReplies.some(p => 
+            p.sentAt && optimistic.sentAt &&
+            !p.isFromAdmin && // only filter user's optimistic messages
             p.message === optimistic.message &&
-            p.localImagePreviewUrl === optimistic.localImagePreviewUrl &&
-            p.sentAt > optimistic.sentAt
+            // This is a bit tricky. We assume if a message with same text is sent within 5s, it's the same.
+            Math.abs(p.sentAt.toMillis() - optimistic.sentAt.getTime()) < 5000
         )
     );
 
@@ -523,7 +529,7 @@ export default function UserMessagesPage() {
                 disabled={isSending}
               />
               <Button onClick={handleSendMessage} disabled={isSending || (!messageText.trim() && !imageFile)} size="icon" className="shrink-0">
-                {isSending ? <Loader2 className="animate-spin" /> : <Send />}
+                <Send />
                 <span className="sr-only">Send</span>
               </Button>
             </div>

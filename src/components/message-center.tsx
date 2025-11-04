@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo, useEffect, useRef } from 'react';
@@ -170,7 +169,7 @@ export function MessageCenter() {
   };
 
   const handleSendReply = async () => {
-    if ((!replyText.trim() && !imageFile) || !selectedMessage || !firestore) return;
+    if ((!replyText.trim() && !imageFile) || !selectedMessage || !firestore || isReplying) return;
     
     setIsReplying(true);
     const optimisticId = uuidv4();
@@ -218,11 +217,12 @@ export function MessageCenter() {
         sentAt: serverTime,
         isFromAdmin: true,
         isRead: false,
-        imageUrl: finalImageUrl,
       };
 
-      if (!finalImageUrl) {
-        delete newReply.imageUrl;
+      if (finalImageUrl) {
+          newReply.imageUrl = finalImageUrl;
+      } else {
+          delete newReply.imageUrl;
       }
 
       addDocumentNonBlocking(repliesCollectionRef, newReply);
@@ -247,18 +247,16 @@ export function MessageCenter() {
   };
   
   const allReplies = useMemo(() => {
-    // Start with confirmed replies from the server
     const persistedReplies = replies || [];
-  
-    // Filter optimistic replies to only include those not yet confirmed by the server
-    const unconfirmedOptimistic = optimisticReplies.filter(optimistic => {
-      const isConfirmed = persistedReplies.some(
-        p => p.message === optimistic.message && !(p.sentAt instanceof Date)
-      );
-      return !isConfirmed;
-    });
-  
-    // Combine the lists and sort by date.
+    const unconfirmedOptimistic = optimisticReplies.filter(optimistic => 
+        !persistedReplies.some(p => 
+            p.sentAt && optimistic.sentAt &&
+            p.isFromAdmin && // only filter admin's optimistic messages
+            p.message === optimistic.message &&
+            Math.abs(p.sentAt.toMillis() - optimistic.sentAt.getTime()) < 5000
+        )
+    );
+
     const combined = [...persistedReplies, ...unconfirmedOptimistic];
     return combined.sort((a, b) => {
       const timeA = a.sentAt instanceof Date ? a.sentAt.getTime() : a.sentAt?.toMillis() || 0;
@@ -464,7 +462,7 @@ export function MessageCenter() {
               disabled={isReplying}
             />
             <Button onClick={handleSendReply} disabled={isReplying || (!replyText.trim() && !imageFile)} size="icon" className="shrink-0">
-              {isReplying ? <Loader2 className="animate-spin" /> : <Send />}
+              <Send />
               <span className="sr-only">Send</span>
             </Button>
           </div>
