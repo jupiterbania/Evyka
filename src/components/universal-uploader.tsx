@@ -27,7 +27,7 @@ import { AlertTriangle, Film, ImageIcon, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
-type UploadType = 'image' | 'video' | 'reel' | 'nude';
+type UploadType = 'image' | 'video' | 'nude';
 
 type UniversalUploaderProps = {
   children: React.ReactNode;
@@ -90,7 +90,6 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
 
     try {
         const isForNudes = uploadType === 'nude';
-        const isReel = uploadType === 'reel';
 
         if (mediaFiles && mediaFiles.length > 0) {
             const filesArray = Array.from(mediaFiles);
@@ -136,7 +135,6 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
                     mediaType: result.isVideo ? 'video' : 'image',
                     uploadDate: serverTimestamp(),
                     isNude: isForNudes,
-                    isReel: result.isVideo ? isReel : undefined,
                 };
                 addDocumentNonBlocking(mediaCollection, docData);
             }
@@ -177,7 +175,6 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
                 mediaType: 'video',
                 uploadDate: serverTimestamp(),
                 isNude: isForNudes,
-                isReel: isReel,
             });
             toast({ title: 'Video URL Submitted' });
         }
@@ -212,11 +209,7 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
           <Video className="h-8 w-8" />
           Video
         </Button>
-        <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => handleSelectType('reel')}>
-          <Film className="h-8 w-8" />
-          Reel
-        </Button>
-        <Button variant="outline" className="h-24 flex-col gap-2 text-accent border-accent/50 hover:bg-accent/10 hover:text-accent focus-visible:ring-accent" onClick={() => handleSelectType('nude')}>
+        <Button variant="outline" className="h-24 flex-col gap-2 text-accent border-accent/50 hover:bg-accent/10 hover:text-accent focus-visible:ring-accent col-span-2" onClick={() => handleSelectType('nude')}>
           <AlertTriangle className="h-8 w-8" />
           18+ Content
         </Button>
@@ -254,7 +247,7 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
                     setImageUrl(e.target.value);
                     if (e.target.value) { setMediaFiles(null); setVideoUrl(''); }
                 }}
-                disabled={!!mediaFiles?.length || !!videoUrl || uploadType === 'video' || uploadType === 'reel'}
+                disabled={!!mediaFiles?.length || !!videoUrl || uploadType === 'video'}
             />
         </div>
         <div className="grid w-full items-center gap-1.5">

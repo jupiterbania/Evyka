@@ -80,7 +80,6 @@ function ImageManagementInternal() {
         title: selectedMedia.title,
         description: selectedMedia.description,
         thumbnailUrl: selectedMedia.thumbnailUrl,
-        isReel: selectedMedia.isReel,
     };
 
     if (thumbnailFile) {
@@ -180,8 +179,8 @@ function ImageManagementInternal() {
                 <TableCell className="font-medium truncate max-w-xs">{media.title}</TableCell>
                 <TableCell>
                   <Badge variant={media.mediaType === 'video' ? 'default' : 'secondary'} className="capitalize">
-                    {media.isReel ? <Film className="mr-1.5 h-3.5 w-3.5" /> : media.mediaType === 'video' ? <Film className="mr-1.5 h-3.5 w-3.5" /> : <ImageIcon className="mr-1.5 h-3.5 w-3.5" />}
-                    {media.isReel ? 'Reel' : media.mediaType}
+                    {media.mediaType === 'video' ? <Film className="mr-1.5 h-3.5 w-3.5" /> : <ImageIcon className="mr-1.5 h-3.5 w-3.5" />}
+                    {media.mediaType}
                   </Badge>
                 </TableCell>
                 <TableCell className="text-center px-4">
@@ -249,10 +248,6 @@ function ImageManagementInternal() {
                     </div>
                      {selectedMedia.mediaType === 'video' && (
                       <>
-                        <div className="flex items-center space-x-2 mt-2">
-                          <Checkbox id="edit-is-reel" checked={selectedMedia.isReel} onCheckedChange={(checked) => setSelectedMedia(p => p ? {...p, isReel: checked as boolean} : null)} />
-                          <Label htmlFor="edit-is-reel">This is a short-form video (Reel)</Label>
-                        </div>
                         <div className="grid w-full items-center gap-1.5 mt-4">
                           <Label htmlFor="edit-thumbnail-url">Thumbnail URL</Label>
                           <Input
