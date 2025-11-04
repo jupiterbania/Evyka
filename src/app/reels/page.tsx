@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useRef, useEffect } from 'react';
@@ -18,6 +19,7 @@ function ReelCard({ media }: { media: MediaType }) {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting) {
                         videoRef.current?.play().catch(error => {
+                            // Autoplay was prevented.
                             console.warn("Autoplay prevented for reel:", media.id, error);
                         });
                     } else {
@@ -41,7 +43,7 @@ function ReelCard({ media }: { media: MediaType }) {
     }, [media.id]);
 
     return (
-        <div className="h-[calc(100vh-56px)] w-full flex-shrink-0 snap-center flex items-center justify-center bg-black relative">
+        <div className="h-full w-full flex-shrink-0 snap-center flex items-center justify-center bg-black relative">
             <video
                 ref={videoRef}
                 src={media.mediaUrl}
@@ -78,7 +80,7 @@ export default function ReelsPage() {
     const renderContent = () => {
         if (isLoading) {
             return (
-                <div className="flex-grow flex flex-col items-center justify-center text-center">
+                <div className="flex-grow flex flex-col items-center justify-center text-center text-white">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <p className="text-muted-foreground mt-4">Loading Reels...</p>
                 </div>
@@ -87,7 +89,7 @@ export default function ReelsPage() {
 
         if (!reels || reels.length === 0) {
             return (
-                <div className="flex-grow flex items-center justify-center text-center">
+                <div className="flex-grow flex items-center justify-center text-center text-white">
                     <div>
                         <h2 className="text-2xl font-bold mb-4">No Reels Yet</h2>
                         <p className="text-muted-foreground mb-6">Check back later for new short videos!</p>
@@ -109,9 +111,9 @@ export default function ReelsPage() {
     };
 
     return (
-        <div className="flex flex-col h-screen overflow-hidden">
+        <div className="flex flex-col h-screen overflow-hidden bg-black">
             <Header />
-            <main className="flex-1 flex flex-col overflow-hidden bg-black">
+            <main className="flex-1 flex flex-col min-h-0">
                 {renderContent()}
             </main>
         </div>
