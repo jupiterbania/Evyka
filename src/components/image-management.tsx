@@ -51,6 +51,7 @@ import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { addDocumentNonBlocking, deleteDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Textarea } from './ui/textarea';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
+import { uploadMultipleMedia } from '@/ai/flows/upload-multiple-media-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
@@ -159,9 +160,11 @@ function ImageManagementInternal() {
     setVideoUrl('');
     setUploadDialogOpen(false);
     setUploadCounts({ current: 0, total: 0 });
+    setUploadProgress(0);
+    setUploadStatusMessage('');
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!firestore) return;
     const mediaCollectionRef = collection(firestore, 'media');
     if (!mediaFiles?.length && !imageUrl && !videoUrl) {
@@ -176,12 +179,96 @@ function ImageManagementInternal() {
     setUploadDialogOpen(false);
     setIsUploading(true);
     setUploadProgress(0);
-    setUploadStatusMessage('Starting upload...');
+    setUploadStatusMessage('Preparing upload...');
     setUploadCounts({ current: 0, total: mediaFiles?.length || 1 });
 
     const performUpload = async () => {
       try {
-        if (videoUrl) {
+        if (mediaFiles && mediaFiles.length > 0) {
+          const filesArray = Array.from(mediaFiles);
+          
+          const validFiles = filesArray.filter(file => {
+            if (file.size > 99 * 1024 * 1024) {
+              toast({
+                variant: 'destructive',
+                title: 'File Too Large',
+                description: `"${file.name}" is over 99MB and will be skipped.`,
+              });
+              return false;
+            }
+            return true;
+          });
+
+          if (validFiles.length === 0) throw new Error("No valid files to upload.");
+
+          setUploadStatusMessage('Reading files...');
+          setUploadProgress(5);
+
+          const mediaItemsToUpload = await Promise.all(
+            validFiles.map(file => 
+              new Promise<{mediaDataUri: string; isVideo: boolean, originalFilename: string}>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve({
+                  mediaDataUri: reader.result as string,
+                  isVideo: file.type.startsWith('video/'),
+                  originalFilename: file.name,
+                });
+                reader.onerror = error => reject(error);
+              })
+            )
+          );
+
+          setUploadStatusMessage(`Starting upload of ${validFiles.length} files...`);
+          setUploadProgress(10);
+          setUploadCounts({ current: validFiles.length, total: validFiles.length });
+
+          const { results } = await uploadMultipleMedia({ mediaItems: mediaItemsToUpload });
+          
+          setUploadStatusMessage(`Processing ${results.length} uploaded files...`);
+
+          const newDocs = results.map(result => {
+            const docData: any = {
+              title: validFiles.length > 1 ? '' : newMedia.title,
+              description: newMedia.description,
+              mediaUrl: result.mediaUrl,
+              thumbnailUrl: result.thumbnailUrl,
+              mediaType: result.isVideo ? 'video' : 'image',
+              uploadDate: serverTimestamp(),
+            };
+            if (!result.isVideo) {
+              docData.dominantColor = '#F0F4F8';
+            }
+            return docData;
+          });
+
+          newDocs.forEach(docData => addDocumentNonBlocking(mediaCollectionRef, docData));
+          
+          setUploadProgress(100);
+          toast({
+            title: `${results.length} files Added!`,
+            description: 'The new media is now live in the gallery.',
+          });
+          setUploadStatusMessage(`Completed uploading ${results.length} of ${validFiles.length} files!`);
+
+        } else if (imageUrl) {
+          setUploadProgress(20);
+          setUploadStatusMessage('Uploading from URL...');
+          const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
+          if (!uploadResult?.mediaUrl) throw new Error('URL upload failed.');
+          
+          addDocumentNonBlocking(mediaCollectionRef, {
+            ...newMedia,
+            mediaUrl: uploadResult.mediaUrl,
+            thumbnailUrl: uploadResult.thumbnailUrl,
+            mediaType: 'image',
+            uploadDate: serverTimestamp(),
+            dominantColor: '#F0F4F8',
+          });
+          setUploadProgress(100);
+          setUploadStatusMessage('URL uploaded successfully.');
+
+        } else if (videoUrl) {
           setUploadProgress(50);
           addDocumentNonBlocking(mediaCollectionRef, {
             ...newMedia,
@@ -190,128 +277,9 @@ function ImageManagementInternal() {
             uploadDate: serverTimestamp(),
           });
           setUploadProgress(100);
-          setUploadStatusMessage('URL submitted successfully.');
-        } else if (mediaFiles && mediaFiles.length > 0) {
-          const totalFiles = mediaFiles.length;
-          setUploadCounts({ current: 0, total: totalFiles });
-
-          for (let i = 0; i < totalFiles; i++) {
-            const file = mediaFiles[i];
-            const isMultiple = totalFiles > 1;
-
-            setUploadProgress(0); // Reset progress for new file
-            setUploadCounts(prev => ({ ...prev, current: i + 1 }));
-            setUploadStatusMessage(`Uploading file ${i + 1} of ${totalFiles}: "${file.name}"`);
-
-            if (file.size > 99 * 1024 * 1024) {
-              toast({
-                variant: 'destructive',
-                title: 'File Too Large',
-                description: `"${file.name}" is larger than the 99MB limit.`
-              });
-              if (isMultiple && i < totalFiles - 1) {
-                setUploadProgress(0);
-                setUploadStatusMessage(`Skipped large file. Waiting 5 seconds before next upload...`);
-                await new Promise(resolve => setTimeout(resolve, 5000));
-              }
-              continue;
-            }
-
-            const startTime = Date.now();
-
-            const reader = await new Promise<string>((resolve, reject) => {
-              const fileReader = new FileReader();
-              fileReader.readAsDataURL(file);
-              fileReader.onload = () => resolve(fileReader.result as string);
-              fileReader.onerror = (error) => reject(error);
-            });
-            
-            const isVideo = file.type.startsWith('video/');
-            setUploadProgress(10);
-            
-            const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo });
-            setUploadProgress(100);
-
-            const endTime = Date.now();
-            const durationInSeconds = (endTime - startTime) / 1000;
-            const speedKBps = (file.size / 1024) / durationInSeconds;
-
-            setUploadStatusMessage(`Uploaded "${file.name}" in ${durationInSeconds.toFixed(1)}s (Avg: ${speedKBps.toFixed(0)} KB/s)`);
-            
-            if (!uploadResult || !uploadResult.mediaUrl) {
-              throw new Error('Media URL was not returned from the upload service.');
-            }
-            
-            const mediaType = isVideo ? 'video' : 'image';
-            let dominantColor = '#F0F4F8';
-            if (mediaType === 'image') {
-              try {
-                const colorResult = await extractDominantColor({ photoDataUri: reader });
-                dominantColor = colorResult.dominantColor || '#F0F4F8';
-              } catch (colorError) {
-                console.warn("Could not extract color, using default.", colorError);
-              }
-            }
-
-            const docData: any = {
-                title: isMultiple ? '' : newMedia.title,
-                description: newMedia.description,
-                mediaUrl: uploadResult.mediaUrl,
-                mediaType: mediaType,
-                uploadDate: serverTimestamp(),
-            };
-
-            if (uploadResult.thumbnailUrl) {
-                docData.thumbnailUrl = uploadResult.thumbnailUrl;
-            }
-
-            if (mediaType === 'image') {
-                docData.dominantColor = dominantColor;
-            }
-
-            addDocumentNonBlocking(mediaCollectionRef, docData);
-
-            if (isMultiple && i < totalFiles - 1) {
-              setUploadProgress(0); // Hide progress bar during wait
-              setUploadStatusMessage(`Waiting 5 seconds before next upload...`);
-              await new Promise(resolve => setTimeout(resolve, 5000));
-            }
-          }
-        } else if (imageUrl) {
-            setUploadProgress(50);
-            setUploadCounts({ current: 1, total: 1 });
-            const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
-            if (!uploadResult || !uploadResult.mediaUrl) {
-                throw new Error('Media URL was not returned from the upload service.');
-            }
-            
-            const docData: any = {
-                ...newMedia,
-                mediaUrl: uploadResult.mediaUrl,
-                mediaType: 'image',
-                uploadDate: serverTimestamp(),
-            };
-
-            if (uploadResult.thumbnailUrl) {
-                docData.thumbnailUrl = uploadResult.thumbnailUrl;
-            }
-            
-            docData.dominantColor = '#F0F4F8';
-
-            addDocumentNonBlocking(mediaCollectionRef, docData);
-            setUploadProgress(100);
-            setUploadStatusMessage('URL submitted successfully.');
+          setUploadStatusMessage('Video URL submitted.');
         }
         
-        toast({
-          title: mediaFiles && mediaFiles.length > 1 ? `Upload Complete!` : 'Media Uploaded!',
-          description: 'The new media is now live in the gallery.',
-        });
-
-        if (mediaFiles && mediaFiles.length > 0) {
-          setUploadStatusMessage(`Completed uploading ${mediaFiles.length} files!`);
-        }
-
         setTimeout(() => {
           setIsUploading(false);
           resetUploadForm();
@@ -426,15 +394,12 @@ function ImageManagementInternal() {
       {isUploading && (
         <div className="p-4 border-b space-y-2">
             <div className="flex justify-between items-center text-sm">
-                <span className="text-muted-foreground">Uploading...</span>
-                {uploadCounts.total > 1 && (
-                <span className="font-medium">{uploadCounts.current} / {uploadCounts.total}</span>
+                <span className="text-muted-foreground">{uploadStatusMessage}</span>
+                {uploadCounts.total > 0 && (
+                  <span className="font-medium">{uploadCounts.current} / {uploadCounts.total}</span>
                 )}
             </div>
-            {uploadProgress > 0 && <Progress value={uploadProgress} className="w-full h-2" />}
-            <div className="text-sm mt-2 text-muted-foreground text-center">
-                <span>{uploadStatusMessage}</span>
-            </div>
+            <Progress value={uploadProgress} className="w-full h-2" />
         </div>
         )}
 

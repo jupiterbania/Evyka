@@ -1,4 +1,3 @@
-
 'use client';
 import { Header } from '@/components/header';
 import { Footer } from '@/components/footer';
@@ -6,7 +5,7 @@ import { ImageCard } from '@/components/image-card';
 import Image from 'next/image';
 import type { Media as MediaType, SiteSettings, Message } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser, useCollectionGroup } from '@/firebase';
-import { collection, doc, serverTimestamp, query, where, collectionGroup } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, query, collectionGroup } from 'firebase/firestore';
 import { useMemo, useState, useRef, Fragment, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -36,6 +35,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Upload, Film, ImageIcon, AlertTriangle, Loader2, MessageSquare } from 'lucide-react';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
+import { uploadMultipleMedia } from '@/ai/flows/upload-multiple-media-flow';
 import { extractDominantColor } from '@/ai/flows/extract-color-flow';
 import { cn } from '@/lib/utils';
 import { Progress } from '@/components/ui/progress';
@@ -176,9 +176,11 @@ export default function Home() {
     setVideoUrl('');
     setUploadDialogOpen(false);
     setUploadCounts({ current: 0, total: 0 });
+    setUploadProgress(0);
+    setUploadStatusMessage('');
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!firestore || !mediaCollection) return;
     if (!mediaFiles?.length && !imageUrl && !videoUrl) {
       toast({
@@ -192,147 +194,117 @@ export default function Home() {
     setUploadDialogOpen(false);
     setIsUploading(true);
     setUploadProgress(0);
-    setUploadStatusMessage('Starting upload...');
+    setUploadStatusMessage('Preparing upload...');
     setUploadCounts({ current: 0, total: mediaFiles?.length || 1 });
 
     const performUpload = async () => {
       try {
-        let isForNudes = filter === 'nude';
+        const isForNudes = filter === 'nude';
         
-        if (videoUrl) {
-           setUploadProgress(50);
-           const docData: any = {
-              ...newMedia,
-              mediaUrl: videoUrl,
-              mediaType: 'video', 
-              uploadDate: serverTimestamp(),
-              isNude: isForNudes
-           };
-           addDocumentNonBlocking(mediaCollection, docData);
-           setUploadProgress(100);
-           setUploadStatusMessage('URL submitted successfully.');
-
-        } else if (mediaFiles && mediaFiles.length > 0) {
-          const totalFiles = mediaFiles.length;
-          setUploadCounts({ current: 0, total: totalFiles });
+        if (mediaFiles && mediaFiles.length > 0) {
+          const filesArray = Array.from(mediaFiles);
           
-          for (let i = 0; i < totalFiles; i++) {
-            const file = mediaFiles[i];
-            const isMultiple = totalFiles > 1;
-            
-            setUploadProgress(0); // Reset progress for new file
-            setUploadCounts(prev => ({ ...prev, current: i + 1 }));
-            setUploadStatusMessage(`Uploading file ${i + 1} of ${totalFiles}: "${file.name}"`);
-
+          // Filter out files that are too large
+          const validFiles = filesArray.filter(file => {
             if (file.size > 99 * 1024 * 1024) {
               toast({
                 variant: 'destructive',
                 title: 'File Too Large',
-                description: `"${file.name}" is larger than the 99MB limit.`
+                description: `"${file.name}" is over 99MB and will be skipped.`,
               });
-              if (isMultiple && i < totalFiles - 1) {
-                setUploadProgress(0);
-                setUploadStatusMessage(`Skipped large file. Waiting 5 seconds before next upload...`);
-                await new Promise(resolve => setTimeout(resolve, 5000));
+              return false;
+            }
+            return true;
+          });
+
+          if (validFiles.length === 0) {
+            throw new Error("No valid files to upload.");
+          }
+
+          setUploadCounts({ current: 0, total: validFiles.length });
+          setUploadStatusMessage('Reading files...');
+
+          const mediaItemsToUpload = await Promise.all(
+            validFiles.map(file => 
+              new Promise<{mediaDataUri: string; isVideo: boolean, originalFilename: string}>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve({
+                  mediaDataUri: reader.result as string,
+                  isVideo: file.type.startsWith('video/'),
+                  originalFilename: file.name,
+                });
+                reader.onerror = error => reject(error);
+              })
+            )
+          );
+
+          setUploadStatusMessage(`Starting upload of ${validFiles.length} files...`);
+
+          const { results } = await uploadMultipleMedia({ mediaItems: mediaItemsToUpload });
+          
+          setUploadStatusMessage(`Processing ${results.length} uploaded files...`);
+
+          const newDocs = await Promise.all(results.map(async (result, index) => {
+              setUploadCounts(prev => ({ ...prev, current: index + 1 }));
+              const docData: any = {
+                title: validFiles.length > 1 ? '' : newMedia.title,
+                description: newMedia.description,
+                mediaUrl: result.mediaUrl,
+                thumbnailUrl: result.thumbnailUrl,
+                mediaType: result.isVideo ? 'video' : 'image',
+                uploadDate: serverTimestamp(),
+                isNude: isForNudes
+              };
+              
+              if (!result.isVideo) {
+                 docData.dominantColor = '#F0F4F8'; // Placeholder, color extraction can be added
               }
-              continue;
-            }
-            
-            const startTime = Date.now();
+              return docData;
+          }));
 
-            const reader = await new Promise<string>((resolve, reject) => {
-              const fileReader = new FileReader();
-              fileReader.readAsDataURL(file);
-              fileReader.onload = () => resolve(fileReader.result as string);
-              fileReader.onerror = (error) => reject(error);
-            });
+          // Non-blocking writes to Firestore
+          newDocs.forEach(docData => addDocumentNonBlocking(mediaCollection, docData));
 
-            const isVideo = file.type.startsWith('video/');
-            setUploadProgress(10); // Initial progress
-            
-            const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo });
-            setUploadProgress(100);
-            
-            const endTime = Date.now();
-            const durationInSeconds = (endTime - startTime) / 1000;
-            const speedKBps = (file.size / 1024) / durationInSeconds;
-
-            setUploadStatusMessage(`Uploaded "${file.name}" in ${durationInSeconds.toFixed(1)}s (Avg: ${speedKBps.toFixed(0)} KB/s)`);
-
-
-            if (!uploadResult || !uploadResult.mediaUrl) {
-              throw new Error('Media URL was not returned from the upload service.');
-            }
-
-            const mediaType: 'image' | 'video' = isVideo ? 'video' : 'image';
-            
-            let dominantColor = '#F0F4F8';
-            if (mediaType === 'image') {
-              const colorResult = await extractDominantColor({ photoDataUri: reader });
-              dominantColor = colorResult.dominantColor || '#F0F4F8';
-            }
-            
-            const docData: any = {
-              title: isMultiple ? '' : newMedia.title,
-              description: newMedia.description,
-              mediaUrl: uploadResult.mediaUrl,
-              mediaType: mediaType,
-              uploadDate: serverTimestamp(),
-              isNude: isForNudes
-            };
-            
-            if (uploadResult.thumbnailUrl) {
-                docData.thumbnailUrl = uploadResult.thumbnailUrl;
-            }
-
-            if (mediaType === 'image') {
-                docData.dominantColor = dominantColor;
-            }
-            
-            addDocumentNonBlocking(mediaCollection, docData);
-
-            if (isMultiple && i < totalFiles - 1) {
-              setUploadProgress(0); // Hide progress bar during wait
-              setUploadStatusMessage(`Waiting 5 seconds before next upload...`);
-              await new Promise(resolve => setTimeout(resolve, 5000));
-            }
-          }
-        } else if (imageUrl) {
-          setUploadProgress(50);
-          setUploadCounts({ current: 1, total: 1 });
-          const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
-          if (!uploadResult || !uploadResult.mediaUrl) {
-              throw new Error('Media URL was not returned from the upload service.');
-          }
-          
-          const docData: any = {
-              ...newMedia,
-              mediaUrl: uploadResult.mediaUrl,
-              mediaType: 'image',
-              uploadDate: serverTimestamp(),
-              isNude: isForNudes
-          };
-
-          if (uploadResult.thumbnailUrl) {
-              docData.thumbnailUrl = uploadResult.thumbnailUrl;
-          }
-
-          docData.dominantColor = '#F0F4F8';
-          
-          addDocumentNonBlocking(mediaCollection, docData);
           setUploadProgress(100);
-          setUploadStatusMessage('URL submitted successfully.');
+          toast({
+            title: `${results.length} files Added!`,
+            description: 'The new media is now live in the gallery.',
+          });
+          setUploadStatusMessage(`Completed uploading ${results.length} of ${validFiles.length} files!`);
+
+
+        } else if (imageUrl) { // Single URL upload (Image)
+          setUploadProgress(20);
+          setUploadStatusMessage('Uploading from URL...');
+          const uploadResult = await uploadMedia({ mediaDataUri: imageUrl, isVideo: false });
+          if (!uploadResult?.mediaUrl) throw new Error('URL upload failed.');
+          
+          addDocumentNonBlocking(mediaCollection, {
+            ...newMedia,
+            mediaUrl: uploadResult.mediaUrl,
+            thumbnailUrl: uploadResult.thumbnailUrl,
+            mediaType: 'image',
+            uploadDate: serverTimestamp(),
+            isNude: isForNudes,
+            dominantColor: '#F0F4F8',
+          });
+          setUploadProgress(100);
+          setUploadStatusMessage('URL uploaded successfully.');
+
+        } else if (videoUrl) { // Single URL upload (Video)
+          setUploadProgress(50);
+          addDocumentNonBlocking(mediaCollection, {
+            ...newMedia,
+            mediaUrl: videoUrl,
+            mediaType: 'video', 
+            uploadDate: serverTimestamp(),
+            isNude: isForNudes,
+          });
+          setUploadProgress(100);
+          setUploadStatusMessage('Video URL submitted.');
         }
 
-        toast({
-          title: mediaFiles && mediaFiles.length > 1 ? `${mediaFiles.length} files Added!` : 'Media Added!',
-          description: 'The new media is now live in the gallery.',
-        });
-        
-        if (mediaFiles && mediaFiles.length > 0) {
-          setUploadStatusMessage(`Completed uploading ${mediaFiles.length} files!`);
-        }
-        
         setTimeout(() => {
           setIsUploading(false);
           resetUploadForm();
@@ -343,15 +315,15 @@ export default function Home() {
         toast({
           variant: 'destructive',
           title: 'Upload Failed',
-          description:
-            error.message || 'An unknown error occurred during media processing.',
+          description: error.message || 'An unknown error occurred during media processing.',
         });
-        setIsUploading(false);
+        setIsUploading(false); // Stay on the screen to show the error
       }
     };
 
     performUpload();
   };
+
 
   const handleNudesClick = () => {
     if (isAgeConfirmed) {
@@ -546,15 +518,12 @@ export default function Home() {
             {isUploading && (
               <div className="mb-4 space-y-2">
                 <div className="flex justify-between items-center text-sm">
-                  <span className="text-muted-foreground">Uploading...</span>
+                  <span className="text-muted-foreground">{uploadStatusMessage}</span>
                   {uploadCounts.total > 1 && (
                     <span className="font-medium">{uploadCounts.current} / {uploadCounts.total}</span>
                   )}
                 </div>
                 {uploadProgress > 0 && <Progress value={uploadProgress} className="w-full h-2" />}
-                <div className="text-sm mt-2 text-muted-foreground text-center">
-                    <span>{uploadStatusMessage}</span>
-                </div>
               </div>
             )}
             
