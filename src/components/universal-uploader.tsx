@@ -20,7 +20,7 @@ import { Checkbox } from './ui/checkbox';
 import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { useFirestore, useMemoFirebase } from '@/firebase';
+import { useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, serverTimestamp } from 'firebase/firestore';
 import { uploadMultipleMedia } from '@/ai/flows/upload-multiple-media-flow';
 import { AlertTriangle, Film, ImageIcon, Video } from 'lucide-react';
@@ -49,6 +49,7 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
   const [videoUrl, setVideoUrl] = useState('');
 
   const firestore = useFirestore();
+  const { user } = useUser();
   const { toast } = useToast();
   const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
 
@@ -72,7 +73,7 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
   };
 
   const handleUpload = async () => {
-    if (!firestore || !mediaCollection) return;
+    if (!firestore || !mediaCollection || !user) return;
     if (!mediaFiles?.length && !imageUrl && !videoUrl) {
       toast({
         variant: 'destructive',
@@ -137,6 +138,9 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
                     uploadDate: serverTimestamp(),
                     isNude: isForNudes,
                     isReel: isReel || (isForNudes && result.isVideo), // Reels can be nude
+                    authorId: user.uid,
+                    authorName: user.displayName,
+                    authorPhotoUrl: user.photoURL,
                 };
                 addDocumentNonBlocking(mediaCollection, docData);
             }
@@ -165,6 +169,9 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
                 uploadDate: serverTimestamp(),
                 isNude: isForNudes,
                 isReel: false, // Image URLs cannot be reels
+                authorId: user.uid,
+                authorName: user.displayName,
+                authorPhotoUrl: user.photoURL,
              };
              addDocumentNonBlocking(mediaCollection, docData);
              toast({ title: 'Image URL Uploaded!' });
@@ -180,6 +187,9 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
                 uploadDate: serverTimestamp(),
                 isNude: isForNudes,
                 isReel: isReel || (isForNudes && videoUrl.length > 0),
+                authorId: user.uid,
+                authorName: user.displayName,
+                authorPhotoUrl: user.photoURL,
             });
             toast({ title: 'Video URL Submitted' });
         }
@@ -290,9 +300,9 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
 
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && resetAll()}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if(!open) resetAll() }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={() => step === 1 && resetAll()}>
+      <DialogContent onInteractOutside={(e) => { if(isUploading) e.preventDefault()}} onEscapeKeyDown={(e) => {if(isUploading) e.preventDefault()}}>
         {step === 1 ? renderStepOne() : renderStepTwo()}
       </DialogContent>
     </Dialog>

@@ -22,6 +22,7 @@ import {
   Heart,
   MessageCircle,
   Send,
+  Loader2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -72,10 +73,12 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { cn } from '@/lib/utils';
+import { Checkbox } from './ui/checkbox';
 
 type ImageCardProps = {
   media: MediaType;
   index?: number;
+  showAdminControls?: boolean;
 };
 
 // --- Time-based Like Calculation Logic ---
@@ -152,7 +155,7 @@ const calculateInitialComments = (likes: number): number => {
   return Math.floor(likes * percentage);
 };
 
-export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
+export function ImageCard({ media: mediaItem, index = 0, showAdminControls = false }: ImageCardProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const auth = useAuth();
@@ -163,6 +166,12 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
   const [likeCount, setLikeCount] = useState<number | null>(null);
   const [commentCount, setCommentCount] = useState<number | null>(null);
   const [baseCommentCount, setBaseCommentCount] = useState(0);
+  
+  const [isEditDialogOpen, setEditDialogOpen] = useState(false);
+  const [mediaToEdit, setMediaToEdit] = useState<Partial<MediaType> & { id: string } | null>(null);
+  const [mediaToDelete, setMediaToDelete] = useState<MediaType | null>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
+
 
   // Memoize the initial likes and comments so they are stable per card
   const initialCounts = useMemo(() => {
@@ -221,6 +230,64 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
         };
     }
   }, [videoRef, mediaItem.id]);
+
+  const isOwner = user && user.uid === mediaItem.authorId;
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMediaToEdit(mediaItem);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setMediaToDelete(mediaItem);
+  };
+  
+  const confirmDelete = () => {
+    if (!mediaToDelete || !firestore) return;
+    const docRef = doc(firestore, 'media', mediaToDelete.id);
+    deleteDocumentNonBlocking(docRef);
+
+    toast({
+        title: "Media Deleted",
+        description: "The media has been successfully removed.",
+        variant: "destructive",
+      });
+    setMediaToDelete(null);
+  }
+  
+  const handleSaveEdit = async () => {
+    if (!mediaToEdit || !firestore) return;
+    setIsUpdating(true);
+
+    const docRef = doc(firestore, 'media', mediaToEdit.id);
+    
+    try {
+      await updateDocumentNonBlocking(docRef, {
+        title: mediaToEdit.title,
+        description: mediaToEdit.description,
+        isNude: mediaToEdit.isNude,
+        isReel: mediaToEdit.isReel,
+      });
+
+      toast({
+          title: "Media Updated",
+          description: "The media details have been successfully updated.",
+      });
+      setEditDialogOpen(false);
+      setMediaToEdit(null);
+    } catch(error: any) {
+        toast({
+          variant: 'destructive',
+          title: 'Update Failed',
+          description: error.message || 'An unknown error occurred.',
+        });
+    } finally {
+        setIsUpdating(false);
+    }
+  }
+
 
   const formatCount = (count: number | null): string => {
     if (count === null) return '...';
@@ -329,10 +396,29 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
         style={{ animationDelay: `${index * 50}ms` }}
         onClick={handleCardClick}
       >
-        <CardHeader className="p-0">
+        <CardHeader className="p-0 relative">
           <div className="relative aspect-[3/4] w-full overflow-hidden bg-card rounded-t-lg">
               {renderMedia()}
           </div>
+          {showAdminControls && isOwner && (
+            <div className="absolute top-2 right-2">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                    <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full" onClick={(e) => e.stopPropagation()}>
+                        <MoreVertical className="h-4 w-4" />
+                    </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                        <DropdownMenuItem onClick={handleEditClick}>
+                            <Edit className="mr-2 h-4 w-4" /> Edit
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={handleDeleteClick} className="text-destructive focus:text-destructive">
+                            <Trash2 className="mr-2 h-4 w-4" /> Delete
+                        </DropdownMenuItem>
+                    </DropdownMenuContent>
+                </DropdownMenu>
+            </div>
+          )}
         </CardHeader>
         <CardContent className="p-4 flex-grow flex flex-col">
             <div className="flex-grow">
@@ -356,6 +442,61 @@ export function ImageCard({ media: mediaItem, index = 0 }: ImageCardProps) {
             </div>
         </CardFooter>
       </Card>
+      
+      <AlertDialog open={!!mediaToDelete} onOpenChange={(open) => !open && setMediaToDelete(null)}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This action cannot be undone. This will permanently delete the media from the platform.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={(e) => { e.stopPropagation(); setMediaToDelete(null); }}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+                Delete
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <Dialog open={isEditDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent onClick={(e) => e.stopPropagation()}>
+            <DialogHeader>
+            <DialogTitle>Edit Media</DialogTitle>
+            <DialogDescription>
+                Update the details for this media item.
+            </DialogDescription>
+            </DialogHeader>
+            {mediaToEdit && <div className="grid gap-4 py-4 max-h-[70vh] overflow-y-auto pr-4">
+                <div className="grid w-full items-center gap-1.5">
+                    <Label htmlFor="edit-title">Title</Label>
+                    <Input id="edit-title" value={mediaToEdit.title || ''} onChange={(e) => setMediaToEdit(p => p ? {...p, title: e.target.value} : null)} />
+                </div>
+                <div className="grid w-full items-center gap-1.5">
+                    <Label htmlFor="edit-description">Description</Label>
+                    <Textarea id="edit-description" value={mediaToEdit.description || ''} onChange={(e) => setMediaToEdit(p => p ? {...p, description: e.target.value} : null)} />
+                </div>
+                <div className="flex items-center space-x-2 mt-2">
+                    <Checkbox id="isReel" checked={!!mediaToEdit.isReel} onCheckedChange={(checked) => setMediaToEdit(p => p ? {...p, isReel: !!checked} : null) } />
+                    <Label htmlFor="isReel">Mark as Reel</Label>
+                </div>
+                <div className="flex items-center space-x-2 mt-2">
+                    <Checkbox id="isNude" checked={!!mediaToEdit.isNude} onCheckedChange={(checked) => setMediaToEdit(p => p ? {...p, isNude: !!checked} : null) } />
+                    <Label htmlFor="isNude">Mark as 18+ Content</Label>
+                </div>
+            </div>}
+            <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
+                <DialogClose asChild>
+                    <Button type="button" variant="secondary" onClick={(e) => { e.stopPropagation(); setEditDialogOpen(false)}}>Cancel</Button>
+                </DialogClose>
+                <Button onClick={handleSaveEdit} disabled={isUpdating}>
+                    {isUpdating && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    {isUpdating ? 'Saving...' : 'Save Changes'}
+                </Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
