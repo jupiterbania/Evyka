@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useRef, useEffect } from 'react';
@@ -19,8 +18,6 @@ function ReelCard({ media }: { media: MediaType }) {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting) {
                         videoRef.current?.play().catch(error => {
-                            // Autoplay was prevented. This is common in browsers.
-                            // The video will have controls if the user needs to manually play it.
                             console.warn("Autoplay prevented for reel:", media.id, error);
                         });
                     } else {
@@ -28,7 +25,7 @@ function ReelCard({ media }: { media: MediaType }) {
                     }
                 });
             },
-            { threshold: 0.5 } // Play when at least 50% of the video is visible
+            { threshold: 0.5 } 
         );
 
         const currentVideoRef = videoRef.current;
@@ -103,7 +100,7 @@ export default function ReelsPage() {
         }
 
         return (
-            <div className="h-full snap-y snap-mandatory overflow-y-auto">
+            <div className="h-full w-full snap-y snap-mandatory overflow-y-auto">
                 {reels.map(reel => (
                     <ReelCard key={reel.id} media={reel} />
                 ))}
@@ -114,7 +111,7 @@ export default function ReelsPage() {
     return (
         <div className="flex flex-col h-screen overflow-hidden">
             <Header />
-            <main className="flex-1 flex flex-col overflow-hidden">
+            <main className="flex-1 flex flex-col overflow-hidden bg-black">
                 {renderContent()}
             </main>
         </div>
