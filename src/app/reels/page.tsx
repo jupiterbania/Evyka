@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useRef, useEffect } from 'react';
@@ -18,41 +19,37 @@ function ReelCard({ media }: { media: MediaType }) {
 
         const observer = new IntersectionObserver(
             (entries) => {
-                entries.forEach((entry) => {
-                    if (entry.isIntersecting) {
-                        videoElement.play().catch(error => {
-                            if (error.name === 'NotAllowedError') {
-                                videoElement.muted = true;
-                                videoElement.play().catch(e => console.error("Muted autoplay also failed:", e));
-                            }
-                        });
-                    } else {
-                        videoElement.pause();
-                    }
-                });
+                const [entry] = entries;
+                if (entry.isIntersecting) {
+                    // Attempt to play, muting if necessary
+                    videoElement.play().catch(error => {
+                        if (error.name === 'NotAllowedError') {
+                            videoElement.muted = true;
+                            videoElement.play().catch(e => console.error("Muted autoplay failed:", e));
+                        }
+                    });
+                } else {
+                    videoElement.pause();
+                }
             },
-            { threshold: 0.5 }
+            { threshold: 0.5 } // Play when 50% of the video is visible
         );
 
         observer.observe(videoElement);
 
         return () => {
+            // Clean up: pause and unobserve when the component is unmounted
             if (videoElement) {
                 videoElement.pause();
-                videoElement.src = '';
                 observer.unobserve(videoElement);
             }
         };
-    }, [media.id]);
+    }, [media.id]); // Dependency on media.id to re-run for new videos
     
     const handleVideoClick = () => {
         const videoElement = videoRef.current;
         if (videoElement) {
-            if (videoElement.paused) {
-                videoElement.play();
-            } else {
-                videoElement.pause();
-            }
+            videoElement.muted = !videoElement.muted;
         }
     };
 
@@ -65,7 +62,8 @@ function ReelCard({ media }: { media: MediaType }) {
                 playsInline
                 className="w-full h-full object-contain"
                 poster={media.thumbnailUrl}
-                onClick={handleVideoClick}
+                onClick={handleVideoClick} // Toggle mute on click
+                preload="metadata"
             />
             <div className="absolute bottom-10 left-0 p-4 bg-gradient-to-t from-black/60 to-transparent w-full text-white pointer-events-none">
                 <h3 className="font-bold text-lg drop-shadow-md">{media.title}</h3>
