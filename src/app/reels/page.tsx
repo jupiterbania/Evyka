@@ -16,17 +16,29 @@ function ReelCard({ media }: { media: MediaType }) {
         const observer = new IntersectionObserver(
             (entries) => {
                 entries.forEach((entry) => {
+                    const videoElement = videoRef.current;
+                    if (!videoElement) return;
+
                     if (entry.isIntersecting) {
-                        videoRef.current?.play().catch(error => {
-                            // Autoplay was prevented.
-                            console.warn("Autoplay prevented for reel:", media.id, error);
+                        // Attempt to play the video when it becomes visible
+                        videoElement.play().catch(error => {
+                            // If autoplay is blocked, the video will be muted and then played.
+                            // This is a common browser policy.
+                            if (error.name === 'NotAllowedError') {
+                                console.warn("Autoplay was prevented. Muting video to attempt playback.", media.id);
+                                videoElement.muted = true;
+                                videoElement.play().catch(e => console.error("Muted autoplay also failed:", e));
+                            } else {
+                                console.error("Video play failed for an unknown reason:", error);
+                            }
                         });
                     } else {
-                        videoRef.current?.pause();
+                        // Pause the video when it goes out of view
+                        videoElement.pause();
                     }
                 });
             },
-            { threshold: 0.5 } 
+            { threshold: 0.5 } // Trigger when 50% of the video is visible
         );
 
         const currentVideoRef = videoRef.current;
@@ -42,12 +54,11 @@ function ReelCard({ media }: { media: MediaType }) {
     }, [media.id]);
 
     return (
-        <div className="h-full w-full flex-shrink-0 snap-center flex items-center justify-center bg-black relative">
+        <div className="relative h-full w-full flex-shrink-0 snap-center flex items-center justify-center bg-black">
             <video
                 ref={videoRef}
                 src={media.mediaUrl}
                 loop
-                muted
                 playsInline
                 className="w-full h-full object-contain"
                 poster={media.thumbnailUrl}
@@ -110,9 +121,9 @@ export default function ReelsPage() {
     };
 
     return (
-        <div className="flex flex-col h-screen overflow-hidden bg-black">
+        <div className="flex flex-col h-screen bg-black">
             <Header />
-            <main className="flex-1 flex flex-col min-h-0">
+            <main className="flex-1 min-h-0">
                 {renderContent()}
             </main>
         </div>
