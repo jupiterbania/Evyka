@@ -209,6 +209,11 @@ function ImageManagementInternal() {
                 title: 'File Too Large',
                 description: `"${file.name}" is larger than the 99MB limit.`
               });
+              if (isMultiple && i < totalFiles - 1) {
+                setUploadProgress(0);
+                setUploadStatusMessage(`Skipped large file. Waiting 5 seconds before next upload...`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
+              }
               continue;
             }
 
@@ -314,7 +319,7 @@ function ImageManagementInternal() {
         setTimeout(() => {
           setIsUploading(false);
           resetUploadForm();
-        }, 1000);
+        }, 3000);
 
       } catch (error: any) {
         console.error('Upload process failed:', error);
@@ -608,4 +613,5 @@ export function ImageManagement() {
   return <ImageManagementInternal />;
 }
 
+    
     

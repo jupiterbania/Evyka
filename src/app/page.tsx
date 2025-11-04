@@ -223,6 +223,20 @@ export default function Home() {
             setUploadProgress(0); // Reset progress for new file
             setUploadCounts(prev => ({ ...prev, current: i + 1 }));
             setUploadStatusMessage(`Uploading file ${i + 1} of ${totalFiles}: "${file.name}"`);
+
+            if (file.size > 99 * 1024 * 1024) {
+              toast({
+                variant: 'destructive',
+                title: 'File Too Large',
+                description: `"${file.name}" is larger than the 99MB limit.`
+              });
+              if (isMultiple && i < totalFiles - 1) {
+                setUploadProgress(0);
+                setUploadStatusMessage(`Skipped large file. Waiting 5 seconds before next upload...`);
+                await new Promise(resolve => setTimeout(resolve, 5000));
+              }
+              continue;
+            }
             
             const startTime = Date.now();
 
@@ -326,7 +340,7 @@ export default function Home() {
         setTimeout(() => {
           setIsUploading(false);
           resetUploadForm();
-        }, 1000);
+        }, 3000);
 
       } catch (error: any) {
         console.error('Upload process failed:', error);
@@ -455,7 +469,7 @@ export default function Home() {
                     <DialogHeader>
                       <DialogTitle>Upload New Media</DialogTitle>
                       <DialogDescription>
-                        Select files or provide a URL to add to the '{filter}' category.
+                        Select files or provide a URL to add to the '{filter}' category. Max size is 99MB.
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
@@ -623,4 +637,5 @@ export default function Home() {
   );
 }
 
+    
     
