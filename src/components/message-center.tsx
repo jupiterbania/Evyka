@@ -12,13 +12,13 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import {
   addDocumentNonBlocking,
   updateDocumentNonBlocking,
 } from '@/firebase/non-blocking-updates';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
-import type { Message, Reply } from '@/lib/types';
+import type { Message, Reply, User as AppUser } from '@/lib/types';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -47,6 +47,8 @@ import { Send, ArrowLeft, Loader2, Image as ImageIcon, X, Clock, AlertTriangle, 
 import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { ScrollArea } from './ui/scroll-area';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+
 
 export function MessageCenter() {
   const firestore = useFirestore();
@@ -70,6 +72,24 @@ export function MessageCenter() {
   const [isReplying, setIsReplying] = useState(false);
   const [optimisticReplies, setOptimisticReplies] = useState<Reply[]>([]);
   const [selectedTimestamp, setSelectedTimestamp] = useState<string | null>(null);
+
+  // Fetch the user profile for the selected message
+  const userDocRef = useMemoFirebase(() => {
+    if (firestore && selectedMessage) {
+      return doc(firestore, 'users', selectedMessage.userId);
+    }
+    return null;
+  }, [firestore, selectedMessage]);
+  const { data: selectedUser } = useDoc<AppUser>(userDocRef);
+
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    if (names.length > 1 && names[0] && names[names.length - 1]) {
+      return names[0][0] + names[names.length - 1][0];
+    }
+    return name.substring(0, 2);
+  };
 
 
   const sortedMessages = useMemo(() => {
@@ -288,14 +308,18 @@ export function MessageCenter() {
   const renderDetailView = () => (
     <Dialog open={!!selectedMessage} onOpenChange={(open) => !open && setSelectedMessage(null)}>
       <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
-        <DialogHeader className="p-6 pb-4 border-b">
+        <DialogHeader className="p-4 border-b">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" className="shrink-0 -ml-2" onClick={() => setSelectedMessage(null)}>
               <ArrowLeft />
             </Button>
+             <Avatar>
+                <AvatarImage src={selectedUser?.profileImageUrl} alt={selectedUser?.username} />
+                <AvatarFallback>{getInitials(selectedUser?.username)}</AvatarFallback>
+            </Avatar>
             <div>
-              <DialogTitle>Conversation with {selectedMessage?.name}</DialogTitle>
-              <DialogDescription>{selectedMessage?.email}</DialogDescription>
+              <DialogTitle>{selectedUser?.username || selectedMessage?.name}</DialogTitle>
+              <DialogDescription>{selectedUser?.email || selectedMessage?.email}</DialogDescription>
             </div>
           </div>
         </DialogHeader>
@@ -510,5 +534,3 @@ export function MessageCenter() {
     </Card>
   );
 }
-
-    
