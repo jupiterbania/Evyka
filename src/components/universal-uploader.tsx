@@ -27,7 +27,7 @@ import { AlertTriangle, Film, ImageIcon, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 
-type UploadType = 'image' | 'video' | 'nude';
+type UploadType = 'image' | 'reel' | 'nude';
 
 type UniversalUploaderProps = {
   children: React.ReactNode;
@@ -90,6 +90,7 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
 
     try {
         const isForNudes = uploadType === 'nude';
+        const isReel = uploadType === 'reel';
 
         if (mediaFiles && mediaFiles.length > 0) {
             const filesArray = Array.from(mediaFiles);
@@ -135,6 +136,7 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
                     mediaType: result.isVideo ? 'video' : 'image',
                     uploadDate: serverTimestamp(),
                     isNude: isForNudes,
+                    isReel: isReel || (isForNudes && result.isVideo), // Reels can be nude
                 };
                 addDocumentNonBlocking(mediaCollection, docData);
             }
@@ -162,6 +164,7 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
                 mediaType: 'image',
                 uploadDate: serverTimestamp(),
                 isNude: isForNudes,
+                isReel: false, // Image URLs cannot be reels
              };
              addDocumentNonBlocking(mediaCollection, docData);
              toast({ title: 'Image URL Uploaded!' });
@@ -172,9 +175,11 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
                 title: newMedia.title,
                 description: newMedia.description,
                 mediaUrl: videoUrl,
+                thumbnailUrl: '', // No automatic thumbnail for URLs
                 mediaType: 'video',
                 uploadDate: serverTimestamp(),
                 isNude: isForNudes,
+                isReel: isReel || (isForNudes && videoUrl.length > 0),
             });
             toast({ title: 'Video URL Submitted' });
         }
@@ -205,9 +210,9 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
           <ImageIcon className="h-8 w-8" />
           Image
         </Button>
-        <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => handleSelectType('video')}>
+        <Button variant="outline" className="h-24 flex-col gap-2" onClick={() => handleSelectType('reel')}>
           <Video className="h-8 w-8" />
-          Video
+          Reel
         </Button>
         <Button variant="outline" className="h-24 flex-col gap-2 text-accent border-accent/50 hover:bg-accent/10 hover:text-accent focus-visible:ring-accent col-span-2" onClick={() => handleSelectType('nude')}>
           <AlertTriangle className="h-8 w-8" />
@@ -247,12 +252,12 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
                     setImageUrl(e.target.value);
                     if (e.target.value) { setMediaFiles(null); setVideoUrl(''); }
                 }}
-                disabled={!!mediaFiles?.length || !!videoUrl || uploadType === 'video'}
+                disabled={!!mediaFiles?.length || !!videoUrl || uploadType === 'reel'}
             />
         </div>
         <div className="grid w-full items-center gap-1.5">
-            <Label htmlFor="videoUrl-universal">Video URL</Label>
-            <Input id="videoUrl-universal" type="text" placeholder="https://youtube.com/watch?v=..." value={videoUrl}
+            <Label htmlFor="videoUrl-universal">Video URL (e.g. Google Drive)</Label>
+            <Input id="videoUrl-universal" type="text" placeholder="https://drive.google.com/..." value={videoUrl}
                 onChange={(e) => {
                     setVideoUrl(e.target.value);
                     if (e.target.value) { setMediaFiles(null); setImageUrl(''); }
@@ -268,8 +273,7 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
             </div>
         )}
         <div className="grid w-full items-center gap-1.5">
-            <Label htmlFor="description-universal">Description</Label>
-            <Textarea id="description-universal" placeholder="A detailed description of the media." value={newMedia.description} onChange={(e) => setNewMedia({...newMedia, description: e.target.value})}/>
+            <Label htmlFor="description-universal">Description</Label>            <Textarea id="description-universal" placeholder="A detailed description of the media." value={newMedia.description} onChange={(e) => setNewMedia({...newMedia, description: e.target.value})}/>
         </div>
       </div>
        <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
@@ -286,7 +290,7 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
 
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && resetAll()}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent onInteractOutside={(e) => e.preventDefault()} onEscapeKeyDown={() => step === 1 && resetAll()}>
         {step === 1 ? renderStepOne() : renderStepTwo()}

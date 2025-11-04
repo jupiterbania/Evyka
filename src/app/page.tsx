@@ -26,7 +26,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Loader2, MessageSquare, ChevronDown, AlertTriangle, Film, ImageIcon } from 'lucide-react';
+import { Loader2, MessageSquare, ChevronDown, AlertTriangle, Film, ImageIcon, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MessageDialog } from '@/components/message-dialog';
 import Link from 'next/link';
@@ -42,7 +42,7 @@ export default function Home() {
   const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
   const { data: media, isLoading } = useCollection<MediaType>(mediaCollection);
 
-  const [filter, setFilter] = useState<'image' | 'video' | 'nude'>('image');
+  const [filter, setFilter] = useState<'image' | 'nude'>('image');
 
   const sortedMedia = useMemo(() => {
     if (!media) return [];
@@ -54,15 +54,15 @@ export default function Home() {
   }, [media]);
 
   const filteredMedia = useMemo(() => {
+    // Show only non-reel images
+    if (filter === 'image') {
+      return sortedMedia.filter(item => item.mediaType === 'image' && !item.isNude);
+    }
+    // Nudes can be images or videos/reels
     if (filter === 'nude') {
       return sortedMedia.filter(item => item.isNude);
     }
-    if (filter === 'video') {
-      // Exclude reels from the main video gallery
-      return sortedMedia.filter(item => item.mediaType === 'video' && !item.isReel && !item.isNude);
-    }
-    // Default filter for 'image' should not show nudes
-    return sortedMedia.filter(item => item.mediaType === filter && !item.isNude);
+    return [];
   }, [sortedMedia, filter]);
 
 
@@ -229,9 +229,11 @@ export default function Home() {
                     <ImageIcon className="mr-2 h-4 w-4" />
                     Images
                 </Button>
-                <Button variant={filter === 'video' ? 'default' : 'ghost'} onClick={() => setFilter('video')} className="px-4 py-2 h-auto">
-                    <Film className="mr-2 h-4 w-4" />
-                    Videos
+                <Button variant='ghost' asChild className="px-4 py-2 h-auto">
+                    <Link href="/reels">
+                        <Video className="mr-2 h-4 w-4" />
+                        Reels
+                    </Link>
                 </Button>
                 <Button 
                   variant={filter === 'nude' ? 'default' : 'ghost'}
@@ -256,7 +258,7 @@ export default function Home() {
               </div>
             ) : paginatedMedia.length === 0 ? (
               <p className="col-span-full text-center text-muted-foreground min-h-[30vh] flex items-center justify-center">
-                No media in the '{filter}' category yet.
+                No media in this category yet.
               </p>
             ) : (
               <>
