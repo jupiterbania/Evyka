@@ -5,7 +5,7 @@ import { ImageCard } from '@/components/image-card';
 import Image from 'next/image';
 import type { Media as MediaType, SiteSettings, Message } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser, useCollectionGroup } from '@/firebase';
-import { collection, doc, serverTimestamp, query, where, collectionGroup } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, query, where } from 'firebase/firestore';
 import { useMemo, useState, useRef, Fragment, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
@@ -613,7 +613,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
-
-    
