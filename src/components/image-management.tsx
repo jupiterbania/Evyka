@@ -227,13 +227,9 @@ function ImageManagementInternal() {
             });
             
             const isVideo = file.type.startsWith('video/');
-            // A simple progress simulation
-            const progressInterval = setInterval(() => {
-              setUploadProgress(prev => Math.min(prev + 10, 90));
-            }, 300);
+            setUploadProgress(10);
             
             const uploadResult = await uploadMedia({ mediaDataUri: reader, isVideo });
-            clearInterval(progressInterval);
             setUploadProgress(100);
 
             const endTime = Date.now();
