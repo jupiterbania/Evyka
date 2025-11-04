@@ -278,7 +278,7 @@ export default function Home() {
               // Pause between uploads if it's not the last file
               if (i < validFiles.length - 1) {
                 setUploadStatusMessage(`Waiting 2 seconds...`);
-                setUploadProgress(null); // Hide progress bar during pause
+                setUploadProgress(null);
                 await new Promise(resolve => setTimeout(resolve, 2000));
               }
 
@@ -514,7 +514,7 @@ export default function Home() {
                       {showTitleInput && (
                           <div className="grid w-full items-center gap-1.5 mt-4">
                               <Label htmlFor="title">Title</Label>
-                              <Input id="title" type="text" placeholder="A beautiful landscape (optional)" value={newMedia.title} onChange={(e) => setNewMedia({...newMedia, title: e.target.value})} />
+                              <Input id="title" type="text" placeholder="A beautiful landscape" value={newMedia.title} onChange={(e) => setNewMedia({...newMedia, title: e.target.value})} />
                           </div>
                       )}
                       <div className="grid w-full items-center gap-1.5">
