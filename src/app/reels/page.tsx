@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useRef, useEffect } from 'react';
@@ -26,23 +25,23 @@ function ReelCard({ media }: { media: MediaType }) {
                     }
                 });
             },
-            { threshold: 0.5 }
+            { threshold: 0.5 } // Play when at least 50% of the video is visible
         );
 
-        if (videoRef.current) {
-            observer.observe(videoRef.current);
+        const currentVideoRef = videoRef.current;
+        if (currentVideoRef) {
+            observer.observe(currentVideoRef);
         }
 
         return () => {
-            if (videoRef.current) {
-                // eslint-disable-next-line react-hooks/exhaustive-deps
-                observer.unobserve(videoRef.current);
+            if (currentVideoRef) {
+                observer.unobserve(currentVideoRef);
             }
         };
     }, [media.id]);
 
     return (
-        <div className="w-full max-w-sm h-[80vh] bg-black rounded-lg overflow-hidden snap-center relative shadow-lg">
+        <div className="h-screen w-full flex-shrink-0 snap-center flex items-center justify-center bg-black relative">
             <video
                 ref={videoRef}
                 src={media.mediaUrl}
@@ -52,9 +51,9 @@ function ReelCard({ media }: { media: MediaType }) {
                 className="w-full h-full object-contain"
                 poster={media.thumbnailUrl}
             />
-            <div className="absolute bottom-0 left-0 p-4 bg-gradient-to-t from-black/50 to-transparent w-full text-white">
-                <h3 className="font-bold text-lg">{media.title}</h3>
-                <p className="text-sm">{media.description}</p>
+            <div className="absolute bottom-10 left-0 p-4 bg-gradient-to-t from-black/60 to-transparent w-full text-white">
+                <h3 className="font-bold text-lg drop-shadow-md">{media.title}</h3>
+                <p className="text-sm drop-shadow-sm">{media.description}</p>
             </div>
         </div>
     );
@@ -79,7 +78,7 @@ export default function ReelsPage() {
     const renderContent = () => {
         if (isLoading) {
             return (
-                <div className="flex-grow flex flex-col items-center justify-center p-4 text-center">
+                <div className="flex-grow flex flex-col items-center justify-center text-center">
                     <Loader2 className="h-12 w-12 animate-spin text-primary" />
                     <p className="text-muted-foreground mt-4">Loading Reels...</p>
                 </div>
@@ -101,7 +100,7 @@ export default function ReelsPage() {
         }
 
         return (
-            <div className="flex-grow flex flex-col items-center justify-start py-8 gap-8 snap-y snap-mandatory overflow-y-auto h-[calc(100vh-56px)]">
+            <div className="h-full snap-y snap-mandatory overflow-y-auto">
                 {reels.map(reel => (
                     <ReelCard key={reel.id} media={reel} />
                 ))}
@@ -110,11 +109,9 @@ export default function ReelsPage() {
     };
 
     return (
-        <div 
-            className="flex flex-col h-screen overflow-hidden"
-        >
+        <div className="flex flex-col h-screen overflow-hidden">
             <Header />
-            <main className="flex-grow flex flex-col items-stretch justify-center">
+            <main className="flex-grow flex flex-col items-stretch justify-center h-full min-h-0">
                 {renderContent()}
             </main>
         </div>
