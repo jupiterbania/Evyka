@@ -82,12 +82,15 @@ export default function Home() {
   const isAdmin = user?.email === designatedAdminEmail;
 
   // --- Unread Messages Logic ---
-  const unreadMessagesQuery = useMemoFirebase(
-    () => (firestore && isAdmin ? query(collectionGroup(firestore, 'messages'), where('isRead', '==', false)) : null),
+  const allMessagesQuery = useMemoFirebase(
+    () => (firestore && isAdmin ? collectionGroup(firestore, 'messages') : null),
     [firestore, isAdmin]
   );
-  const { data: unreadMessages } = useCollectionGroup<Message>(unreadMessagesQuery);
-  const unreadCount = unreadMessages?.length || 0;
+  const { data: allMessages } = useCollectionGroup<Message>(allMessagesQuery);
+  const unreadCount = useMemo(() => {
+    if (!allMessages) return 0;
+    return allMessages.filter(msg => !msg.isRead).length;
+  }, [allMessages]);
   // --- End Unread Messages Logic ---
 
   // State for upload dialog
