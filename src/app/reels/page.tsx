@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useRef, useEffect } from 'react';
@@ -18,6 +19,8 @@ function ReelCard({ media }: { media: MediaType }) {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting) {
                         videoRef.current?.play().catch(error => {
+                            // Autoplay was prevented. This is common in browsers.
+                            // The video will have controls if the user needs to manually play it.
                             console.warn("Autoplay prevented for reel:", media.id, error);
                         });
                     } else {
