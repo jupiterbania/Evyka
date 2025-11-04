@@ -142,9 +142,6 @@ export default function UserMessagesPage() {
     const optimisticId = uuidv4();
     const now = new Date();
 
-    // Create an optimistic object for immediate UI feedback.
-    // If it's a new thread, this will act as the first message.
-    // If it's a reply, it's a standard optimistic reply.
     const optimisticMessage: Reply = {
       id: optimisticId,
       message: messageText,
@@ -155,7 +152,6 @@ export default function UserMessagesPage() {
       localImagePreviewUrl: imagePreview ?? undefined,
     };
     
-    // Add to optimistic replies regardless of whether it's a new thread or a reply.
     setOptimisticReplies(prev => [...prev, optimisticMessage]);
     resetInput();
     scrollToBottom();
@@ -183,22 +179,23 @@ export default function UserMessagesPage() {
 
       if (!userMessageThread) {
         // This is the first message of a new thread.
-        const newMessage: Omit<Message, 'id'> = {
+        const newMessage: any = {
             firstMessage: messageText,
             userId: user.uid,
             email: user.email || '',
             name: user.displayName || 'New User',
-            createdAt: serverTime as any,
+            createdAt: serverTime,
             isRead: false,
-            lastReplyAt: serverTime as any,
+            lastReplyAt: serverTime,
             lastMessageSnippet,
             imageUrl: finalImageUrl,
         };
 
+        if (!finalImageUrl) {
+            delete newMessage.imageUrl;
+        }
+
         const newDocRef = await addDocumentNonBlocking(userMessagesCollection, newMessage);
-        // The listener will pick up the new thread, and the optimistic message will be discarded
-        // because the main message thread now exists and will be rendered.
-        // We can remove the optimistic message once the thread is created.
         if (newDocRef) {
           setOptimisticReplies(prev => prev.filter(r => r.id !== optimisticId));
         }
@@ -208,13 +205,18 @@ export default function UserMessagesPage() {
         const threadDocRef = doc(firestore, 'users', user.uid, 'messages', userMessageThread.id);
         const repliesCollectionRef = collection(threadDocRef, 'replies');
         
-        const newReply: Omit<Reply, 'id' | 'status' | 'localImagePreviewUrl'> = {
+        const newReply: any = {
             message: messageText,
-            sentAt: serverTime as any,
+            sentAt: serverTime,
             isFromAdmin: false,
             isRead: false,
             imageUrl: finalImageUrl,
         };
+
+        if (!finalImageUrl) {
+            delete newReply.imageUrl;
+        }
+        
         addDocumentNonBlocking(repliesCollectionRef, newReply);
 
         updateDocumentNonBlocking(threadDocRef, {
@@ -394,66 +396,57 @@ export default function UserMessagesPage() {
                     </div>
                   ))}
                 </>
-              ) : allReplies.length > 0 ? (
-                 allReplies.map((reply) => (
-                    <div key={reply.id} onClick={() => setSelectedTimestamp(reply.id)}>
-                      <div
-                        className={cn(
-                          'flex items-end gap-2',
-                          !reply.isFromAdmin ? 'justify-end' : 'justify-start'
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            'rounded-lg p-2 max-w-lg shadow-sm flex flex-col',
-                            !reply.isFromAdmin
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-background'
-                          )}
-                        >
-                          {(reply.imageUrl || reply.localImagePreviewUrl) && (
-                            <div className="relative mb-1">
-                                <Dialog>
-                                    <DialogTrigger asChild>
-                                        <div className="relative">
-                                            <Image 
-                                                src={reply.localImagePreviewUrl || reply.imageUrl!} 
-                                                alt="Sent image" 
-                                                width={200} 
-                                                height={200} 
-                                                className={cn("rounded-md max-w-[200px] h-auto cursor-pointer", reply.status === 'sending' && 'opacity-50')}
-                                            />
-                                            {reply.status === 'sending' && (
-                                                <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-md">
-                                                    <Loader2 className="h-8 w-8 animate-spin text-white" />
-                                                </div>
-                                            )}
-                                        </div>
-                                    </DialogTrigger>
-                                    <DialogContent className="max-w-3xl max-h-[80vh] p-0">
-                                      <DialogTitle className="sr-only">Enlarged image view</DialogTitle>
-                                        <Image src={reply.localImagePreviewUrl || reply.imageUrl!} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
-                                    </DialogContent>
-                                </Dialog>
-                            </div>
-                          )}
-                          {reply.message && <p className="text-sm break-words px-1 pb-1">{reply.message}</p>}
-                        </div>
-                      </div>
-                      {selectedTimestamp === reply.id && reply.sentAt && (
-                          <div className={cn("flex items-center gap-1 mt-1", !reply.isFromAdmin ? 'justify-end' : 'justify-start')}>
-                             <span className="text-xs text-muted-foreground">
-                                {reply.sentAt && formatDistanceToNow(reply.sentAt instanceof Date ? reply.sentAt : reply.sentAt.toDate(), { addSuffix: true })}
-                             </span>
-                             {renderStatusIcon(reply)}
-                          </div>
-                      )}
-                    </div>
-                 ))
               ) : (
-                 <div className="text-center text-muted-foreground flex-grow flex items-center justify-center">
-                     <p>Send a message to start the conversation.</p>
-                 </div>
+                 // This now covers the case where there's no thread, but there are optimistic messages
+                 allReplies.length > 0 ? (
+                    allReplies.map((reply) => (
+                      <div key={reply.id} onClick={() => setSelectedTimestamp(reply.id)}>
+                        <div className={cn('flex items-end gap-2 justify-end')}>
+                          <div className={cn('rounded-lg p-2 max-w-lg shadow-sm flex flex-col', 'bg-primary text-primary-foreground')}>
+                            {(reply.imageUrl || reply.localImagePreviewUrl) && (
+                              <div className="relative mb-1">
+                                  <Dialog>
+                                      <DialogTrigger asChild>
+                                          <div className="relative">
+                                              <Image 
+                                                  src={reply.localImagePreviewUrl || reply.imageUrl!} 
+                                                  alt="Sent image" 
+                                                  width={200} 
+                                                  height={200} 
+                                                  className={cn("rounded-md max-w-[200px] h-auto cursor-pointer", reply.status === 'sending' && 'opacity-50')}
+                                              />
+                                              {reply.status === 'sending' && (
+                                                  <div className="absolute inset-0 flex items-center justify-center bg-black/30 rounded-md">
+                                                      <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                                  </div>
+                                              )}
+                                          </div>
+                                      </DialogTrigger>
+                                      <DialogContent className="max-w-3xl max-h-[80vh] p-0">
+                                        <DialogTitle className="sr-only">Enlarged image view</DialogTitle>
+                                          <Image src={reply.localImagePreviewUrl || reply.imageUrl!} alt="Sent image" width={1200} height={1200} className="rounded-lg object-contain max-w-full max-h-[80vh] h-auto" />
+                                      </DialogContent>
+                                  </Dialog>
+                              </div>
+                            )}
+                            {reply.message && <p className="text-sm break-words px-1 pb-1">{reply.message}</p>}
+                          </div>
+                        </div>
+                        {selectedTimestamp === reply.id && reply.sentAt && (
+                            <div className="flex items-center gap-1 mt-1 justify-end">
+                               <span className="text-xs text-muted-foreground">
+                                  {reply.sentAt && formatDistanceToNow(reply.sentAt instanceof Date ? reply.sentAt : reply.sentAt.toDate(), { addSuffix: true })}
+                               </span>
+                               {renderStatusIcon(reply)}
+                            </div>
+                        )}
+                      </div>
+                   ))
+                 ) : (
+                    <div className="text-center text-muted-foreground flex-grow flex items-center justify-center">
+                        <p>Send a message to start the conversation.</p>
+                    </div>
+                 )
               )}
                <div ref={messagesEndRef} />
             </div>
@@ -515,3 +508,5 @@ export default function UserMessagesPage() {
     </div>
   );
 }
+
+    
