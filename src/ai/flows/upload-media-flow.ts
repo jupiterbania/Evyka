@@ -4,6 +4,7 @@
  * @fileOverview A flow for uploading media to an external service.
  *
  * - uploadMedia - A function that handles the media upload process.
+ * - uploadMediaWithProgress - A function that handles media upload with progress reporting.
  * - UploadMediaInput - The input type for the uploadMedia function.
  * - UploadMediaOutput - The return type for the uploadMedia function.
  */
@@ -11,6 +12,15 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { v2 as cloudinary } from 'cloudinary';
+
+// Define Cloudinary config in a reusable way
+const configureCloudinary = () => {
+  cloudinary.config({
+    cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!,
+    api_key: process.env.CLOUDINARY_API_KEY!,
+    api_secret: process.env.CLOUDINARY_API_SECRET!,
+  });
+};
 
 const UploadMediaInputSchema = z.object({
   mediaDataUri: z
@@ -30,31 +40,50 @@ export type UploadMediaOutput = z.infer<typeof UploadMediaOutputSchema>;
 
 
 export async function uploadMedia(input: UploadMediaInput): Promise<UploadMediaOutput> {
-  const cloudinaryConfig = {
-    cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME!,
-    api_key: process.env.CLOUDINARY_API_KEY!,
-    api_secret: process.env.CLOUDINARY_API_SECRET!,
-  };
-  return uploadMediaFlow({ ...input, ...cloudinaryConfig });
+  configureCloudinary();
+  return uploadMediaFlow(input);
 }
+
+/**
+ * Uploads media to Cloudinary with progress reporting.
+ * Note: Cloudinary Node SDK does not support streaming progress for data URI uploads.
+ * This function simulates progress to provide user feedback.
+ */
+export async function uploadMediaWithProgress(
+    input: UploadMediaInput,
+    onProgress: (progress: number) => void
+): Promise<UploadMediaOutput> {
+    configureCloudinary();
+    
+    // Simulate initial progress
+    onProgress(10);
+
+    const promise = uploadMediaFlow(input);
+
+    // Simulate progress while the upload is in flight
+    const progressInterval = setInterval(() => {
+        onProgress(Math.random() * 40 + 20); // Simulate progress between 20% and 60%
+    }, 500);
+
+    try {
+        const result = await promise;
+        clearInterval(progressInterval);
+        onProgress(90); // Almost done
+        return result;
+    } catch (error) {
+        clearInterval(progressInterval);
+        throw error;
+    }
+}
+
 
 const uploadMediaFlow = ai.defineFlow(
   {
     name: 'uploadMediaFlow',
-    inputSchema: UploadMediaInputSchema.extend({
-      cloud_name: z.string(),
-      api_key: z.string(),
-      api_secret: z.string(),
-    }),
+    inputSchema: UploadMediaInputSchema,
     outputSchema: UploadMediaOutputSchema,
   },
   async (input) => {
-    cloudinary.config({
-        cloud_name: input.cloud_name,
-        api_key: input.api_key,
-        api_secret: input.api_secret,
-    });
-
     try {
       const uploadOptions: any = {
         resource_type: input.isVideo ? 'video' : 'image',

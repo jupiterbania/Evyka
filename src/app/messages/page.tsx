@@ -12,13 +12,13 @@ import {
 } from 'firebase/firestore';
 import { formatDistanceToNow } from 'date-fns';
 import {
-  useCollection,
   useFirestore,
   useMemoFirebase,
   useUser,
+  useCollection,
 } from '@/firebase';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { uploadMedia } from '@/ai/flows/upload-media-flow';
+import { uploadMediaWithProgress } from '@/ai/flows/upload-media-flow';
 
 
 import type { Message, Reply } from '@/lib/types';
@@ -33,6 +33,7 @@ import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Progress } from '@/components/ui/progress';
 
 export default function UserMessagesPage() {
   const { user, isUserLoading } = useUser();
@@ -48,14 +49,8 @@ export default function UserMessagesPage() {
   const [isSending, setIsSending] = useState(false);
   const [optimisticReplies, setOptimisticReplies] = useState<Reply[]>([]);
   const [selectedTimestamp, setSelectedTimestamp] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
 
-
-  // Redirect if user is not logged in
-  useEffect(() => {
-    if (!isUserLoading && !user) {
-      router.replace('/');
-    }
-  }, [user, isUserLoading, router]);
 
   // A user only has one message thread, so we query for it.
   const userMessagesCollection = useMemoFirebase(
@@ -128,13 +123,22 @@ export default function UserMessagesPage() {
     setMessageText('');
     setImageFile(null);
     setImagePreview(null);
+    setUploadProgress(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   }
 
   const handleSendMessage = async () => {
-    if ((!messageText.trim() && !imageFile) || !user || !firestore || !userMessagesCollection) return;
+    if ((!messageText.trim() && !imageFile) || isUserLoading) return;
+    if (!user || !firestore || !userMessagesCollection) {
+        toast({
+            variant: "destructive",
+            title: "Authentication still in progress",
+            description: "Please wait a moment and try again.",
+        });
+        return;
+    }
     
     setIsSending(true);
     const optimisticId = uuidv4();
@@ -159,17 +163,21 @@ export default function UserMessagesPage() {
       let finalImageUrl: string | undefined = undefined;
 
       if (imageFile) {
+        setUploadProgress(0);
         const reader = await new Promise<string>((resolve, reject) => {
           const fileReader = new FileReader();
           fileReader.readAsDataURL(imageFile);
           fileReader.onload = () => resolve(fileReader.result as string);
           fileReader.onerror = (error) => reject(error);
         });
-        const uploadResult = await uploadMedia({ mediaDataUri: reader });
+        const uploadResult = await uploadMediaWithProgress({ mediaDataUri: reader }, (progress) => {
+          setUploadProgress(progress);
+        });
         if (!uploadResult || !uploadResult.mediaUrl) {
           throw new Error('Image upload failed to return a URL.');
         }
         finalImageUrl = uploadResult.mediaUrl;
+        setUploadProgress(100);
       }
       
       const serverTime = serverTimestamp();
@@ -186,11 +194,10 @@ export default function UserMessagesPage() {
             isRead: false,
             lastReplyAt: serverTime,
             lastMessageSnippet,
-            imageUrl: finalImageUrl,
         };
 
-        if (!finalImageUrl) {
-            delete newMessage.imageUrl;
+        if (finalImageUrl) {
+            newMessage.imageUrl = finalImageUrl;
         }
 
         const newDocRef = await addDocumentNonBlocking(userMessagesCollection, newMessage);
@@ -209,14 +216,12 @@ export default function UserMessagesPage() {
             sentAt: serverTime,
             isFromAdmin: false,
             isRead: false,
-            imageUrl: finalImageUrl,
         };
 
-        if (!finalImageUrl) {
-            delete newReply.imageUrl;
+        if (finalImageUrl) {
+            newReply.imageUrl = finalImageUrl;
         }
         
-        // Don't await this; let the listener handle UI updates.
         addDocumentNonBlocking(repliesCollectionRef, newReply);
 
         updateDocumentNonBlocking(threadDocRef, {
@@ -240,27 +245,22 @@ export default function UserMessagesPage() {
       setOptimisticReplies(prev => prev.map(r => r.id === optimisticId ? { ...r, status: 'error' } : r));
     } finally {
       setIsSending(false);
+      setUploadProgress(null);
     }
   };
   
   const isLoading = isUserLoading || isMessagesLoading;
   
   const allReplies = useMemo(() => {
-    // Start with confirmed replies from the server
     const persistedReplies = replies || [];
-  
-    // Filter optimistic replies to only include those not yet confirmed by the server
-    const unconfirmedOptimistic = optimisticReplies.filter(optimistic => {
-      // An optimistic reply is considered "confirmed" if a reply with a matching message content
-      // and a server-generated timestamp (not a local Date object) exists.
-      // This is a more robust check than just comparing message content.
-      const isConfirmed = persistedReplies.some(
-        p => p.message === optimistic.message && !(p.sentAt instanceof Date)
-      );
-      return !isConfirmed;
-    });
-  
-    // Combine the lists and sort by date.
+    const unconfirmedOptimistic = optimisticReplies.filter(optimistic => 
+        !persistedReplies.some(p => 
+            p.message === optimistic.message &&
+            p.localImagePreviewUrl === optimistic.localImagePreviewUrl &&
+            p.sentAt > optimistic.sentAt
+        )
+    );
+
     const combined = [...persistedReplies, ...unconfirmedOptimistic];
     return combined.sort((a, b) => {
       const timeA = a.sentAt instanceof Date ? a.sentAt.getTime() : a.sentAt?.toMillis() || 0;
@@ -269,12 +269,13 @@ export default function UserMessagesPage() {
     });
   }, [replies, optimisticReplies]);
 
-  if (isLoading) {
+  if (isUserLoading && !user) {
     return (
       <div className="flex flex-col min-h-screen">
         <Header />
         <main className="flex-grow flex items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
+            <p className="ml-4 text-muted-foreground">Authenticating...</p>
         </main>
       </div>
     );
@@ -290,12 +291,10 @@ export default function UserMessagesPage() {
     if (reply.status === 'sending') {
         return <Clock className="h-3 w-3 text-muted-foreground" />;
     }
-    // Check if the overall thread is read by admin, apply to all user messages
     if (userMessageThread?.isRead) {
         return <CheckCheck className="h-4 w-4 text-blue-500" />;
     }
     
-    // `sent` status or default for persisted messages
     return <Check className="h-4 w-4 text-muted-foreground" />;
 }
 
@@ -311,7 +310,11 @@ export default function UserMessagesPage() {
           
           <ScrollArea className="flex-grow">
             <div className="p-4 space-y-4">
-              {userMessageThread ? (
+              {isLoading && !userMessageThread ? (
+                <div className="flex justify-center items-center h-full p-8">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : userMessageThread ? (
                 <>
                   {/* Initial Message */}
                   <div className="flex items-end gap-2" onClick={() => setSelectedTimestamp(userMessageThread.id)}>
@@ -408,8 +411,8 @@ export default function UserMessagesPage() {
                 </>
               ) : (
                  // This now covers the case where there's no thread, but there are optimistic messages
-                 allReplies.length > 0 ? (
-                    allReplies.map((reply) => (
+                 optimisticReplies.length > 0 ? (
+                    optimisticReplies.map((reply) => (
                       <div key={reply.id} onClick={() => setSelectedTimestamp(reply.id)}>
                         <div className={cn('flex items-end gap-2 justify-end')}>
                           <div className={cn('rounded-lg p-2 max-w-lg shadow-sm flex flex-col', 'bg-primary text-primary-foreground')}>
@@ -473,6 +476,11 @@ export default function UserMessagesPage() {
              {imagePreview && (
                 <div className="relative w-24 h-24 mb-2">
                     <Image src={imagePreview} alt="Image preview" layout="fill" className="object-cover rounded-md" />
+                     {uploadProgress !== null && uploadProgress < 100 && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-md">
+                           <Progress value={uploadProgress} className="h-2 w-3/4" />
+                        </div>
+                     )}
                     <Button
                         variant="destructive"
                         size="icon"
@@ -480,6 +488,7 @@ export default function UserMessagesPage() {
                         onClick={() => {
                             setImageFile(null);
                             setImagePreview(null);
+                            setUploadProgress(null);
                             if(fileInputRef.current) fileInputRef.current.value = '';
                         }}
                     >
