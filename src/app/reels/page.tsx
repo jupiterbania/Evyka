@@ -41,7 +41,7 @@ function ReelCard({ media }: { media: MediaType }) {
     }, [media.id]);
 
     return (
-        <div className="h-screen w-full flex-shrink-0 snap-center flex items-center justify-center bg-black relative">
+        <div className="h-[calc(100vh-56px)] w-full flex-shrink-0 snap-center flex items-center justify-center bg-black relative">
             <video
                 ref={videoRef}
                 src={media.mediaUrl}
@@ -111,7 +111,7 @@ export default function ReelsPage() {
     return (
         <div className="flex flex-col h-screen overflow-hidden">
             <Header />
-            <main className="flex-grow flex flex-col items-stretch justify-center h-full min-h-0">
+            <main className="flex-1 flex flex-col overflow-hidden">
                 {renderContent()}
             </main>
         </div>
