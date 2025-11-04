@@ -17,6 +17,7 @@ import { useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase
 import {
   addDocumentNonBlocking,
   updateDocumentNonBlocking,
+  deleteDocumentNonBlocking,
 } from '@/firebase/non-blocking-updates';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import type { Message, Reply, User as AppUser } from '@/lib/types';
@@ -33,6 +34,24 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Table,
   TableBody,
   TableCell,
@@ -44,7 +63,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from './ui/badge';
 import { cn } from '@/lib/utils';
-import { Send, ArrowLeft, Loader2, Image as ImageIcon, X, Clock, AlertTriangle, Check, CheckCheck } from 'lucide-react';
+import { Send, ArrowLeft, Loader2, Image as ImageIcon, X, Clock, AlertTriangle, Check, CheckCheck, MoreHorizontal, Trash2 } from 'lucide-react';
 import Image from 'next/image';
 import { v4 as uuidv4 } from 'uuid';
 import { ScrollArea } from './ui/scroll-area';
@@ -94,6 +113,7 @@ export function MessageCenter() {
   const { data: messages, isLoading, error } = useCollection<Message>(messagesQuery);
   
   const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [messageToDelete, setMessageToDelete] = useState<Message | null>(null);
   const [replyText, setReplyText] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -195,6 +215,35 @@ export function MessageCenter() {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent, message: Message) => {
+    e.stopPropagation(); // Prevent row click from triggering
+    setMessageToDelete(message);
+  };
+
+  const confirmDelete = () => {
+    if (!messageToDelete || !firestore) return;
+
+    // Note: This deletes the message document, but not its subcollection of replies
+    // from the client. Firestore doesn't support recursive deletes from the client SDK.
+    // The replies become "orphaned" but are inaccessible via the UI.
+    // A Cloud Function would be needed for a full recursive delete.
+    const docRef = doc(firestore, 'users', messageToDelete.userId, 'messages', messageToDelete.id);
+    deleteDocumentNonBlocking(docRef);
+
+    toast({
+      variant: 'destructive',
+      title: 'Message Thread Deleted',
+      description: `The conversation with ${messageToDelete.name} has been removed.`,
+    });
+    
+    // If the deleted message was the one being viewed, close the detail view.
+    if (selectedMessage?.id === messageToDelete.id) {
+      setSelectedMessage(null);
+    }
+    
+    setMessageToDelete(null);
   };
 
   const handleSendReply = async () => {
@@ -507,19 +556,20 @@ export function MessageCenter() {
                 <TableHead>From</TableHead>
                 <TableHead>Last Message</TableHead>
                 <TableHead className="w-[150px] text-right">Received</TableHead>
+                <TableHead className="w-[80px] text-center">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {isLoading && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center h-24">
+                  <TableCell colSpan={4} className="text-center h-24">
                     <Loader2 className="h-6 w-6 animate-spin text-primary mx-auto" />
                   </TableCell>
                 </TableRow>
               )}
               {!isLoading && sortedMessages?.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center h-24">
+                  <TableCell colSpan={4} className="text-center h-24">
                     No messages yet.
                   </TableCell>
                 </TableRow>
@@ -546,12 +596,54 @@ export function MessageCenter() {
                           addSuffix: true,
                         })}
                     </TableCell>
+                    <TableCell className="text-center">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" className="h-8 w-8 p-0" onClick={(e) => e.stopPropagation()}>
+                            <span className="sr-only">Open menu</span>
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                          <DropdownMenuItem onClick={(e) => { e.stopPropagation(); handleRowClick(message); }}>
+                            View Thread
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={(e) => handleDeleteClick(e, message)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            <span>Delete</span>
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </TableCell>
                   </TableRow>
                 ))}
             </TableBody>
           </Table>
         </div>
         {renderDetailView()}
+
+        <AlertDialog open={!!messageToDelete} onOpenChange={(open) => !open && setMessageToDelete(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This action cannot be undone. This will permanently delete the message thread from <span className="font-medium">{messageToDelete?.name}</span>.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDelete} className="bg-destructive hover:bg-destructive/90">
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
       </CardContent>
     </Card>
   );
