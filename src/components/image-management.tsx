@@ -612,6 +612,3 @@ export function ImageManagement() {
 
   return <ImageManagementInternal />;
 }
-
-    
-    
