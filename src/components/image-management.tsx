@@ -244,7 +244,7 @@ function ImageManagementInternal() {
               const uploadResult = await uploadMediaWithProgress({ mediaDataUri, isVideo }, setUploadProgress);
               
               const docData: any = {
-                title: validFiles.length > 1 ? file.name.split('.').slice(0, -1).join('.') : newMedia.title,
+                title: validFiles.length > 1 ? '' : newMedia.title,
                 description: newMedia.description,
                 mediaUrl: uploadResult.mediaUrl,
                 thumbnailUrl: uploadResult.thumbnailUrl,
@@ -595,3 +595,5 @@ export function ImageManagement() {
 
   return <ImageManagementInternal />;
 }
+
+    
