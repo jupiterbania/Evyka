@@ -6,7 +6,6 @@ import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, where, orderBy } from 'firebase/firestore';
 import type { Media as MediaType } from '@/lib/types';
 import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -20,7 +19,6 @@ function ReelCard({ media }: { media: MediaType }) {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting) {
                         videoRef.current?.play().catch(error => {
-                            // Autoplay was prevented. User may need to interact with the page first.
                             console.warn("Autoplay prevented for reel:", media.id, error);
                         });
                     } else {
@@ -28,7 +26,7 @@ function ReelCard({ media }: { media: MediaType }) {
                     }
                 });
             },
-            { threshold: 0.5 } // Play when 50% of the video is visible
+            { threshold: 0.5 }
         );
 
         if (videoRef.current) {
@@ -37,6 +35,7 @@ function ReelCard({ media }: { media: MediaType }) {
 
         return () => {
             if (videoRef.current) {
+                // eslint-disable-next-line react-hooks/exhaustive-deps
                 observer.unobserve(videoRef.current);
             }
         };
@@ -48,7 +47,7 @@ function ReelCard({ media }: { media: MediaType }) {
                 ref={videoRef}
                 src={media.mediaUrl}
                 loop
-                muted // Muted autoplay is usually allowed by browsers
+                muted
                 playsInline
                 className="w-full h-full object-contain"
                 poster={media.thumbnailUrl}
@@ -102,7 +101,7 @@ export default function ReelsPage() {
         }
 
         return (
-            <div className="flex-grow flex flex-col items-center justify-center py-8 gap-8 snap-y snap-mandatory overflow-y-auto h-[calc(100vh-var(--header-height,56px)-var(--footer-height,56px))]">
+            <div className="flex-grow flex flex-col items-center justify-start py-8 gap-8 snap-y snap-mandatory overflow-y-auto h-[calc(100vh-56px)]">
                 {reels.map(reel => (
                     <ReelCard key={reel.id} media={reel} />
                 ))}
@@ -112,14 +111,12 @@ export default function ReelsPage() {
 
     return (
         <div 
-            className="flex flex-col h-screen"
-            style={{ '--header-height': '56px', '--footer-height': '0px' } as React.CSSProperties}
+            className="flex flex-col h-screen overflow-hidden"
         >
             <Header />
-            <main className="flex-grow flex flex-col items-stretch justify-center overflow-hidden">
+            <main className="flex-grow flex flex-col items-stretch justify-center">
                 {renderContent()}
             </main>
-            {/* Footer is omitted for a more immersive reel experience */}
         </div>
     );
 }
