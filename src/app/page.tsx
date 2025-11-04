@@ -229,24 +229,12 @@ export default function Home() {
                     <ImageIcon className="mr-2 h-4 w-4" />
                     Images
                 </Button>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant={filter === 'video' ? 'default' : 'ghost'} className="px-4 py-2 h-auto">
-                            <Film className="mr-2 h-4 w-4" />
-                            Videos
-                            <ChevronDown className="ml-2 h-4 w-4" />
-                        </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                        <DropdownMenuItem onClick={() => setFilter('video')}>
-                            Videos
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => router.push('/reels')}>
-                            Reels
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-
+                <Button asChild variant={'ghost'} className="px-4 py-2 h-auto">
+                    <Link href="/reels">
+                        <Film className="mr-2 h-4 w-4" />
+                        Reels
+                    </Link>
+                </Button>
                 <Button 
                   variant={filter === 'nude' ? 'default' : 'ghost'}
                   onClick={handleNudesClick} 
