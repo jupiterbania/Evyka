@@ -83,9 +83,13 @@ const uploadMultipleMediaFlow = ai.defineFlow(
             isVideo: item.isVideo,
         });
 
-        console.log(`Successfully uploaded ${item.originalFilename}. Pausing for 2 seconds.`);
-        // Pause between uploads to be kind to the API
-        await new Promise(resolve => setTimeout(resolve, 2000));
+        if (input.mediaItems.length > 1) {
+            console.log(`Successfully uploaded ${item.originalFilename}. Pausing for 2 seconds.`);
+            // Pause between uploads to be kind to the API, only if there's more than one file.
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        } else {
+             console.log(`Successfully uploaded ${item.originalFilename}.`);
+        }
         
       } catch (error: any) {
         console.error(`Failed to upload ${item.originalFilename}:`, error.message || JSON.stringify(error));
