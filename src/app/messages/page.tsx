@@ -24,7 +24,6 @@ import { uploadMedia } from '@/ai/flows/upload-media-flow';
 
 import type { Message, Reply } from '@/lib/types';
 import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
@@ -272,7 +271,6 @@ export default function UserMessagesPage() {
         <main className="flex-grow flex items-center justify-center">
             <Loader2 className="h-12 w-12 animate-spin text-primary" />
         </main>
-        <Footer />
       </div>
     );
   }
@@ -504,7 +502,6 @@ export default function UserMessagesPage() {
           </div>
         </div>
       </main>
-      <Footer />
     </div>
   );
 }
