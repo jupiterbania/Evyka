@@ -216,6 +216,7 @@ export default function UserMessagesPage() {
             delete newReply.imageUrl;
         }
         
+        // Don't await this; let the listener handle UI updates.
         addDocumentNonBlocking(repliesCollectionRef, newReply);
 
         updateDocumentNonBlocking(threadDocRef, {
@@ -224,7 +225,7 @@ export default function UserMessagesPage() {
           lastMessageSnippet,
         });
 
-        // Update optimistic reply to 'sent'
+        // The optimistic reply will be removed automatically by the `allReplies` memo when the real one arrives.
         setOptimisticReplies(prev => prev.map(r => r.id === optimisticId ? { ...r, status: 'sent' } : r));
       }
 
@@ -245,24 +246,30 @@ export default function UserMessagesPage() {
   const isLoading = isUserLoading || isMessagesLoading;
   
   const allReplies = useMemo(() => {
-    // If there's no main message thread yet, optimistic replies are the only thing to show.
-    if (!userMessageThread) {
-      return optimisticReplies;
-    }
+    const persistedReplies = replies || [];
   
-    // Otherwise, combine the persisted replies with the optimistic ones.
-    const combined = [...(replies || [])];
-    optimisticReplies.forEach(optimistic => {
-        if (!combined.find(r => r.id === optimistic.id)) {
-            combined.push(optimistic);
-        }
+    // Filter out optimistic replies that have already been confirmed by the server.
+    // An optimistic reply is confirmed if a persisted reply has the same text and an actual server timestamp.
+    // We check for a non-local timestamp to identify persisted replies.
+    const unconfirmedOptimistic = optimisticReplies.filter(optimistic => {
+      // Don't show optimistic replies if they've been confirmed.
+      const isConfirmed = persistedReplies.some(
+        persisted =>
+          !persisted.status && // Persisted replies don't have a local 'status'
+          persisted.message === optimistic.message &&
+          (persisted.imageUrl === optimistic.localImagePreviewUrl || (!persisted.imageUrl && !optimistic.localImagePreviewUrl))
+      );
+      return !isConfirmed;
     });
+  
+    // Combine the two lists and sort by date.
+    const combined = [...persistedReplies, ...unconfirmedOptimistic];
     return combined.sort((a, b) => {
-        const timeA = a.sentAt instanceof Date ? a.sentAt.getTime() : a.sentAt?.toMillis() || 0;
-        const timeB = b.sentAt instanceof Date ? b.sentAt.getTime() : b.sentAt?.toMillis() || 0;
-        return timeA - timeB;
+      const timeA = a.sentAt instanceof Date ? a.sentAt.getTime() : a.sentAt?.toMillis() || 0;
+      const timeB = b.sentAt instanceof Date ? b.sentAt.getTime() : b.sentAt?.toMillis() || 0;
+      return timeA - timeB;
     });
-  }, [replies, optimisticReplies, userMessageThread]);
+  }, [replies, optimisticReplies]);
 
   if (isLoading) {
     return (
