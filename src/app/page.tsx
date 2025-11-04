@@ -274,8 +274,8 @@ export default function Home() {
             setUploadProgress(((i + 1) / totalFiles) * 100);
 
             if (isMultiple && i < totalFiles - 1) {
-              setUploadStatusMessage(`Waiting 2 seconds before next upload...`);
-              await new Promise(resolve => setTimeout(resolve, 2000));
+              setUploadStatusMessage(`Waiting 5 seconds before next upload...`);
+              await new Promise(resolve => setTimeout(resolve, 5000));
             }
           }
         } else if (imageUrl) {
