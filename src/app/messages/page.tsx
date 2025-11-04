@@ -19,7 +19,7 @@ import {
   useCollection,
 } from '@/firebase';
 import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import { uploadMediaWithProgress } from '@/ai/flows/upload-media-flow';
+import { uploadMedia } from '@/ai/flows/upload-media-flow';
 
 
 import type { Message, Reply } from '@/lib/types';
@@ -130,8 +130,34 @@ export default function UserMessagesPage() {
     }
   }
 
+  const uploadMediaWithProgress = async (
+    input: { mediaDataUri: string, isVideo?: boolean },
+    onProgress: (progress: number) => void
+  ) => {
+    // Simulate initial progress
+    onProgress(10);
+    
+    const promise = uploadMedia(input);
+
+    // Simulate progress while the upload is in flight
+    const progressInterval = setInterval(() => {
+      onProgress(Math.random() * 40 + 20); // Simulate progress between 20% and 60%
+    }, 500);
+
+    try {
+      const result = await promise;
+      clearInterval(progressInterval);
+      onProgress(90); // Almost done
+      return result;
+    } catch (error) {
+      clearInterval(progressInterval);
+      throw error;
+    }
+  };
+
+
   const handleSendMessage = async () => {
-    if ((!messageText.trim() && !imageFile) || isUserLoading || isSending) return;
+    if ((!messageText.trim() && !imageFile) || isUserLoading) return;
     if (!user || !firestore || !userMessagesCollection) {
         toast({
             variant: "destructive",
@@ -172,9 +198,12 @@ export default function UserMessagesPage() {
           fileReader.onload = () => resolve(fileReader.result as string);
           fileReader.onerror = (error) => reject(error);
         });
-        const uploadResult = await uploadMediaWithProgress({ mediaDataUri: reader }, (progress) => {
+
+        const isVideo = imageFile.type.startsWith('video/');
+        const uploadResult = await uploadMediaWithProgress({ mediaDataUri: reader, isVideo }, (progress) => {
           setUploadProgress(progress);
         });
+
         if (!uploadResult || !uploadResult.mediaUrl) {
           throw new Error('Image upload failed to return a URL.');
         }
@@ -189,7 +218,6 @@ export default function UserMessagesPage() {
         // This is the first message of a new thread.
         const newMessage: any = {
             tempId: optimisticId,
-            firstMessage: messageText,
             userId: user.uid,
             email: user.email || '',
             name: user.displayName || 'New User',
@@ -199,14 +227,17 @@ export default function UserMessagesPage() {
             lastMessageSnippet,
         };
 
+        if (messageText) {
+          newMessage.firstMessage = messageText;
+        }
         if (finalImageUrl) {
             newMessage.imageUrl = finalImageUrl;
         }
         
         const newDocRef = await addDocumentNonBlocking(userMessagesCollection, newMessage);
-        // After the document is created, we can clear the optimistic message as the real one will appear.
+        // The optimistic message will be cleared automatically when the new `userMessageThread` and `replies` are loaded.
         if (newDocRef) {
-          setOptimisticReplies(prev => prev.filter(r => r.id !== optimisticId));
+          // You might not need to do anything here if your hooks react correctly
         }
 
       } else {
@@ -216,11 +247,14 @@ export default function UserMessagesPage() {
         
         const newReply: any = {
             tempId: optimisticId,
-            message: messageText,
             sentAt: serverTime,
             isFromAdmin: false,
             isRead: false,
         };
+        
+        if (messageText) {
+            newReply.message = messageText;
+        }
 
         if (finalImageUrl) {
             newReply.imageUrl = finalImageUrl;
@@ -235,7 +269,8 @@ export default function UserMessagesPage() {
         });
 
         // The optimistic reply will be removed automatically by the `allReplies` memo when the real one arrives.
-        setOptimisticReplies(prev => prev.map(r => r.id === optimisticId ? { ...r, status: 'sent' } : r));
+        // We just update its status
+         setOptimisticReplies(prev => prev.map(r => r.id === optimisticId ? { ...r, status: 'sent' } : r));
       }
 
     } catch (error: any) {
@@ -412,7 +447,11 @@ export default function UserMessagesPage() {
               ) : (
                  // This now covers the case where there's no thread, but there are optimistic messages
                  optimisticReplies.length > 0 ? (
-                    optimisticReplies.map((reply) => (
+                    optimisticReplies.map((reply) => {
+                      const shouldShow = !userMessageThread || (userMessageThread && userMessageThread.tempId !== reply.tempId);
+                      if (!shouldShow) return null;
+
+                      return (
                       <div key={reply.id} onClick={() => setSelectedTimestamp(reply.id)}>
                         <div className={cn('flex items-end gap-2 justify-end')}>
                           <div className={cn('rounded-lg p-2 max-w-lg shadow-sm flex flex-col', 'bg-primary text-primary-foreground')}>
@@ -461,7 +500,8 @@ export default function UserMessagesPage() {
                             </div>
                         )}
                       </div>
-                   ))
+                      )
+                   })
                  ) : (
                     <div className="text-center text-muted-foreground flex-grow flex items-center justify-center">
                         <p>Send a message to start the conversation.</p>
@@ -499,7 +539,7 @@ export default function UserMessagesPage() {
             <div className="flex w-full gap-2 items-start">
               <input
                   type="file"
-                  accept="image/*"
+                  accept="image/*,video/*"
                   onChange={handleImageChange}
                   ref={fileInputRef}
                   className="hidden"

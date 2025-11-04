@@ -4,7 +4,6 @@
  * @fileOverview A flow for uploading media to an external service.
  *
  * - uploadMedia - A function that handles the media upload process.
- * - uploadMediaWithProgress - A function that handles media upload with progress reporting.
  * - UploadMediaInput - The input type for the uploadMedia function.
  * - UploadMediaOutput - The return type for the uploadMedia function.
  */
@@ -43,39 +42,6 @@ export async function uploadMedia(input: UploadMediaInput): Promise<UploadMediaO
   configureCloudinary();
   return uploadMediaFlow(input);
 }
-
-/**
- * Uploads media to Cloudinary with progress reporting.
- * Note: Cloudinary Node SDK does not support streaming progress for data URI uploads.
- * This function simulates progress to provide user feedback.
- */
-export async function uploadMediaWithProgress(
-    input: UploadMediaInput,
-    onProgress: (progress: number) => void
-): Promise<UploadMediaOutput> {
-    configureCloudinary();
-    
-    // Simulate initial progress
-    onProgress(10);
-
-    const promise = uploadMediaFlow(input);
-
-    // Simulate progress while the upload is in flight
-    const progressInterval = setInterval(() => {
-        onProgress(Math.random() * 40 + 20); // Simulate progress between 20% and 60%
-    }, 500);
-
-    try {
-        const result = await promise;
-        clearInterval(progressInterval);
-        onProgress(90); // Almost done
-        return result;
-    } catch (error) {
-        clearInterval(progressInterval);
-        throw error;
-    }
-}
-
 
 const uploadMediaFlow = ai.defineFlow(
   {
