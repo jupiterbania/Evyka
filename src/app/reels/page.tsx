@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useRef, useEffect } from 'react';
@@ -22,7 +21,6 @@ function ReelCard({ media }: { media: MediaType }) {
                 entries.forEach((entry) => {
                     if (entry.isIntersecting) {
                         videoElement.play().catch(error => {
-                            // Autoplay was prevented. Mute and try again.
                             if (error.name === 'NotAllowedError') {
                                 videoElement.muted = true;
                                 videoElement.play().catch(e => console.error("Muted autoplay also failed:", e));
@@ -33,7 +31,7 @@ function ReelCard({ media }: { media: MediaType }) {
                     }
                 });
             },
-            { threshold: 0.5 } // Play when 50% of the video is visible
+            { threshold: 0.5 }
         );
 
         observer.observe(videoElement);
@@ -57,7 +55,6 @@ function ReelCard({ media }: { media: MediaType }) {
             }
         }
     };
-
 
     return (
         <div className="relative h-full w-full flex-shrink-0 snap-center flex items-center justify-center bg-black">
