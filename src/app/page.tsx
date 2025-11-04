@@ -89,6 +89,7 @@ export default function Home() {
   const { data: allMessages } = useCollectionGroup<Message>(allMessagesQuery);
   const unreadCount = useMemo(() => {
     if (!allMessages) return 0;
+    // Client-side filter
     return allMessages.filter(msg => !msg.isRead).length;
   }, [allMessages]);
   // --- End Unread Messages Logic ---
@@ -267,6 +268,11 @@ export default function Home() {
             
             addDocumentNonBlocking(mediaCollection, docData);
             setUploadProgress(((i + 1) / totalFiles) * 100);
+
+            if (isMultiple && i < totalFiles - 1) {
+              setUploadStatusMessage(`Waiting 2 seconds before next upload...`);
+              await new Promise(resolve => setTimeout(resolve, 2000));
+            }
           }
         } else if (imageUrl) {
           setUploadProgress(50);
@@ -596,3 +602,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
