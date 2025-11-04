@@ -192,12 +192,16 @@ export function MessageCenter() {
       const threadDocRef = doc(firestore, 'users', selectedMessage.userId, 'messages', selectedMessage.id);
       const repliesCollectionRef = collection(threadDocRef, 'replies');
 
-      const newReply: Omit<Reply, 'id' | 'status' | 'localImagePreviewUrl'> = {
+      const newReply: any = {
         message: replyText,
-        imageUrl: finalImageUrl,
-        sentAt: serverTime as any,
+        sentAt: serverTime,
         isFromAdmin: true,
+        imageUrl: finalImageUrl,
       };
+
+      if (!finalImageUrl) {
+        delete newReply.imageUrl;
+      }
 
       addDocumentNonBlocking(repliesCollectionRef, newReply);
       updateDocumentNonBlocking(threadDocRef, {
@@ -490,3 +494,5 @@ export function MessageCenter() {
     </Card>
   );
 }
+
+    
