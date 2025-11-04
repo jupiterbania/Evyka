@@ -9,6 +9,7 @@ import { Header } from '@/components/header';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import { cn } from '@/lib/utils';
 
 function ReelCard({ media }: { media: MediaType }) {
     const videoRef = useRef<HTMLVideoElement>(null);
@@ -19,18 +20,19 @@ function ReelCard({ media }: { media: MediaType }) {
 
         const observer = new IntersectionObserver(
             (entries) => {
-                const [entry] = entries;
-                if (entry.isIntersecting) {
-                    // Attempt to play, muting if necessary
-                    videoElement.play().catch(error => {
-                        if (error.name === 'NotAllowedError') {
-                            videoElement.muted = true;
-                            videoElement.play().catch(e => console.error("Muted autoplay failed:", e));
-                        }
-                    });
-                } else {
-                    videoElement.pause();
-                }
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        // Attempt to play, muting if necessary for autoplay policies
+                        videoElement.play().catch(error => {
+                            if (error.name === 'NotAllowedError') {
+                                videoElement.muted = true;
+                                videoElement.play().catch(e => console.error("Muted autoplay failed:", e));
+                            }
+                        });
+                    } else {
+                        videoElement.pause();
+                    }
+                });
             },
             { threshold: 0.5 } // Play when 50% of the video is visible
         );
@@ -40,11 +42,10 @@ function ReelCard({ media }: { media: MediaType }) {
         return () => {
             // Clean up: pause and unobserve when the component is unmounted
             if (videoElement) {
-                videoElement.pause();
                 observer.unobserve(videoElement);
             }
         };
-    }, [media.id]); // Dependency on media.id to re-run for new videos
+    }, []); 
     
     const handleVideoClick = () => {
         const videoElement = videoRef.current;
@@ -62,7 +63,7 @@ function ReelCard({ media }: { media: MediaType }) {
                 playsInline
                 className="w-full h-full object-contain"
                 poster={media.thumbnailUrl}
-                onClick={handleVideoClick} // Toggle mute on click
+                onClick={handleVideoClick} 
                 preload="metadata"
             />
             <div className="absolute bottom-10 left-0 p-4 bg-gradient-to-t from-black/60 to-transparent w-full text-white pointer-events-none">
@@ -114,9 +115,11 @@ export default function ReelsPage() {
         }
 
         return (
-            <div className="h-full w-full snap-y snap-mandatory overflow-y-auto">
+             <div className="h-full w-full snap-y snap-mandatory overflow-y-auto">
                 {reels.map(reel => (
-                    <ReelCard key={reel.id} media={reel} />
+                    <div key={reel.id} className="h-full w-full snap-center flex-shrink-0">
+                        <ReelCard media={reel} />
+                    </div>
                 ))}
             </div>
         );
