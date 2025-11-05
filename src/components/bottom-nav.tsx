@@ -85,7 +85,7 @@ export function BottomNav() {
     },
   ];
 
-  if (!user) return null;
+  if (!user || pathname === '/reels') return null;
 
   return (
     <>
