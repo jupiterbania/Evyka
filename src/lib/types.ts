@@ -1,3 +1,4 @@
+
 import { Timestamp } from "firebase/firestore";
 
 export type Media = {
@@ -37,3 +38,24 @@ export type Follow = {
   userId: string;
   followedAt: Timestamp;
 }
+
+export type Conversation = {
+  id: string;
+  participants: string[];
+  participantInfo: {
+    userId: string;
+    username: string;
+    profileImageUrl?: string;
+  }[];
+  lastMessage?: string;
+  lastMessageAt?: Timestamp;
+  lastMessageSenderId?: string;
+};
+
+export type Message = {
+  id: string;
+  senderId: string;
+  text: string;
+  createdAt: Timestamp;
+  isRead?: boolean;
+};

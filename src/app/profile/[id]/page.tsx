@@ -2,11 +2,11 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { collection, query, where, doc, updateDoc, getDoc, writeBatch, increment, serverTimestamp } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, getDoc, writeBatch, increment, serverTimestamp, getDocs, addDoc } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
-import type { Media as MediaType, User as AppUser } from '@/lib/types';
+import type { Media as MediaType, User as AppUser, Conversation } from '@/lib/types';
 import { Header } from '@/components/header';
-import { Loader2, Edit, Settings, LogOut, UserPlus } from 'lucide-react';
+import { Loader2, Edit, Settings, LogOut, UserPlus, MessageSquare } from 'lucide-react';
 import { ImageCard } from '@/components/image-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -18,12 +18,12 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { updateProfile, signOut } from 'firebase/auth';
-import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
+import { updateDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/components/logo';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useFollow } from '@/hooks/use-follow';
 
 
@@ -33,9 +33,11 @@ export default function ProfilePage() {
   const auth = useAuth();
   const { toast } = useToast();
   const params = useParams();
+  const router = useRouter();
 
   const [isEditOpen, setEditOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [isCreatingConversation, setIsCreatingConversation] = useState(false);
   const [profileData, setProfileData] = useState({ displayName: '', photoFile: null as File | null });
   
   const profileUserId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -76,6 +78,54 @@ export default function ProfilePage() {
       await signOut(auth);
     } catch (error) {
       console.error('Error signing out', error);
+    }
+  };
+  
+  const handleMessage = async () => {
+    if (!currentUser || !profileUser || !firestore || currentUser.uid === profileUser.id) return;
+
+    setIsCreatingConversation(true);
+    try {
+      // Look for an existing conversation
+      const conversationsRef = collection(firestore, 'conversations');
+      const q = query(
+        conversationsRef,
+        where('participants', 'array-contains', currentUser.uid)
+      );
+
+      const querySnapshot = await getDocs(q);
+      let existingConversation: (Conversation & { id: string }) | null = null;
+
+      querySnapshot.forEach((doc) => {
+        const conversation = { id: doc.id, ...doc.data() } as (Conversation & { id: string });
+        if (conversation.participants.includes(profileUser.id)) {
+          existingConversation = conversation;
+        }
+      });
+
+      if (existingConversation) {
+        router.push(`/messages/${existingConversation.id}`);
+      } else {
+        // Create a new conversation
+        const newConversationData = {
+            participants: [currentUser.uid, profileUser.id],
+            participantInfo: [
+                { userId: currentUser.uid, username: currentUser.displayName, profileImageUrl: currentUser.photoURL },
+                { userId: profileUser.id, username: profileUser.username, profileImageUrl: profileUser.profileImageUrl }
+            ],
+            lastMessage: '',
+            lastMessageAt: serverTimestamp(),
+            lastMessageSenderId: '',
+        };
+        const newConversationRef = await addDocumentNonBlocking(collection(firestore, 'conversations'), newConversationData);
+        if (newConversationRef) {
+          router.push(`/messages/${newConversationRef.id}`);
+        }
+      }
+    } catch (error: any) {
+        toast({ variant: 'destructive', title: 'Error', description: `Could not start conversation: ${error.message}` });
+    } finally {
+        setIsCreatingConversation(false);
     }
   };
 
@@ -233,6 +283,7 @@ export default function ProfilePage() {
                         </Sheet>
                     </>
                   ) : (
+                    <>
                     <Button
                         onClick={handleFollowToggle}
                         disabled={isFollowLoading}
@@ -242,6 +293,11 @@ export default function ProfilePage() {
                         {isFollowLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
                         {isFollowing ? 'Unfollow' : 'Follow'}
                     </Button>
+                     <Button onClick={handleMessage} disabled={isCreatingConversation} size="sm" variant="outline">
+                        {isCreatingConversation ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <MessageSquare className="mr-2 h-4 w-4" />}
+                        Message
+                      </Button>
+                    </>
                   )}
                 </div>
             </div>
@@ -304,4 +360,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-

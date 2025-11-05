@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "User": {
@@ -151,6 +152,17 @@
           "type": "array",
           "items": { "type": "string" },
           "description": "An array of user IDs participating in the conversation."
+        },
+        "participantInfo": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "userId": {"type": "string"},
+              "username": {"type": "string"},
+              "profileImageUrl": {"type": "string", "format": "uri"}
+            }
+          }
         },
         "lastMessage": {
           "type": "string",
