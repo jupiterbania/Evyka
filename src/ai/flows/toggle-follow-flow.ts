@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview A server-side flow for handling the follow/unfollow logic using the Firebase Admin SDK.
@@ -9,13 +10,8 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import * as admin from 'firebase-admin';
-
-// Initialize Firebase Admin SDK if not already initialized
-if (!admin.apps.length) {
-  admin.initializeApp();
-}
-
-const db = admin.firestore();
+import { getApps, initializeApp, getApp } from 'firebase-admin/app';
+import { getFirestore } from 'firebase-admin/firestore';
 
 const ToggleFollowInputSchema = z.object({
   currentUserId: z.string().describe('The ID of the user performing the action.'),
@@ -34,6 +30,12 @@ const toggleFollowFlow = ai.defineFlow(
     outputSchema: z.object({ success: z.boolean(), isFollowing: z.boolean() }),
   },
   async ({ currentUserId, targetUserId }) => {
+    // Initialize Firebase Admin SDK if not already initialized
+    if (!getApps().length) {
+      initializeApp();
+    }
+    const db = getFirestore();
+
     if (currentUserId === targetUserId) {
         throw new Error("Users cannot follow themselves.");
     }
@@ -49,7 +51,7 @@ const toggleFollowFlow = ai.defineFlow(
         const targetUserRef = db.collection('users').doc(targetUserId);
         const targetUserFollowerRef = db.collection('users').doc(targetUserId).collection('followers').doc(currentUserId);
         
-        const timestamp = admin.firestore.FieldValue.serverTimestamp();
+        const timestamp = admin.firestore.Timestamp.now(); // Use admin timestamp
         const increment = admin.firestore.FieldValue.increment;
 
         if (isCurrentlyFollowing) {
