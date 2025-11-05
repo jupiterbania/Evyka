@@ -10,7 +10,7 @@
 import { z } from 'zod';
 import { getFirestore, doc, getDoc, writeBatch, serverTimestamp, increment, runTransaction } from 'firebase/firestore';
 import { getFirebaseApp } from '@/firebase/server-init';
-import { getAuth } from 'firebase-admin/auth';
+
 
 const ToggleFollowInputSchema = z.object({
   currentUserId: z.string().describe('The ID of the user initiating the action.'),
