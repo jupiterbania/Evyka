@@ -47,7 +47,7 @@ export default function ConversationPage() {
   );
   const { data: messages, isLoading: areMessagesLoading } = useCollection<Message>(messagesQuery);
   
-  const otherParticipant = conversation?.participantInfo.find(p => p.userId !== currentUser?.uid);
+  const otherParticipant = conversation?.participantInfo?.find(p => p.userId !== currentUser?.uid);
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -59,7 +59,7 @@ export default function ConversationPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !currentUser || !firestore || !conversationId) return;
+    if (!newMessage.trim() || !currentUser || !firestore || !conversationId || !conversationRef) return;
 
     const messagesColRef = collection(firestore, 'conversations', conversationId, 'messages');
     
@@ -70,7 +70,7 @@ export default function ConversationPage() {
       isRead: false
     });
     
-    updateDocumentNonBlocking(conversationRef!, {
+    updateDocumentNonBlocking(conversationRef, {
         lastMessage: newMessage.trim(),
         lastMessageAt: serverTimestamp(),
         lastMessageSenderId: currentUser.uid,
@@ -125,7 +125,7 @@ export default function ConversationPage() {
         {areMessagesLoading && <div className="flex justify-center"><Loader2 className="h-6 w-6 animate-spin text-muted-foreground"/></div>}
         {messages?.map((message) => {
            const isSender = message.senderId === currentUser?.uid;
-           const messageParticipant = isSender ? null : conversation?.participantInfo.find(p => p.userId === message.senderId);
+           const messageParticipant = isSender ? null : conversation?.participantInfo?.find(p => p.userId === message.senderId);
 
           return (
             <div
