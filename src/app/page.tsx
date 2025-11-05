@@ -150,26 +150,6 @@ export default function Home() {
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-grow">
-        <section className="relative w-full h-[40vh] sm:h-[50vh] md:h-[60vh] flex items-center justify-center text-center text-white overflow-hidden">
-          {heroImageUrl && (
-            <Image
-              src={heroImageUrl}
-              alt="Welcome banner background"
-              fill
-              className="object-cover"
-              data-ai-hint={heroImageHint}
-              priority
-              sizes="100vw"
-            />
-          )}
-          <div className="absolute inset-0 bg-black/50" />
-          <div className="relative z-10 p-4">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white drop-shadow-md font-headline">
-              WELCOME TO MY EXCLUSIVE CONTENT
-            </h1>
-          </div>
-        </section>
-        
         <section ref={galleryRef} id="gallery" className="py-8 sm:py-12 scroll-mt-20">
           <div className="container px-4 sm:px-6">
             <div className="flex flex-col sm:flex-row items-center justify-between mb-6 sm:mb-8 gap-4">
