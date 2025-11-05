@@ -13,25 +13,35 @@ service cloud.firestore {
     function isMediaOwner(mediaId) {
       return isSignedIn() && get(/databases/$(database)/documents/media/$(mediaId)).data.authorId == request.auth.uid;
     }
+    
+    function isChangingFollowCount(requestData, resourceData) {
+      let changedKeys = requestData.keys().diff(resourceData.keys());
+      return changedKeys.hasAny(['followerCount', 'followingCount']) && changedKeys.size() <= 2;
+    }
 
     match /users/{userId} {
       // Anyone can read public user profiles.
       allow get: if true;
-      // Only the user themselves can create, update, or delete their own profile.
+      
+      // The user can update their own document for any reason.
       allow create, update, delete: if isOwner(userId);
+      
+      // Allow any signed-in user to update another user's document IF
+      // they are only changing the follower/following counts.
+      allow update: if isSignedIn() && isChangingFollowCount(request.resource.data, resource.data);
 
       // Rules for followers and following subcollections
       match /followers/{followerId} {
         // Anyone can see who follows a user
         allow get, list: if true;
-        // Only the follower can add/remove themselves from the list
+        // The follower can add/remove themselves from the list
         allow write: if isOwner(followerId);
       }
 
       match /following/{followedId} {
         // Anyone can see who a user is following
         allow get, list: if true;
-        // Only the user can modify their own following list
+        // The user can modify their own following list
         allow write: if isOwner(userId);
       }
     }
