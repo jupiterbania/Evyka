@@ -35,47 +35,44 @@ export async function toggleFollow(input: ToggleFollowInput): Promise<ToggleFoll
   const app = getFirebaseApp();
   const firestore = getFirestore(app);
 
-  const currentUserFollowingRef = doc(firestore, 'users', currentUserId, 'following', targetUserId);
-  const targetUserFollowerRef = doc(firestore, 'users', targetUserId, 'followers', currentUserId);
   const currentUserRef = doc(firestore, 'users', currentUserId);
   const targetUserRef = doc(firestore, 'users', targetUserId);
-
+  const currentUserFollowingRef = doc(firestore, 'users', currentUserId, 'following', targetUserId);
+  const targetUserFollowerRef = doc(firestore, 'users', targetUserId, 'followers', currentUserId);
+  
   try {
-    const followingDoc = await getDoc(currentUserFollowingRef);
-    const batch = writeBatch(firestore);
+    return await runTransaction(firestore, async (transaction) => {
+      const followingDoc = await transaction.get(currentUserFollowingRef);
 
-    if (followingDoc.exists()) {
-      // --- Unfollow Logic ---
-      batch.delete(currentUserFollowingRef);
-      batch.delete(targetUserFollowerRef);
-      batch.update(currentUserRef, { followingCount: increment(-1) });
-      batch.update(targetUserRef, { followerCount: increment(-1) });
-      
-      await batch.commit();
-      
-      return {
-        success: true,
-        newState: 'unfollowed',
-        message: 'Successfully unfollowed user.',
-      };
-    } else {
-      // --- Follow Logic ---
-      const timestamp = serverTimestamp();
-      batch.set(currentUserFollowingRef, { userId: targetUserId, followedAt: timestamp });
-      batch.set(targetUserFollowerRef, { userId: currentUserId, followedAt: timestamp });
-      batch.update(currentUserRef, { followingCount: increment(1) });
-      batch.update(targetUserRef, { followerCount: increment(1) });
+      if (followingDoc.exists()) {
+        // --- Unfollow Logic ---
+        transaction.delete(currentUserFollowingRef);
+        transaction.delete(targetUserFollowerRef);
+        transaction.update(currentUserRef, { followingCount: increment(-1) });
+        transaction.update(targetUserRef, { followerCount: increment(-1) });
+        
+        return {
+          success: true,
+          newState: 'unfollowed',
+          message: 'Successfully unfollowed user.',
+        };
+      } else {
+        // --- Follow Logic ---
+        const timestamp = serverTimestamp();
+        transaction.set(currentUserFollowingRef, { userId: targetUserId, followedAt: timestamp });
+        transaction.set(targetUserFollowerRef, { userId: currentUserId, followedAt: timestamp });
+        transaction.update(currentUserRef, { followingCount: increment(1) });
+        transaction.update(targetUserRef, { followerCount: increment(1) });
 
-      await batch.commit();
-
-      return {
-        success: true,
-        newState: 'followed',
-        message: 'Successfully followed user.',
-      };
-    }
+        return {
+          success: true,
+          newState: 'followed',
+          message: 'Successfully followed user.',
+        };
+      }
+    });
   } catch (error: any) {
-    console.error('Error in toggleFollow:', error);
+    console.error('Error in toggleFollow transaction:', error);
     // Provide a more generic but helpful error message to the client
     throw new Error(`Failed to update follow status. Please try again.`);
   }
