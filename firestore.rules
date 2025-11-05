@@ -29,9 +29,14 @@ service cloud.firestore {
       // A user can create their own user document.
       allow create: if isOwner(userId);
       
-      // A user can only update their own username and profileImageUrl.
-      // Follow counts are handled by a trusted server process (Genkit flow).
-      allow update: if isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'profileImageUrl']);
+      // A user can update their own username/profile OR their own/another's follow counts by 1.
+      allow update: if isSignedIn() && (
+        (isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'profileImageUrl'])) ||
+        (isOwner(userId) && request.resource.data.followingCount - resource.data.followingCount == 1) ||
+        (isOwner(userId) && resource.data.followingCount - request.resource.data.followingCount == 1) ||
+        (request.resource.data.followerCount - resource.data.followerCount == 1) ||
+        (resource.data.followerCount - request.resource.data.followerCount == 1)
+      );
 
       // No one can arbitrarily delete a user document. Deletions should be handled by a trusted server process.
       allow delete: if false;

@@ -3,4 +3,3 @@
 import './flows/upload-media-flow';
 import './flows/extract-color-flow';
 import './flows/upload-multiple-media-flow';
-import './flows/toggle-follow-flow';

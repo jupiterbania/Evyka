@@ -1,9 +1,12 @@
 
+'use client';
+
 import { useState, useEffect, useCallback } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, runTransaction, increment, serverTimestamp } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { toggleFollow } from '@/ai/flows/toggle-follow-flow';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export const useFollow = (targetUserId?: string) => {
   const { user } = useUser();
@@ -11,10 +14,9 @@ export const useFollow = (targetUserId?: string) => {
   const { toast } = useToast();
 
   const [isFollowing, setIsFollowing] = useState(false);
-  const [isFollowLoading, setIsFollowLoading] = useState(true); // Initially loading until we check
+  const [isFollowLoading, setIsFollowLoading] = useState(true);
 
   useEffect(() => {
-    // Reset state when target user changes
     setIsFollowing(false);
     setIsFollowLoading(true);
 
@@ -23,7 +25,6 @@ export const useFollow = (targetUserId?: string) => {
       return;
     }
     
-    // Check initial follow status when the component mounts or user/target changes.
     const followDocRef = doc(firestore, 'users', user.uid, 'following', targetUserId);
     getDoc(followDocRef).then(doc => {
       setIsFollowing(doc.exists());
@@ -35,7 +36,7 @@ export const useFollow = (targetUserId?: string) => {
   }, [user, targetUserId, firestore]);
 
   const handleFollowToggle = useCallback(async () => {
-    if (!user || !targetUserId) {
+    if (!user || !targetUserId || !firestore) {
       toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to follow users.' });
       return;
     }
@@ -45,34 +46,52 @@ export const useFollow = (targetUserId?: string) => {
     }
 
     const previousState = isFollowing;
-    // Optimistic UI update for instant feedback
-    setIsFollowing(!previousState);
-    // We don't set loading state here to make it feel instant
+    setIsFollowing(!previousState); // Optimistic UI update
 
     try {
-      // Call the server flow in the background
-      const result = await toggleFollow({
-        currentUserId: user.uid,
-        targetUserId: targetUserId,
+      await runTransaction(firestore, async (transaction) => {
+        const currentUserId = user.uid;
+        const currentUserRef = doc(firestore, 'users', currentUserId);
+        const targetUserRef = doc(firestore, 'users', targetUserId);
+        const currentUserFollowingRef = doc(firestore, 'users', currentUserId, 'following', targetUserId);
+        const targetUserFollowerRef = doc(firestore, 'users', targetUserId, 'followers', currentUserId);
+
+        const followingDoc = await transaction.get(currentUserFollowingRef);
+        
+        if (followingDoc.exists) {
+          // --- Unfollow Logic ---
+          transaction.delete(currentUserFollowingRef);
+          transaction.delete(targetUserFollowerRef);
+          transaction.update(currentUserRef, { followingCount: increment(-1) });
+          transaction.update(targetUserRef, { followerCount: increment(-1) });
+        } else {
+          // --- Follow Logic ---
+          const timestamp = serverTimestamp();
+          transaction.set(currentUserFollowingRef, { userId: targetUserId, followedAt: timestamp });
+          transaction.set(targetUserFollowerRef, { userId: currentUserId, followedAt: timestamp });
+          transaction.update(currentUserRef, { followingCount: increment(1) });
+          transaction.update(targetUserRef, { followerCount: increment(1) });
+        }
       });
 
-      // After the server responds, sync the UI with the true state.
-      // This will correct the UI if the server operation failed or if state is out of sync.
-      if (result.isFollowing !== !previousState) {
-        setIsFollowing(result.isFollowing);
-      }
-      
     } catch (error: any) {
-      // If the server call fails, revert the optimistic update and show an error.
-      setIsFollowing(previousState);
-      console.error('Failed to toggle follow:', error);
+      setIsFollowing(previousState); // Revert optimistic update on failure
+      const permissionError = new FirestorePermissionError(
+        'follow/unfollow transaction',
+        `users/${user.uid} & users/${targetUserId}`,
+        {},
+        error
+      );
+      errorEmitter.emit('permission-error', permissionError);
+      
+      console.error('Follow/unfollow transaction failed:', error);
       toast({
         variant: 'destructive',
         title: 'Error',
-        description: 'Failed to update follow status. Please try again.',
+        description: 'Failed to update follow status. Please check your permissions and try again.',
       });
     }
-  }, [user, targetUserId, isFollowing, toast]);
+  }, [user, targetUserId, firestore, isFollowing, toast]);
 
   return { isFollowing, isFollowLoading, handleFollowToggle };
 };
