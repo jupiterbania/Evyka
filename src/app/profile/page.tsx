@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -5,20 +6,21 @@ import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import type { Media as MediaType, User as AppUser } from '@/lib/types';
 import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
-import { Loader2, Edit } from 'lucide-react';
+import { Loader2, Edit, Settings } from 'lucide-react';
 import { ImageCard } from '@/components/image-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { updateProfile } from 'firebase/auth';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-
+import { Separator } from '@/components/ui/separator';
+import { Logo } from '@/components/logo';
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
@@ -140,10 +142,41 @@ export default function ProfilePage() {
                 </Avatar>
                 <h1 className="text-3xl font-bold font-headline">{user.displayName}</h1>
                 <p className="text-muted-foreground">{user.email}</p>
-                <Button variant="outline" size="sm" className="mt-4" onClick={handleEditOpen}>
-                    <Edit className="mr-2 h-4 w-4" />
-                    Edit Profile
-                </Button>
+                <div className="flex items-center gap-2 mt-4">
+                  <Button variant="outline" size="sm" onClick={handleEditOpen}>
+                      <Edit className="mr-2 h-4 w-4" />
+                      Edit Profile
+                  </Button>
+                   <Sheet>
+                        <SheetTrigger asChild>
+                             <Button variant="outline" size="icon" className="h-9 w-9">
+                                <Settings className="h-4 w-4" />
+                                <span className="sr-only">Settings</span>
+                            </Button>
+                        </SheetTrigger>
+                        <SheetContent>
+                            <SheetHeader>
+                                <SheetTitle>Settings</SheetTitle>
+                                <SheetDescription>
+                                    Application settings and information.
+                                </SheetDescription>
+                            </SheetHeader>
+                            <div className="py-8 grid gap-4">
+                                <Button variant="ghost" asChild className="justify-start">
+                                  <Link href="/about">About Us</Link>
+                                </Button>
+                                <Button variant="ghost" asChild className="justify-start">
+                                  <a href="https://www.instagram.com/heyevyka" target="_blank" rel="noopener noreferrer">Contact Us</a>
+                                </Button>
+                            </div>
+                            <Separator />
+                            <div className="text-center text-sm text-muted-foreground py-8 space-y-2">
+                                <p>All content on this site is for entertainment purposes only.</p>
+                                <p>© {new Date().getFullYear()} EVYKA Inc. All rights reserved.</p>
+                            </div>
+                        </SheetContent>
+                    </Sheet>
+                </div>
             </div>
         </section>
 
@@ -177,7 +210,6 @@ export default function ProfilePage() {
     <div className="flex flex-col min-h-screen">
       <Header />
       <main className="flex-grow">{renderContent()}</main>
-      <Footer />
 
       <Dialog open={isEditOpen} onOpenChange={setEditOpen}>
         <DialogContent>

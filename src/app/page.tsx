@@ -1,6 +1,6 @@
+
 'use client';
 import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
 import { ImageCard } from '@/components/image-card';
 import Image from 'next/image';
 import type { Media as MediaType, SiteSettings } from '@/lib/types';
@@ -229,7 +229,6 @@ export default function Home() {
           </div>
         </section>
       </main>
-      <Footer />
 
       <AlertDialog open={isAgeGateOpen} onOpenChange={setAgeGateOpen}>
         <AlertDialogContent>

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useParams } from 'next/navigation';
@@ -6,7 +7,6 @@ import { doc, Timestamp, collection } from 'firebase/firestore';
 import type { Media as MediaType } from '@/lib/types';
 import Image from 'next/image';
 import { Header } from '@/components/header';
-import { Footer } from '@/components/footer';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -332,7 +332,6 @@ export default function ImagePage() {
       <main className="flex-grow flex flex-col items-stretch justify-center">
         {renderContent()}
       </main>
-      <Footer />
     </div>
   );
 }
