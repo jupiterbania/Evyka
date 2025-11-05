@@ -16,15 +16,12 @@ import { Button } from './ui/button';
 import { Label } from './ui/label';
 import { Input } from './ui/input';
 import { Textarea } from './ui/textarea';
-import { Checkbox } from './ui/checkbox';
-import { Progress } from './ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { useFirestore, useMemoFirebase, useUser } from '@/firebase';
 import { collection, serverTimestamp } from 'firebase/firestore';
 import { uploadMultipleMedia } from '@/ai/flows/upload-multiple-media-flow';
-import { AlertTriangle, Film, ImageIcon, Video } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { AlertTriangle, ImageIcon, Video } from 'lucide-react';
 
 
 type UploadType = 'image' | 'reel' | 'nude';
@@ -120,7 +117,7 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
 
         for (const result of results) {
             const docData: any = {
-                title: filesArray.length > 1 ? '' : newMedia.title,
+                title: filesArray.length > 1 ? result.originalFilename.replace(/\.[^/.]+$/, "") : newMedia.title,
                 description: newMedia.description,
                 mediaUrl: result.mediaUrl,
                 thumbnailUrl: result.thumbnailUrl,

@@ -97,8 +97,8 @@ const uploadMultipleMediaFlow = ai.defineFlow(
         
       } catch (error: any) {
         console.error(`Failed to upload ${item.originalFilename}:`, error.message || JSON.stringify(error));
-        // Continue with the next file even if one fails
-        continue;
+        // Throw a more descriptive error to be caught by the client
+        throw new Error(`Failed to upload ${item.originalFilename}. Reason: ${error.message || 'Unknown error'}`);
       }
     }
     
