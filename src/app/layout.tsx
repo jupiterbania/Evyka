@@ -29,7 +29,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           <FirebaseErrorListener />
-          <div className="pb-20">
+          <div className="pb-16">
             {children}
           </div>
           <Toaster />
