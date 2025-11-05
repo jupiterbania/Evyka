@@ -29,5 +29,10 @@ service cloud.firestore {
       // Only the user who created the media can update or delete it.
       allow update, delete: if isMediaOwner(mediaId);
     }
+     
+    match /settings/main {
+      // Any signed-in user can read the site settings.
+      allow get: if isSignedIn();
+    }
   }
 }
