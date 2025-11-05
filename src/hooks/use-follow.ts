@@ -11,17 +11,19 @@ export const useFollow = (targetUserId?: string) => {
   const { toast } = useToast();
 
   const [isFollowing, setIsFollowing] = useState(false);
-  const [isFollowLoading, setIsFollowLoading] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(true); // Initially loading until we check
 
   useEffect(() => {
+    // Reset state when target user changes
+    setIsFollowing(false);
+    setIsFollowLoading(true);
+
     if (!user || !targetUserId || !firestore) {
-      setIsFollowing(false);
+      setIsFollowLoading(false);
       return;
     }
     
     // Check initial follow status when the component mounts or user/target changes.
-    // Set loading state only for this initial check.
-    setIsFollowLoading(true);
     const followDocRef = doc(firestore, 'users', user.uid, 'following', targetUserId);
     getDoc(followDocRef).then(doc => {
       setIsFollowing(doc.exists());
@@ -69,7 +71,7 @@ export const useFollow = (targetUserId?: string) => {
         description: 'Failed to update follow status. Please try again.',
       });
     }
-  }, [user, targetUserId, firestore, isFollowing, toast]);
+  }, [user, targetUserId, isFollowing, toast]);
 
   return { isFollowing, isFollowLoading, handleFollowToggle };
 };
