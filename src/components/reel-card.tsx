@@ -95,7 +95,7 @@ export function ReelCard({ reel }: ReelCardProps) {
         loop
         playsInline
         muted={isMuted}
-        className="h-full w-auto object-contain"
+        className="h-full w-full object-cover"
         onClick={handleVideoClick}
         onWaiting={handleWaiting}
         onPlaying={handlePlaying}
