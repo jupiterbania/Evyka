@@ -2,7 +2,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { collection, query, where, doc, updateDoc, getDoc } from 'firebase/firestore';
+import { collection, query, where, doc, updateDoc, getDoc, writeBatch, increment, serverTimestamp } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
 import type { Media as MediaType, User as AppUser } from '@/lib/types';
 import { Header } from '@/components/header';
@@ -17,7 +17,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
-import { toggleFollow } from '@/ai/flows/toggle-follow-flow';
 import { updateProfile, signOut } from 'firebase/auth';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Separator } from '@/components/ui/separator';
@@ -55,7 +54,7 @@ export default function ProfilePage() {
   }, [userDoc]);
 
   useEffect(() => {
-    if (user && profileUserId && user.uid !== profileUserId) {
+    if (user && profileUserId && user.uid !== profileUserId && firestore) {
       const checkFollowing = async () => {
         setIsFollowLoading(true);
         const followDocRef = doc(firestore, 'users', user.uid, 'following', profileUserId);
@@ -99,24 +98,47 @@ export default function ProfilePage() {
   };
   
   const handleFollowToggle = async () => {
-    if (!user || !profileUserId || user.uid === profileUserId) return;
+    if (!user || !profileUserId || !firestore || user.uid === profileUserId) return;
+    
     setIsFollowLoading(true);
+    const currentUserId = user.uid;
+    const targetUserId = profileUserId;
+
+    const currentUserRef = doc(firestore, 'users', currentUserId);
+    const targetUserRef = doc(firestore, 'users', targetUserId);
+    const currentUserFollowingRef = doc(firestore, 'users', currentUserId, 'following', targetUserId);
+    const targetUserFollowerRef = doc(firestore, 'users', targetUserId, 'followers', currentUserId);
+
     try {
-      const result = await toggleFollow({ currentUserId: user.uid, targetUserId: profileUserId });
-      setIsFollowing(result.newState === 'followed');
-      
-      // Manually update follower count on the client for immediate feedback
-      setProfileUser(prev => {
-        if (!prev) return null;
-        const currentFollowers = prev.followerCount || 0;
-        return {
-          ...prev,
-          followerCount: result.newState === 'followed' ? currentFollowers + 1 : Math.max(0, currentFollowers - 1)
-        }
-      });
-      
+      const batch = writeBatch(firestore);
+      const timestamp = serverTimestamp();
+
+      if (isFollowing) {
+        // --- Unfollow Logic ---
+        batch.delete(currentUserFollowingRef);
+        batch.delete(targetUserFollowerRef);
+        batch.update(currentUserRef, { followingCount: increment(-1) });
+        batch.update(targetUserRef, { followerCount: increment(-1) });
+        
+        await batch.commit();
+        setIsFollowing(false);
+        setProfileUser(prev => prev ? { ...prev, followerCount: Math.max(0, (prev.followerCount || 0) - 1) } : null);
+        toast({ title: 'Unfollowed user.' });
+      } else {
+        // --- Follow Logic ---
+        batch.set(currentUserFollowingRef, { userId: targetUserId, followedAt: timestamp });
+        batch.set(targetUserFollowerRef, { userId: currentUserId, followedAt: timestamp });
+        batch.update(currentUserRef, { followingCount: increment(1) });
+        batch.update(targetUserRef, { followerCount: increment(1) });
+
+        await batch.commit();
+        setIsFollowing(true);
+        setProfileUser(prev => prev ? { ...prev, followerCount: (prev.followerCount || 0) + 1 } : null);
+        toast({ title: 'Successfully followed user.' });
+      }
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
+        console.error("Error toggling follow:", error);
+        toast({ variant: 'destructive', title: 'Error', description: "Failed to update follow status. Please try again." });
     } finally {
       setIsFollowLoading(false);
     }

@@ -57,6 +57,9 @@ import {
   doc,
   getDoc,
   Timestamp,
+  writeBatch,
+  increment,
+  serverTimestamp,
 } from 'firebase/firestore';
 import {
   deleteDocumentNonBlocking,
@@ -77,7 +80,6 @@ import { Textarea } from './ui/textarea';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
-import { toggleFollow } from '@/ai/flows/toggle-follow-flow';
 import { cn } from '@/lib/utils';
 import { Checkbox } from './ui/checkbox';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
@@ -194,7 +196,7 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
   // --- End Fetch Author Data ---
   
   useEffect(() => {
-    if (user && mediaItem.authorId) {
+    if (user && mediaItem.authorId && firestore) {
         setIsFollowLoading(true);
         const checkFollowing = async () => {
             const followDocRef = doc(firestore, 'users', user.uid, 'following', mediaItem.authorId);
@@ -334,13 +336,45 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
   
   const handleFollowToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user || !mediaItem.authorId || isOwner) return;
+    if (!user || !mediaItem.authorId || !firestore || isOwner) return;
+    
     setIsFollowLoading(true);
+    const currentUserId = user.uid;
+    const targetUserId = mediaItem.authorId;
+
+    const currentUserRef = doc(firestore, 'users', currentUserId);
+    const targetUserRef = doc(firestore, 'users', targetUserId);
+    const currentUserFollowingRef = doc(firestore, 'users', currentUserId, 'following', targetUserId);
+    const targetUserFollowerRef = doc(firestore, 'users', targetUserId, 'followers', currentUserId);
+
     try {
-      const result = await toggleFollow({ currentUserId: user.uid, targetUserId: mediaItem.authorId });
-      setIsFollowing(result.newState === 'followed');
+      const batch = writeBatch(firestore);
+      const timestamp = serverTimestamp();
+
+      if (isFollowing) {
+        // --- Unfollow Logic ---
+        batch.delete(currentUserFollowingRef);
+        batch.delete(targetUserFollowerRef);
+        batch.update(currentUserRef, { followingCount: increment(-1) });
+        batch.update(targetUserRef, { followerCount: increment(-1) });
+        
+        await batch.commit();
+        setIsFollowing(false);
+        toast({ title: 'Unfollowed user.' });
+      } else {
+        // --- Follow Logic ---
+        batch.set(currentUserFollowingRef, { userId: targetUserId, followedAt: timestamp });
+        batch.set(targetUserFollowerRef, { userId: currentUserId, followedAt: timestamp });
+        batch.update(currentUserRef, { followingCount: increment(1) });
+        batch.update(targetUserRef, { followerCount: increment(1) });
+
+        await batch.commit();
+        setIsFollowing(true);
+        toast({ title: 'Successfully followed user.' });
+      }
     } catch (error: any) {
-      toast({ variant: 'destructive', title: 'Error', description: error.message });
+        console.error("Error toggling follow:", error);
+        toast({ variant: 'destructive', title: 'Error', description: "Failed to update follow status. Please try again." });
     } finally {
       setIsFollowLoading(false);
     }
