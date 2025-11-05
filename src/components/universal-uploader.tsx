@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -83,7 +82,11 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
       return;
     }
 
-    setIsOpen(false); // Close dialog immediately
+    setIsUploading(true);
+    setUploadStatusMessage('Starting upload...');
+
+    // We can close the dialog immediately and show progress with toasts.
+    setIsOpen(false); 
     toast({
         title: 'Upload Started',
         description: 'Your files are being uploaded in the background.',
@@ -291,8 +294,8 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
             <DialogClose asChild>
                 <Button type="button" variant="secondary" onClick={resetAll}>Cancel</Button>
             </DialogClose>
-            <Button type="submit" onClick={handleUpload}>
-                Upload
+            <Button type="submit" onClick={handleUpload} disabled={isUploading}>
+              {isUploading ? 'Uploading...' : 'Upload'}
             </Button>
         </DialogFooter>
     </>
@@ -300,7 +303,7 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
 
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => { if(!open) resetAll() }}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) resetAll(); else setIsOpen(true); }}>
       <DialogTrigger asChild>{children}</DialogTrigger>
       <DialogContent onInteractOutside={(e) => { if(isUploading) e.preventDefault()}} onEscapeKeyDown={(e) => {if(isUploading) e.preventDefault()}}>
         {step === 1 ? renderStepOne() : renderStepTwo()}
