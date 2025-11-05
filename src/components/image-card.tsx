@@ -543,14 +543,14 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
                   </Button>
             </div>
             <p className="text-sm font-semibold mt-2">{formatCount(likeCount)} likes</p>
-            <p className="text-sm mt-1">
+            <div className="text-sm mt-1">
                 {isAuthorLoading ? <Skeleton className="h-4 w-32" /> :
-                  <>
+                  <p>
                     <span className="font-semibold">{author?.username}</span>
                     <span className="ml-2 text-muted-foreground">{mediaItem.title}</span>
-                  </>
+                  </p>
                 }
-            </p>
+            </div>
             {mediaItem.description && (
                  <p className="text-sm text-muted-foreground mt-1">{mediaItem.description}</p>
             )}
