@@ -3,10 +3,10 @@
 
 import { useMemo, useState } from 'react';
 import { collection, query, where, doc, updateDoc } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase, useUser } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, useAuth } from '@/firebase';
 import type { Media as MediaType, User as AppUser } from '@/lib/types';
 import { Header } from '@/components/header';
-import { Loader2, Edit, Settings } from 'lucide-react';
+import { Loader2, Edit, Settings, LogOut } from 'lucide-react';
 import { ImageCard } from '@/components/image-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
-import { updateProfile } from 'firebase/auth';
+import { updateProfile, signOut } from 'firebase/auth';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/components/logo';
@@ -25,6 +25,7 @@ import { Logo } from '@/components/logo';
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const auth = useAuth();
   const { toast } = useToast();
 
   const [isEditOpen, setEditOpen] = useState(false);
@@ -50,6 +51,15 @@ export default function ProfilePage() {
     if (user) {
       setProfileData({ displayName: user.displayName || '', photoFile: null });
       setEditOpen(true);
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+    } catch (error) {
+      console.error('Error signing out', error);
     }
   };
 
@@ -167,6 +177,11 @@ export default function ProfilePage() {
                                 </Button>
                                 <Button variant="ghost" asChild className="justify-start">
                                   <a href="https://www.instagram.com/heyevyka" target="_blank" rel="noopener noreferrer">Contact Us</a>
+                                </Button>
+                                <Separator />
+                                <Button variant="ghost" onClick={handleSignOut} className="justify-start text-destructive hover:text-destructive">
+                                  <LogOut className="mr-2 h-4 w-4" />
+                                  Log out
                                 </Button>
                             </div>
                             <Separator />

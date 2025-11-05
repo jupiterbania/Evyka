@@ -2,27 +2,15 @@
 import Link from 'next/link';
 import { Logo } from './logo';
 import { Button } from './ui/button';
-import { Menu, LogIn, LogOut, Plus, User as UserIcon } from 'lucide-react';
-import { useUser, useAuth, useFirestore, useMemoFirebase } from '@/firebase';
-import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { useToast } from '@/hooks/use-toast';
+import { LogIn, Plus } from 'lucide-react';
+import { useUser, useAuth } from '@/firebase';
+import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { UniversalUploader } from './universal-uploader';
 
 
 export function Header() {
   const { user, isUserLoading } = useUser();
   const auth = useAuth();
-  const firestore = useFirestore();
-  const { toast } = useToast();
 
   const handleGoogleSignIn = async () => {
     if (!auth) return;
@@ -40,24 +28,6 @@ export function Header() {
       }
       console.error('Error signing in with Google', error);
     }
-  };
-
-  const handleSignOut = async () => {
-    if (!auth) return;
-    try {
-      await signOut(auth);
-    } catch (error) {
-      console.error('Error signing out', error);
-    }
-  };
-
-  const getInitials = (name?: string | null) => {
-    if (!name) return 'U';
-    const names = name.split(' ');
-    if (names.length > 1 && names[0] && names[names.length - 1]) {
-      return names[0][0] + names[names.length - 1][0];
-    }
-    return name.substring(0, 2);
   };
 
   return (
@@ -85,37 +55,6 @@ export function Header() {
                   <span className="sr-only">Upload Media</span>
                 </Button>
               </UniversalUploader>
-            
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" className="relative h-8 w-8 rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
-                    <AvatarFallback>{getInitials(user.displayName)}</AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56" align="end" forceMount>
-                <DropdownMenuLabel className="font-normal">
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{user.displayName}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                 <DropdownMenuItem asChild>
-                    <Link href="/profile">
-                        <UserIcon className="mr-2 h-4 w-4" />
-                        <span>Profile</span>
-                    </Link>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
             </>
           ) : (
             <Button onClick={handleGoogleSignIn}>
