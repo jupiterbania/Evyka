@@ -3,7 +3,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { collection, query, where, doc, updateDoc, getDoc } from 'firebase/firestore';
-import { useCollection, useFirestore, useMemoFirebase, useUser, useAuth } from '@/firebase';
+import { useCollection, useFirestore, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
 import type { Media as MediaType, User as AppUser } from '@/lib/types';
 import { Header } from '@/components/header';
 import { Loader2, Edit, Settings, LogOut, UserPlus } from 'lucide-react';
