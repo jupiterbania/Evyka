@@ -111,7 +111,12 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
             };
         }));
 
-        const { results } = await uploadMultipleMedia({ mediaItems });
+        const { results } = await uploadMultipleMedia({ 
+          mediaItems,
+          authorId: user.uid,
+          authorName: user.displayName,
+          authorPhotoUrl: user.photoURL
+        });
 
         if (results.length === 0) throw new Error("All file uploads failed on the server.");
 

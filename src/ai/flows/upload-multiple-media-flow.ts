@@ -31,6 +31,9 @@ const MediaUploadSchema = z.object({
 
 const UploadMultipleMediaInputSchema = z.object({
     mediaItems: z.array(MediaUploadSchema),
+    authorId: z.string(),
+    authorName: z.string().nullable(),
+    authorPhotoUrl: z.string().nullable(),
 });
 export type UploadMultipleMediaInput = z.infer<typeof UploadMultipleMediaInputSchema>;
 
