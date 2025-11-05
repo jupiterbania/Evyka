@@ -1,10 +1,9 @@
 
 import { useState, useEffect } from 'react';
-import { doc, getDoc, writeBatch, increment, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
+import { toggleFollow } from '@/ai/flows/toggle-follow-flow';
 
 export const useFollow = (targetUserId?: string) => {
   const { user } = useUser();
@@ -15,72 +14,66 @@ export const useFollow = (targetUserId?: string) => {
   const [isFollowLoading, setIsFollowLoading] = useState(false);
 
   useEffect(() => {
-    if (user && targetUserId && firestore) {
-      setIsFollowLoading(true);
-      const followDocRef = doc(firestore, 'users', user.uid, 'following', targetUserId);
-      getDoc(followDocRef)
-        .then(doc => {
-          setIsFollowing(doc.exists());
-        })
-        .finally(() => {
-          setIsFollowLoading(false);
-        });
-    }
-  }, [user, targetUserId, firestore]);
-
-  const handleFollowToggle = async () => {
-    if (!user || !targetUserId || !firestore || user.uid === targetUserId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to follow users.' });
+    // No need to check on mount if user is not logged in or target is missing
+    if (!user || !targetUserId || !firestore) {
+      setIsFollowing(false);
       return;
     }
-
+    
+    // Initial check is still client-side for speed
     setIsFollowLoading(true);
-    const currentUserId = user.uid;
-
-    const currentUserRef = doc(firestore, 'users', currentUserId);
-    const targetUserRef = doc(firestore, 'users', targetUserId);
-    const currentUserFollowingRef = doc(firestore, 'users', currentUserId, 'following', targetUserId);
-    const targetUserFollowerRef = doc(firestore, 'users', targetUserId, 'followers', currentUserId);
-    const timestamp = serverTimestamp();
-
-    const batch = writeBatch(firestore);
-
-    if (isFollowing) {
-      // Unfollow Logic
-      batch.delete(currentUserFollowingRef);
-      batch.delete(targetUserFollowerRef);
-      batch.update(currentUserRef, { followingCount: increment(-1) });
-      batch.update(targetUserRef, { followerCount: increment(-1) });
-    } else {
-      // Follow Logic
-      batch.set(currentUserFollowingRef, { userId: targetUserId, followedAt: timestamp });
-      batch.set(targetUserFollowerRef, { userId: currentUserId, followedAt: timestamp });
-      batch.update(currentUserRef, { followingCount: increment(1) });
-      batch.update(targetUserRef, { followerCount: increment(1) });
-    }
-
-    batch.commit()
-      .then(() => {
-        const wasFollowing = isFollowing;
-        setIsFollowing(!wasFollowing);
-        toast({ title: wasFollowing ? 'Unfollowed user.' : 'Successfully followed user.' });
+    const followDocRef = doc(firestore, 'users', user.uid, 'following', targetUserId);
+    getDoc(followDocRef)
+      .then(doc => {
+        setIsFollowing(doc.exists());
       })
-      .catch((serverError) => {
-        const error = new FirestorePermissionError(
-          isFollowing ? 'unfollow' : 'follow',
-          `batch write on users/${currentUserId} and users/${targetUserId}`,
-          {
-            currentUserRef: currentUserRef.path,
-            targetUserRef: targetUserRef.path,
-            isFollowing,
-          },
-          serverError
-        );
-        errorEmitter.emit('permission-error', error);
+      .catch(err => {
+        console.error("Error checking follow status:", err);
+        // Don't show a toast for a simple read error
       })
       .finally(() => {
         setIsFollowLoading(false);
       });
+  }, [user, targetUserId, firestore]);
+
+  const handleFollowToggle = async () => {
+    if (!user || !targetUserId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to follow users.' });
+      return;
+    }
+    if (user.uid === targetUserId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You cannot follow yourself.'});
+      return;
+    }
+
+    setIsFollowLoading(true);
+
+    try {
+      // Optimistically update the UI
+      const previousState = isFollowing;
+      setIsFollowing(!previousState);
+
+      const result = await toggleFollow({
+        currentUserId: user.uid,
+        targetUserId: targetUserId,
+      });
+
+      // The server is the source of truth, so sync with its response.
+      setIsFollowing(result.isFollowing);
+      toast({ title: result.isFollowing ? 'Successfully followed user.' : 'Unfollowed user.' });
+
+    } catch (error: any) {
+      // If server fails, revert the optimistic update and show an error
+      setIsFollowing(isFollowing);
+      console.error('Failed to toggle follow:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'Failed to update follow status. Please try again.',
+      });
+    } finally {
+      setIsFollowLoading(false);
+    }
   };
 
   return { isFollowing, isFollowLoading, handleFollowToggle };

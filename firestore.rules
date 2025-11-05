@@ -25,26 +25,12 @@ service cloud.firestore {
       // Anyone can read public user profiles.
       allow get: if true;
       
-      // This rule allows a user to create their own doc, update their own doc,
-      // and allows other users to update their follower count.
-      allow write: if
-        // Case 1: Creating own user document.
-        (isOwner(userId) && request.resource.data.diff(resource.data) == null) ||
-        // Case 2: Updating own user document for profile changes or following action.
-        (isOwner(userId) &&
-          (
-            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'profileImageUrl'])) ||
-            (
-              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followingCount']) &&
-              (request.resource.data.followingCount == resource.data.followingCount + 1 || request.resource.data.followingCount == resource.data.followingCount - 1)
-            )
-          )
-        ) ||
-        // Case 3: A different user is updating this document's follower count.
-        (!isOwner(userId) && isSignedIn() &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
-          (request.resource.data.followerCount == resource.data.followerCount + 1 || request.resource.data.followerCount == resource.data.followerCount - 1)
-        );
+      // A user can create their own user document.
+      allow create: if isOwner(userId);
+      
+      // A user can only update their own username and profileImageUrl.
+      // Follow counts are handled by the server.
+      allow update: if isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'profileImageUrl']);
 
       // No one can arbitrarily delete a user document. Deletions should be handled by a trusted server process.
       allow delete: if false;
