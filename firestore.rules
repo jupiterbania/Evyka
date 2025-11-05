@@ -28,26 +28,26 @@ service cloud.firestore {
       // A user can create their own document.
       allow create: if isOwner(userId);
       
-      // A user can update their own username/image, or their own following count.
-      // Any other signed-in user can update THIS user's follower count.
-      allow update: if (isOwner(userId) && (
-                      // Owner can change their own username/image
-                      request.resource.data.keys().hasOnly(['username', 'profileImageUrl', 'followerCount', 'followingCount', 'createdAt', 'email', 'id']) &&
-                      (
-                        request.resource.data.followingCount == resource.data.followingCount + 1 ||
-                        request.resource.data.followingCount == resource.data.followingCount - 1
-                      )
-                    )) ||
-                    // Any signed-in user can change THIS user's followerCount by +/- 1
-                    (
-                      isSignedIn() && !isOwner(userId) &&
-                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
-                      (
-                        request.resource.data.followerCount == resource.data.followerCount + 1 ||
-                        request.resource.data.followerCount == resource.data.followerCount - 1
-                      )
-                    );
-
+      // Complex update rule for follow/unfollow and profile edits
+      allow update: if 
+        // Case 1: The user is updating their OWN document.
+        (isOwner(userId) && (
+            // They can update their username or image.
+            (request.resource.data.keys().hasAll(['username', 'profileImageUrl']) && request.resource.data.size() == 2) ||
+            // OR they can update their following count by +/- 1.
+            (
+              request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followingCount']) &&
+              (request.resource.data.followingCount == resource.data.followingCount + 1 ||
+               request.resource.data.followingCount == resource.data.followingCount - 1)
+            )
+        )) ||
+        // Case 2: A DIFFERENT user is updating this document.
+        (!isOwner(userId) && isSignedIn() && (
+            // They are ONLY allowed to update the follower count by +/- 1.
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
+            (request.resource.data.followerCount == resource.data.followerCount + 1 ||
+             request.resource.data.followerCount == resource.data.followerCount - 1)
+        ));
 
       // No one can arbitrarily delete a user document. Deletions should be handled by a trusted server process.
       allow delete: if false;
