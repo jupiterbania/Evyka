@@ -10,10 +10,10 @@ import {
   query,
   orderBy,
   serverTimestamp,
-  getDoc,
+  addDoc,
+  updateDoc
 } from 'firebase/firestore';
-import { addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
-import type { Conversation, Message, User as AppUser } from '@/lib/types';
+import type { Conversation, Message } from '@/lib/types';
 import { Loader2, ArrowLeft, Send } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -29,7 +29,6 @@ export default function ConversationPage() {
   const conversationId = Array.isArray(id) ? id[0] : id;
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
   const [newMessage, setNewMessage] = useState('');
 
   const conversationRef = useMemoFirebase(
@@ -66,20 +65,24 @@ export default function ConversationPage() {
 
     const messagesColRef = collection(firestore, 'conversations', conversationId, 'messages');
     
-    addDocumentNonBlocking(messagesColRef, {
-      senderId: currentUser.uid,
-      text: newMessage.trim(),
-      createdAt: serverTimestamp(),
-      isRead: false
-    });
-    
-    updateDocumentNonBlocking(conversationRef, {
-        lastMessage: newMessage.trim(),
-        lastMessageAt: serverTimestamp(),
-        lastMessageSenderId: currentUser.uid,
-    });
+    try {
+      await addDoc(messagesColRef, {
+        senderId: currentUser.uid,
+        text: newMessage.trim(),
+        createdAt: serverTimestamp(),
+        isRead: false
+      });
+      
+      await updateDoc(conversationRef, {
+          lastMessage: newMessage.trim(),
+          lastMessageAt: serverTimestamp(),
+          lastMessageSenderId: currentUser.uid,
+      });
 
-    setNewMessage('');
+      setNewMessage('');
+    } catch (error) {
+      console.error("Error sending message: ", error);
+    }
   };
   
   const getInitials = (name?: string | null) => {

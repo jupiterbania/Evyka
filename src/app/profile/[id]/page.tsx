@@ -2,7 +2,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { collection, query, where, doc, updateDoc, getDoc, writeBatch, increment, serverTimestamp, getDocs, addDoc } from 'firebase/firestore';
+import { collection, query, where, doc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase, useUser, useAuth, useDoc } from '@/firebase';
 import type { Media as MediaType, User as AppUser, Conversation } from '@/lib/types';
 import { Header } from '@/components/header';
@@ -21,8 +21,6 @@ import { updateProfile, signOut } from 'firebase/auth';
 import { updateDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/components/logo';
-import { FirestorePermissionError } from '@/firebase/errors';
-import { errorEmitter } from '@/firebase/error-emitter';
 import { useParams, useRouter } from 'next/navigation';
 import { useFollow } from '@/hooks/use-follow';
 
@@ -117,7 +115,7 @@ export default function ProfilePage() {
             lastMessageAt: serverTimestamp(),
             lastMessageSenderId: '',
         };
-        const newConversationRef = await addDocumentNonBlocking(collection(firestore, 'conversations'), newConversationData);
+        const newConversationRef = await addDoc(collection(firestore, 'conversations'), newConversationData);
         if (newConversationRef) {
           router.push(`/messages/${newConversationRef.id}`);
         }
