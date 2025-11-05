@@ -29,16 +29,14 @@ service cloud.firestore {
       allow create: if isOwner(userId);
       
       // A user can update their own username and profile image.
-      // Additionally, allow any signed-in user to update the followerCount, but only by incrementing or decrementing by 1.
-      // This allows the server-side transaction to update the target user's count.
-      // The `followingCount` can only be modified in a transaction initiated by the user themselves.
-      allow update: if isOwner(userId) && (
-                      request.resource.data.keys().hasOnly(['username', 'profileImageUrl']) ||
-                      (request.resource.data.keys().hasOnly(['followingCount']) && 
-                       (request.resource.data.followingCount == resource.data.followingCount + 1 || request.resource.data.followingCount == resource.data.followingCount - 1))
-                    ) ||
+      // Additionally, allow any signed-in user to update the followerCount and followingCount,
+      // but only by incrementing or decrementing by 1.
+      // This allows the server-side transaction to update counts for both users involved in a follow action.
+      allow update: if (isOwner(userId) && request.resource.data.keys().hasOnly(['username', 'profileImageUrl'])) ||
+                    (isOwner(userId) && request.resource.data.keys().hasOnly(['followingCount']) && 
+                       (request.resource.data.followingCount == resource.data.followingCount + 1 || request.resource.data.followingCount == resource.data.followingCount - 1)) ||
                     (isSignedIn() && request.resource.data.keys().hasOnly(['followerCount']) &&
-                     (request.resource.data.followerCount == resource.data.followerCount + 1 || request.resource.data.followerCount == resource.data.followerCount - 1));
+                       (request.resource.data.followerCount == resource.data.followerCount + 1 || request.resource.data.followerCount == resource.data.followerCount - 1));
 
       // No one can arbitrarily delete a user document. Deletions should be handled by a trusted server process.
       allow delete: if false;
