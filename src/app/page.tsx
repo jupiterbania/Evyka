@@ -60,20 +60,24 @@ export default function Home() {
   }, [user, firestore]);
   
   useEffect(() => {
-    if (activeTab === 'following' && firestore && followingIds && followingIds.length > 0) {
-      const fetchFollowingMedia = async () => {
-        setIsFollowingMediaLoading(true);
-        const followingQuery = query(
-          collection(firestore, 'media'),
-          where('authorId', 'in', followingIds),
-          orderBy('uploadDate', 'desc')
-        );
-        const snapshot = await getDocs(followingQuery);
-        const newMedia = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MediaType));
-        setFollowingMedia(newMedia);
-        setIsFollowingMediaLoading(false);
-      };
-      fetchFollowingMedia();
+    if (activeTab === 'following' && firestore && followingIds) {
+      if (followingIds.length > 0) {
+        const fetchFollowingMedia = async () => {
+          setIsFollowingMediaLoading(true);
+          const followingQuery = query(
+            collection(firestore, 'media'),
+            where('authorId', 'in', followingIds),
+            orderBy('uploadDate', 'desc')
+          );
+          const snapshot = await getDocs(followingQuery);
+          const newMedia = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MediaType));
+          setFollowingMedia(newMedia);
+          setIsFollowingMediaLoading(false);
+        };
+        fetchFollowingMedia();
+      } else {
+        setFollowingMedia([]);
+      }
     }
   }, [activeTab, firestore, followingIds]);
 
