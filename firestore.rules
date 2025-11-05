@@ -15,8 +15,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Any signed-in user can read public user profiles.
-      allow get: if isSignedIn();
+      // Any user, signed-in or not, can read public user profiles.
+      allow get: if true;
       // Only the user themselves can create, update, or delete their own profile.
       allow create, update, delete: if isOwner(userId);
     }
