@@ -22,18 +22,21 @@ import {
 import { Loader2, AlertTriangle, ImageIcon, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 
 export default function Home() {
   const firestore = useFirestore();
   const { user } = useUser();
   const galleryRef = useRef<HTMLElement>(null);
+  const searchParams = useSearchParams();
+  const router = useRouter();
   
   const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
   const { data: media, isLoading } = useCollection<MediaType>(mediaCollection);
 
-  const [filter, setFilter] = useState<'image' | 'nude'>('image');
+  const initialFilter = searchParams.get('filter') === 'nude' ? 'nude' : 'image';
+  const [filter, setFilter] = useState<'image' | 'nude'>(initialFilter);
 
   const sortedMedia = useMemo(() => {
     if (!media) return [];
@@ -130,6 +133,7 @@ export default function Home() {
   const handleNudesClick = () => {
     if (isAgeConfirmed) {
       setFilter('nude');
+      router.replace('/?filter=nude', { scroll: false });
     } else {
       setAgeGateOpen(true);
     }
@@ -138,8 +142,22 @@ export default function Home() {
   const handleAgeConfirm = () => {
     setAgeConfirmed(true);
     setFilter('nude');
+    router.replace('/?filter=nude', { scroll: false });
     setAgeGateOpen(false);
   };
+  
+  useEffect(() => {
+    const filterParam = searchParams.get('filter');
+    if (filterParam === 'nude') {
+      if (isAgeConfirmed) {
+        setFilter('nude');
+      } else {
+        setAgeGateOpen(true);
+      }
+    } else {
+      setFilter('image');
+    }
+  }, [searchParams, isAgeConfirmed]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -156,34 +174,6 @@ export default function Home() {
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline">
                 Explore Gallery
               </h2>
-            </div>
-            
-            <div className="flex justify-center mb-6 sm:mb-8">
-              <div className="inline-flex items-center justify-center rounded-md bg-muted p-1">
-                <Button variant={filter === 'image' ? 'default' : 'ghost'} onClick={() => setFilter('image')} className="px-4 py-2 h-auto">
-                    <ImageIcon className="mr-2 h-4 w-4" />
-                    Images
-                </Button>
-                <Button variant='ghost' asChild className="px-4 py-2 h-auto">
-                    <Link href="/reels">
-                        <Video className="mr-2 h-4 w-4" />
-                        Reels
-                    </Link>
-                </Button>
-                <Button 
-                  variant={filter === 'nude' ? 'default' : 'ghost'}
-                  onClick={handleNudesClick} 
-                  className={cn(
-                      "px-4 py-2 h-auto animate-glow-right",
-                      filter !== 'nude' && "text-accent hover:bg-accent/10 hover:text-white focus:bg-accent/10 focus:text-white",
-                      filter === 'nude' && "bg-accent text-accent-foreground hover:bg-accent/90",
-                      "focus-visible:ring-accent"
-                  )}
-                >
-                    <AlertTriangle className="mr-2 h-4 w-4" />
-                    18+
-                </Button>
-              </div>
             </div>
             
             {isLoading ? (
@@ -250,7 +240,7 @@ export default function Home() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>No, take me back</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => router.replace('/', { scroll: false })}>No, take me back</AlertDialogCancel>
             <AlertDialogAction onClick={handleAgeConfirm}>
               Yes, I am 18+
             </AlertDialogAction>
