@@ -29,12 +29,23 @@ service cloud.firestore {
       allow create: if isOwner(userId);
       
       // A user can update their own username and profile image.
-      // Or they can update their own follower/following counts (via a transaction)
+      // They can also update their own following count by +/- 1.
+      // Another user can update this user's follower count by +/- 1.
       allow update: if isOwner(userId) && (
-        request.resource.data.keys().hasOnly(['username', 'profileImageUrl']) ||
-        request.resource.data.keys().hasOnly(['followingCount']) ||
-        request.resource.data.keys().hasOnly(['followerCount'])
-      );
+                      request.resource.data.keys().hasOnly(['username', 'profileImageUrl']) ||
+                      (
+                        request.resource.data.followingCount == resource.data.followingCount + 1 ||
+                        request.resource.data.followingCount == resource.data.followingCount - 1
+                      )
+                    ) ||
+                    (
+                      isSignedIn() && 
+                      (
+                        request.resource.data.followerCount == resource.data.followerCount + 1 ||
+                        request.resource.data.followerCount == resource.data.followerCount - 1
+                      )
+                    );
+
 
       // No one can arbitrarily delete a user document. Deletions should be handled by a trusted server process.
       allow delete: if false;
