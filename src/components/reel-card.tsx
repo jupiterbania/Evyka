@@ -95,7 +95,7 @@ export function ReelCard({ reel }: ReelCardProps) {
         loop
         playsInline
         muted={isMuted}
-        className="h-full w-full object-cover"
+        className="h-full w-full object-contain"
         onClick={handleVideoClick}
         onWaiting={handleWaiting}
         onPlaying={handlePlaying}
@@ -118,13 +118,13 @@ export function ReelCard({ reel }: ReelCardProps) {
       )}
 
       {/* Video Info */}
-      <div className="absolute bottom-4 left-4 text-white z-10 pointer-events-none">
+      <div className="absolute bottom-20 left-4 text-white z-10 pointer-events-none">
         <h3 className="font-bold text-lg drop-shadow-md">{reel.title}</h3>
         <p className="text-sm drop-shadow-md max-w-sm">{reel.description}</p>
       </div>
       
       {/* Mute/Unmute Button */}
-      <button onClick={handleToggleMute} className="absolute top-20 right-4 z-10 p-2 bg-black/30 rounded-full">
+      <button onClick={handleToggleMute} className="absolute top-4 right-4 z-10 p-2 bg-black/30 rounded-full">
         {isMuted ? <VolumeX className="h-6 w-6 text-white" /> : <Volume2 className="h-6 w-6 text-white" />}
       </button>
     </div>
