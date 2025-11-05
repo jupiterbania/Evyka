@@ -21,6 +21,8 @@ import { updateProfile, signOut } from 'firebase/auth';
 import { updateDocumentNonBlocking } from '@/firebase/non-blocking-updates';
 import { Separator } from '@/components/ui/separator';
 import { Logo } from '@/components/logo';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 export default function ProfilePage() {
   const { user, isUserLoading } = useUser();
@@ -108,40 +110,48 @@ export default function ProfilePage() {
     const targetUserRef = doc(firestore, 'users', targetUserId);
     const currentUserFollowingRef = doc(firestore, 'users', currentUserId, 'following', targetUserId);
     const targetUserFollowerRef = doc(firestore, 'users', targetUserId, 'followers', currentUserId);
+    const timestamp = serverTimestamp();
 
-    try {
-      const batch = writeBatch(firestore);
-      const timestamp = serverTimestamp();
+    const batch = writeBatch(firestore);
 
-      if (isFollowing) {
+    if (isFollowing) {
         // --- Unfollow Logic ---
         batch.delete(currentUserFollowingRef);
         batch.delete(targetUserFollowerRef);
         batch.update(currentUserRef, { followingCount: increment(-1) });
         batch.update(targetUserRef, { followerCount: increment(-1) });
-        
-        await batch.commit();
-        setIsFollowing(false);
-        setProfileUser(prev => prev ? { ...prev, followerCount: Math.max(0, (prev.followerCount || 0) - 1) } : null);
-        toast({ title: 'Unfollowed user.' });
-      } else {
+    } else {
         // --- Follow Logic ---
         batch.set(currentUserFollowingRef, { userId: targetUserId, followedAt: timestamp });
         batch.set(targetUserFollowerRef, { userId: currentUserId, followedAt: timestamp });
         batch.update(currentUserRef, { followingCount: increment(1) });
         batch.update(targetUserRef, { followerCount: increment(1) });
-
-        await batch.commit();
-        setIsFollowing(true);
-        setProfileUser(prev => prev ? { ...prev, followerCount: (prev.followerCount || 0) + 1 } : null);
-        toast({ title: 'Successfully followed user.' });
-      }
-    } catch (error: any) {
-        console.error("Error toggling follow:", error);
-        toast({ variant: 'destructive', title: 'Error', description: "Failed to update follow status. Please try again." });
-    } finally {
-      setIsFollowLoading(false);
     }
+
+    batch.commit()
+      .then(() => {
+        const wasFollowing = isFollowing;
+        setIsFollowing(!wasFollowing);
+        setProfileUser(prev => prev ? { ...prev, followerCount: (prev.followerCount || 0) + (wasFollowing ? -1 : 1) } : null);
+        toast({ title: wasFollowing ? 'Unfollowed user.' : 'Successfully followed user.' });
+      })
+      .catch((serverError) => {
+        // This is where we create and emit the contextual error.
+        const error = new FirestorePermissionError(
+          isFollowing ? 'unfollow' : 'follow', // Operation type
+          `batch write on users/${currentUserId} and users/${targetUserId}`, // Path
+          { // Resource data
+            currentUserRef: currentUserRef.path,
+            targetUserRef: targetUserRef.path,
+            isFollowing,
+          },
+          serverError
+        );
+        errorEmitter.emit('permission-error', error);
+      })
+      .finally(() => {
+        setIsFollowLoading(false);
+      });
   };
 
 
@@ -381,3 +391,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    

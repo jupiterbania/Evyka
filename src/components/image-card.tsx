@@ -84,6 +84,8 @@ import { cn } from '@/lib/utils';
 import { Checkbox } from './ui/checkbox';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 import { Skeleton } from './ui/skeleton';
+import { FirestorePermissionError } from '@/firebase/errors';
+import { errorEmitter } from '@/firebase/error-emitter';
 
 type ImageCardProps = {
   media: MediaType;
@@ -336,7 +338,10 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
   
   const handleFollowToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!user || !mediaItem.authorId || !firestore || isOwner) return;
+    if (!user || !mediaItem.authorId || !firestore || isOwner) {
+      // Potentially show a login prompt if no user
+      return;
+    }
     
     setIsFollowLoading(true);
     const currentUserId = user.uid;
@@ -346,38 +351,47 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
     const targetUserRef = doc(firestore, 'users', targetUserId);
     const currentUserFollowingRef = doc(firestore, 'users', currentUserId, 'following', targetUserId);
     const targetUserFollowerRef = doc(firestore, 'users', targetUserId, 'followers', currentUserId);
+    const timestamp = serverTimestamp();
 
-    try {
-      const batch = writeBatch(firestore);
-      const timestamp = serverTimestamp();
+    const batch = writeBatch(firestore);
 
-      if (isFollowing) {
-        // --- Unfollow Logic ---
-        batch.delete(currentUserFollowingRef);
-        batch.delete(targetUserFollowerRef);
-        batch.update(currentUserRef, { followingCount: increment(-1) });
-        batch.update(targetUserRef, { followerCount: increment(-1) });
-        
-        await batch.commit();
-        setIsFollowing(false);
-        toast({ title: 'Unfollowed user.' });
-      } else {
-        // --- Follow Logic ---
-        batch.set(currentUserFollowingRef, { userId: targetUserId, followedAt: timestamp });
-        batch.set(targetUserFollowerRef, { userId: currentUserId, followedAt: timestamp });
-        batch.update(currentUserRef, { followingCount: increment(1) });
-        batch.update(targetUserRef, { followerCount: increment(1) });
-
-        await batch.commit();
-        setIsFollowing(true);
-        toast({ title: 'Successfully followed user.' });
-      }
-    } catch (error: any) {
-        console.error("Error toggling follow:", error);
-        toast({ variant: 'destructive', title: 'Error', description: "Failed to update follow status. Please try again." });
-    } finally {
-      setIsFollowLoading(false);
+    if (isFollowing) {
+      // --- Unfollow Logic ---
+      batch.delete(currentUserFollowingRef);
+      batch.delete(targetUserFollowerRef);
+      batch.update(currentUserRef, { followingCount: increment(-1) });
+      batch.update(targetUserRef, { followerCount: increment(-1) });
+    } else {
+      // --- Follow Logic ---
+      batch.set(currentUserFollowingRef, { userId: targetUserId, followedAt: timestamp });
+      batch.set(targetUserFollowerRef, { userId: currentUserId, followedAt: timestamp });
+      batch.update(currentUserRef, { followingCount: increment(1) });
+      batch.update(targetUserRef, { followerCount: increment(1) });
     }
+    
+    batch.commit()
+      .then(() => {
+        const wasFollowing = isFollowing;
+        setIsFollowing(!wasFollowing);
+        toast({ title: wasFollowing ? 'Unfollowed user.' : 'Successfully followed user.' });
+      })
+      .catch((serverError) => {
+        // This is where we create and emit the contextual error.
+        const error = new FirestorePermissionError(
+          isFollowing ? 'unfollow' : 'follow', // Operation type
+          `batch write on users/${currentUserId} and users/${targetUserId}`, // Path
+          { // Resource data
+            currentUserRef: currentUserRef.path,
+            targetUserRef: targetUserRef.path,
+            isFollowing,
+          },
+          serverError
+        );
+        errorEmitter.emit('permission-error', error);
+      })
+      .finally(() => {
+        setIsFollowLoading(false);
+      });
   };
 
 
@@ -698,5 +712,7 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
     </>
   );
 }
+
+    
 
     
