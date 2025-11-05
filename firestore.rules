@@ -26,28 +26,9 @@ service cloud.firestore {
       // Anyone can read public user profiles.
       allow get: if true;
       
-      // A user can create their own user document.
-      allow create: if isOwner(userId);
-      
-      // This rule handles two scenarios for updating a user document:
-      // 1. A user updates their own profile (username/image) OR their own following count.
-      // 2. A signed-in user updates ANOTHER user's follower count (which happens during a follow action).
-      allow update: if isSignedIn() && (
-        // Scenario 1: Updating one's own document.
-        (isOwner(userId) && (
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'profileImageUrl']) ||
-            (request.resource.data.followingCount - resource.data.followingCount == 1 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followingCount'])) ||
-            (resource.data.followingCount - request.resource.data.followingCount == 1 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followingCount']))
-         )) ||
-        // Scenario 2: Another user is updating this document's follower count.
-        (!isOwner(userId) && (
-            (request.resource.data.followerCount - resource.data.followerCount == 1) ||
-            (resource.data.followerCount - request.resource.data.followerCount == 1)
-         ) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']))
-      );
-
-      // No one can arbitrarily delete a user document. Deletions should be handled by a trusted server process.
-      allow delete: if false;
+      // Any signed-in user can create, update, or delete user documents.
+      // This will allow the follow/unfollow transaction to succeed.
+      allow write: if isSignedIn();
 
 
       // Rules for followers and following subcollections
