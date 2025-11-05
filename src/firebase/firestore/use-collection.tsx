@@ -77,15 +77,15 @@ export function useCollection<T = any>(
         setError(null);
         setIsLoading(false);
       },
-      (error: FirestoreError) => {
-        if (isPermissionError(error)) {
+      (err: FirestoreError) => {
+        if (isPermissionError(err)) {
             const path = 'path' in memoizedTargetRefOrQuery ? memoizedTargetRefOrQuery.path : 'unknown path';
-            const customError = new FirestorePermissionError('list', path, {}, error);
+            const customError = new FirestorePermissionError('list', path, {}, err);
             errorEmitter.emit('permission-error', customError);
         } else {
-            console.error("useCollection error:", error);
+            console.error("useCollection error:", err);
         }
-        setError(error);
+        setError(err);
         setData(null);
         setIsLoading(false);
       }

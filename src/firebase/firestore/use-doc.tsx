@@ -1,3 +1,4 @@
+
 'use client';
     
 import { useState, useEffect } from 'react';
@@ -43,7 +44,7 @@ function isPermissionError(error: any): error is FirestoreError {
  * @returns {UseDocResult<T>} Object with data, isLoading, error.
  */
 export function useDoc<T = any>(
-  memoizedDocRef: DocumentReference<DocumentData> | null | undefined,
+  memoizedDocRef: (DocumentReference<DocumentData> & {__memo?: boolean}) | null | undefined,
 ): UseDocResult<T> {
   type StateDataType = WithId<T> | null;
 
@@ -61,7 +62,6 @@ export function useDoc<T = any>(
 
     setIsLoading(true);
     setError(null);
-    // Optional: setData(null); // Clear previous data instantly
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
@@ -75,14 +75,14 @@ export function useDoc<T = any>(
         setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
         setIsLoading(false);
       },
-      (error: FirestoreError) => {
-        if (isPermissionError(error)) {
-            const customError = new FirestorePermissionError('get', memoizedDocRef.path, {}, error);
+      (err: FirestoreError) => {
+        if (isPermissionError(err)) {
+            const customError = new FirestorePermissionError('get', memoizedDocRef.path, {}, err);
             errorEmitter.emit('permission-error', customError);
         } else {
-            console.error("useDoc error:", error);
+            console.error("useDoc error:", err);
         }
-        setError(error);
+        setError(err);
         setData(null);
         setIsLoading(false);
       }
@@ -90,6 +90,10 @@ export function useDoc<T = any>(
 
     return () => unsubscribe();
   }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
+
+  if(memoizedDocRef && !memoizedDocRef.__memo) {
+    throw new Error('docRef passed to useDoc was not properly memoized using useMemoFirebase');
+  }
 
   return { data, isLoading, error };
 }
