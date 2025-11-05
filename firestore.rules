@@ -36,8 +36,8 @@ service cloud.firestore {
         // Scenario 1: Updating one's own document.
         (isOwner(userId) && (
             request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'profileImageUrl']) ||
-            request.resource.data.followingCount - resource.data.followingCount == 1 ||
-            resource.data.followingCount - request.resource.data.followingCount == 1
+            (request.resource.data.followingCount - resource.data.followingCount == 1 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followingCount'])) ||
+            (resource.data.followingCount - request.resource.data.followingCount == 1 && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followingCount']))
          )) ||
         // Scenario 2: Another user is updating this document's follower count.
         (!isOwner(userId) && (
