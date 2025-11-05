@@ -28,18 +28,20 @@ service cloud.firestore {
       // A user can create their own document.
       allow create: if isOwner(userId);
       
-      // A user can update their own username and profile image.
-      // They can also update their own following count by +/- 1.
-      // Another user can update this user's follower count by +/- 1.
+      // A user can update their own username/image, or their own following count.
+      // Any other signed-in user can update THIS user's follower count.
       allow update: if isOwner(userId) && (
+                      // Owner can change their own username/image
                       request.resource.data.keys().hasOnly(['username', 'profileImageUrl']) ||
+                      // Owner can change their own followingCount by +/- 1
                       (
                         request.resource.data.followingCount == resource.data.followingCount + 1 ||
                         request.resource.data.followingCount == resource.data.followingCount - 1
                       )
                     ) ||
+                    // Any signed-in user can change THIS user's followerCount by +/- 1
                     (
-                      isSignedIn() && 
+                      isSignedIn() && !isOwner(userId) &&
                       (
                         request.resource.data.followerCount == resource.data.followerCount + 1 ||
                         request.resource.data.followerCount == resource.data.followerCount - 1
