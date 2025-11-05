@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { useFirestore, useUser } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
@@ -14,29 +14,20 @@ export const useFollow = (targetUserId?: string) => {
   const [isFollowLoading, setIsFollowLoading] = useState(false);
 
   useEffect(() => {
-    // No need to check on mount if user is not logged in or target is missing
     if (!user || !targetUserId || !firestore) {
       setIsFollowing(false);
       return;
     }
     
-    // Initial check is still client-side for speed
-    setIsFollowLoading(true);
     const followDocRef = doc(firestore, 'users', user.uid, 'following', targetUserId);
-    getDoc(followDocRef)
-      .then(doc => {
-        setIsFollowing(doc.exists());
-      })
-      .catch(err => {
-        console.error("Error checking follow status:", err);
-        // Don't show a toast for a simple read error
-      })
-      .finally(() => {
-        setIsFollowLoading(false);
-      });
+    getDoc(followDocRef).then(doc => {
+      setIsFollowing(doc.exists());
+    }).catch(err => {
+      console.error("Error checking initial follow status:", err);
+    });
   }, [user, targetUserId, firestore]);
 
-  const handleFollowToggle = async () => {
+  const handleFollowToggle = useCallback(async () => {
     if (!user || !targetUserId) {
       toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to follow users.' });
       return;
@@ -46,25 +37,23 @@ export const useFollow = (targetUserId?: string) => {
       return;
     }
 
+    const previousState = isFollowing;
+    // Optimistic UI update for instant feedback
+    setIsFollowing(!previousState);
     setIsFollowLoading(true);
 
     try {
-      // Optimistically update the UI
-      const previousState = isFollowing;
-      setIsFollowing(!previousState);
-
       const result = await toggleFollow({
         currentUserId: user.uid,
         targetUserId: targetUserId,
       });
 
-      // The server is the source of truth, so sync with its response.
+      // Sync with server's source of truth. Usually this will be the same as the optimistic update.
       setIsFollowing(result.isFollowing);
-      toast({ title: result.isFollowing ? 'Successfully followed user.' : 'Unfollowed user.' });
-
+      
     } catch (error: any) {
       // If server fails, revert the optimistic update and show an error
-      setIsFollowing(isFollowing);
+      setIsFollowing(previousState);
       console.error('Failed to toggle follow:', error);
       toast({
         variant: 'destructive',
@@ -74,7 +63,7 @@ export const useFollow = (targetUserId?: string) => {
     } finally {
       setIsFollowLoading(false);
     }
-  };
+  }, [user, targetUserId, firestore, isFollowing, toast]);
 
   return { isFollowing, isFollowLoading, handleFollowToggle };
 };
