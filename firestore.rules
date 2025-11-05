@@ -32,8 +32,7 @@ service cloud.firestore {
       // Any other signed-in user can update THIS user's follower count.
       allow update: if (isOwner(userId) && (
                       // Owner can change their own username/image
-                      (request.resource.data.keys().hasOnly(['username', 'profileImageUrl', 'followerCount', 'followingCount', 'createdAt', 'email', 'id'])) ||
-                      // Owner can change their own followingCount by +/- 1
+                      request.resource.data.keys().hasOnly(['username', 'profileImageUrl', 'followerCount', 'followingCount', 'createdAt', 'email', 'id']) &&
                       (
                         request.resource.data.followingCount == resource.data.followingCount + 1 ||
                         request.resource.data.followingCount == resource.data.followingCount - 1
