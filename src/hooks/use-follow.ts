@@ -45,8 +45,7 @@ export const useFollow = (targetUserId?: string) => {
       return;
     }
 
-    const previousState = isFollowing;
-    setIsFollowing(!previousState); // Optimistic UI update
+    setIsFollowLoading(true);
 
     try {
       await runTransaction(firestore, async (transaction) => {
@@ -58,7 +57,7 @@ export const useFollow = (targetUserId?: string) => {
 
         const followingDoc = await transaction.get(currentUserFollowingRef);
         
-        if (followingDoc.exists) {
+        if (followingDoc.exists()) {
           // --- Unfollow Logic ---
           transaction.delete(currentUserFollowingRef);
           transaction.delete(targetUserFollowerRef);
@@ -73,23 +72,25 @@ export const useFollow = (targetUserId?: string) => {
           transaction.update(targetUserRef, { followerCount: increment(1) });
         }
       });
+      
+      // Success
+      setIsFollowing(prev => !prev);
+      toast({ title: isFollowing ? 'Unfollowed user.' : 'Successfully followed user.' });
 
     } catch (error: any) {
-      setIsFollowing(previousState); // Revert optimistic update on failure
+      // This is where we create and emit the contextual error.
       const permissionError = new FirestorePermissionError(
-        'follow/unfollow transaction',
-        `users/${user.uid} & users/${targetUserId}`,
-        {},
+        isFollowing ? 'unfollow' : 'follow', // Operation type
+        `batch write on users/${user.uid} and users/${targetUserId}`, // Path
+        { // Resource data
+          currentUserId: user.uid,
+          targetUserId: targetUserId,
+        },
         error
       );
       errorEmitter.emit('permission-error', permissionError);
-      
-      console.error('Follow/unfollow transaction failed:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: 'Failed to update follow status. Please check your permissions and try again.',
-      });
+    } finally {
+        setIsFollowLoading(false);
     }
   }, [user, targetUserId, firestore, isFollowing, toast]);
 
