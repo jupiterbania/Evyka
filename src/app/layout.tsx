@@ -4,49 +4,12 @@ import './globals.css';
 import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-import Script from 'next/script';
-import { getDoc, doc, getFirestore } from 'firebase/firestore';
-import { initializeApp, getApps } from 'firebase/app';
-import { firebaseConfig } from '@/firebase/config';
-import type { SiteSettings } from '@/lib/types';
 
-// Initialize a temporary, server-side Firebase instance to fetch settings
-const getSettingsForMetadata = async (): Promise<SiteSettings | null> => {
-  try {
-    if (!getApps().length) {
-      initializeApp(firebaseConfig);
-    }
-    const db = getFirestore();
-    const settingsRef = doc(db, 'settings', 'main');
-    const settingsSnap = await getDoc(settingsRef);
-    if (settingsSnap.exists()) {
-      return settingsSnap.data() as SiteSettings;
-    }
-  } catch (error) {
-    console.error("Could not fetch site settings for metadata:", error);
-  }
-  return null;
-}
-
-export async function generateMetadata(
-  parent: ResolvingMetadata
-): Promise<Metadata> {
-  const settings = await getSettingsForMetadata();
-  const previousImages = (await parent).openGraph?.images || [];
-  
-  const openGraphImages = settings?.heroImageUrl 
-    ? [settings.heroImageUrl, ...previousImages]
-    : previousImages;
-
-  return {
-    title: 'EVYKA',
-    description: 'See my exclusive premium pictures, videos & nudes.',
-    manifest: '/manifest.json',
-    openGraph: {
-      images: openGraphImages,
-    },
-  }
-}
+export const metadata: Metadata = {
+  title: 'EVYKA',
+  description: 'See my exclusive premium pictures, videos & nudes.',
+  manifest: '/manifest.json',
+};
 
 export default function RootLayout({
   children,
