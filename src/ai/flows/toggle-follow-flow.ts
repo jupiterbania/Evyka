@@ -1,6 +1,6 @@
 'use server';
 /**
- * @fileOverview A server-side flow for handling the follow/unfollow logic.
+ * @fileOverview A server-side flow for handling the follow/unfollow logic using the Firebase Admin SDK.
  *
  * - toggleFollow - A function that handles the entire follow/unfollow transaction.
  * - ToggleFollowInput - The input type for the function.
@@ -8,11 +8,14 @@
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
-import { getFirebaseApp } from '@/firebase/server-init';
-import { getFirestore, doc, runTransaction, increment, serverTimestamp } from 'firebase/firestore';
+import * as admin from 'firebase-admin';
 
-// Initialize Firestore for the server
-const db = getFirestore(getFirebaseApp());
+// Initialize Firebase Admin SDK if not already initialized
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+const db = admin.firestore();
 
 const ToggleFollowInputSchema = z.object({
   currentUserId: z.string().describe('The ID of the user performing the action.'),
@@ -36,16 +39,18 @@ const toggleFollowFlow = ai.defineFlow(
     }
 
     try {
-      const newFollowingState = await runTransaction(db, async (transaction) => {
-        const currentUserFollowingRef = doc(db, 'users', currentUserId, 'following', targetUserId);
+      const newFollowingState = await db.runTransaction(async (transaction) => {
+        const currentUserFollowingRef = db.collection('users').doc(currentUserId).collection('following').doc(targetUserId);
         const followingDoc = await transaction.get(currentUserFollowingRef);
         
-        const isCurrentlyFollowing = followingDoc.exists();
+        const isCurrentlyFollowing = followingDoc.exists;
 
-        const currentUserRef = doc(db, 'users', currentUserId);
-        const targetUserRef = doc(db, 'users', targetUserId);
-        const targetUserFollowerRef = doc(db, 'users', targetUserId, 'followers', currentUserId);
-        const timestamp = serverTimestamp();
+        const currentUserRef = db.collection('users').doc(currentUserId);
+        const targetUserRef = db.collection('users').doc(targetUserId);
+        const targetUserFollowerRef = db.collection('users').doc(targetUserId).collection('followers').doc(currentUserId);
+        
+        const timestamp = admin.firestore.FieldValue.serverTimestamp();
+        const increment = admin.firestore.FieldValue.increment;
 
         if (isCurrentlyFollowing) {
           // --- Unfollow Logic ---
