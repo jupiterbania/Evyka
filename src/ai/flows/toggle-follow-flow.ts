@@ -10,7 +10,7 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import { getFirestore, doc, getDoc, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
-import { initializeFirebase } from '@/firebase';
+import { getFirebaseApp } from '@/firebase/server-init';
 
 const ToggleFollowInputSchema = z.object({
   currentUserId: z.string().describe('The ID of the user initiating the action.'),
@@ -39,8 +39,9 @@ const toggleFollowFlow = ai.defineFlow(
     if (currentUserId === targetUserId) {
       throw new Error('Users cannot follow themselves.');
     }
-
-    const { firestore } = initializeFirebase();
+    
+    const app = getFirebaseApp();
+    const firestore = getFirestore(app);
 
     const currentUserFollowingRef = doc(firestore, 'users', currentUserId, 'following', targetUserId);
     const targetUserFollowerRef = doc(firestore, 'users', targetUserId, 'followers', currentUserId);
