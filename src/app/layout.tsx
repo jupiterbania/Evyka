@@ -1,10 +1,8 @@
 
-import type { Metadata, ResolvingMetadata } from 'next';
+import type { Metadata } from 'next';
 import './globals.css';
-import { Toaster } from '@/components/ui/toaster';
 import { FirebaseClientProvider } from '@/firebase';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
-import { BottomNav } from '@/components/bottom-nav';
 
 export const metadata: Metadata = {
   title: 'EVYKA',
@@ -29,11 +27,7 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <FirebaseClientProvider>
           <FirebaseErrorListener />
-          <div className="pb-16">
-            {children}
-          </div>
-          <Toaster />
-          <BottomNav />
+          {children}
         </FirebaseClientProvider>
       </body>
     </html>

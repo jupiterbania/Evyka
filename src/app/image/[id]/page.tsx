@@ -17,6 +17,8 @@ import { ImageCard } from '@/components/image-card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { errorEmitter } from '@/firebase/error-emitter';
+import { calculateLikesForDuration } from '@/lib/utils';
+import { useFollow } from '@/hooks/use-follow';
 
 
 // --- Time-based Like Calculation Logic ---
@@ -50,39 +52,10 @@ const calculateLikes = (uploadDate: Timestamp, mediaId: string): number => {
 
     // Stop calculating new likes after 7 days.
     if (elapsedMs > sevenDaysInMs) {
-        return baseLikes + calculateLikesForDuration(sevenDaysInMs);
+        return baseLikes + calculateLikesForDuration('allTime', 0, 0, 0, 0);
     }
     
-    return baseLikes + calculateLikesForDuration(elapsedMs);
-};
-
-const calculateLikesForDuration = (durationMs: number): number => {
-    let likes = 0;
-    const intervals = [
-        { duration: 60 * 60 * 1000, ratePerMinute: 2 }, // 1 hour at 2 likes/min
-        { duration: 2 * 60 * 60 * 1000, ratePerHour: 1 }, // Next 2 hours at 1 like/hr (2 likes every 2 hours)
-        { duration: 4 * 60 * 60 * 1000, ratePerHour: 0.5 }, // Next 4 hours at 0.5 likes/hr (2 likes every 4 hours)
-        { duration: 8 * 60 * 60 * 1000, ratePerHour: 0.25 }, // Next 8 hours at 0.25 likes/hr (2 likes every 8 hours)
-        { duration: 24 * 60 * 60 * 1000, ratePerHour: 0.125 }, // Next 24 hours at ~3 likes/day
-        { duration: Infinity, ratePerHour: 0.05 }, // Remainder of the week
-    ];
-
-    let elapsed = 0;
-    for (const interval of intervals) {
-        const intervalDuration = Math.min(durationMs - elapsed, interval.duration);
-        
-        if (intervalDuration <= 0) break;
-        
-        if (interval.ratePerMinute) {
-            likes += (intervalDuration / (60 * 1000)) * interval.ratePerMinute;
-        } else if (interval.ratePerHour) {
-            likes += (intervalDuration / (60 * 60 * 1000)) * interval.ratePerHour;
-        }
-        
-        elapsed += intervalDuration;
-    }
-
-    return Math.floor(likes);
+    return baseLikes + calculateLikesForDuration('daily', 0, 0, 0, 0);
 };
 
 // Calculate initial comments based on a percentage of likes.
@@ -115,21 +88,9 @@ export default function ImagePage() {
 
   const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
   const { data: allMedia, isLoading: isAllMediaLoading } = useCollection<MediaType>(mediaCollection);
+
+  const { isFollowing, isFollowLoading, handleFollowToggle } = useFollow(media?.authorId);
   
-  const [isFollowing, setIsFollowing] = useState(false);
-  const [isFollowLoading, setIsFollowLoading] = useState(false);
-
-  useEffect(() => {
-    if (user && media?.authorId && firestore) {
-      setIsFollowLoading(true);
-      const followDocRef = doc(firestore, 'users', user.uid, 'following', media.authorId);
-      getDoc(followDocRef).then(doc => {
-        setIsFollowing(doc.exists());
-        setIsFollowLoading(false);
-      });
-    }
-  }, [user, media?.authorId, firestore]);
-
   const recommendedMedia = useMemo(() => {
     if (!allMedia || !media) return [];
   
@@ -191,64 +152,6 @@ export default function ImagePage() {
       return (count / 1000).toFixed(1) + 'k';
     }
     return count.toLocaleString();
-  };
-  
-  const handleFollowToggle = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!user || !media?.authorId || !firestore || user.uid === media.authorId) {
-      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to follow users.' });
-      return;
-    }
-    
-    setIsFollowLoading(true);
-    const currentUserId = user.uid;
-    const targetUserId = media.authorId;
-
-    const currentUserRef = doc(firestore, 'users', currentUserId);
-    const targetUserRef = doc(firestore, 'users', targetUserId);
-    const currentUserFollowingRef = doc(firestore, 'users', currentUserId, 'following', targetUserId);
-    const targetUserFollowerRef = doc(firestore, 'users', targetUserId, 'followers', currentUserId);
-    const timestamp = serverTimestamp();
-
-    const batch = writeBatch(firestore);
-
-    if (isFollowing) {
-      // --- Unfollow Logic ---
-      batch.delete(currentUserFollowingRef);
-      batch.delete(targetUserFollowerRef);
-      batch.update(currentUserRef, { followingCount: increment(-1) });
-      batch.update(targetUserRef, { followerCount: increment(-1) });
-    } else {
-      // --- Follow Logic ---
-      batch.set(currentUserFollowingRef, { userId: targetUserId, followedAt: timestamp });
-      batch.set(targetUserFollowerRef, { userId: currentUserId, followedAt: timestamp });
-      batch.update(currentUserRef, { followingCount: increment(1) });
-      batch.update(targetUserRef, { followerCount: increment(1) });
-    }
-    
-    batch.commit()
-      .then(() => {
-        const wasFollowing = isFollowing;
-        setIsFollowing(!wasFollowing);
-        toast({ title: wasFollowing ? 'Unfollowed user.' : 'Successfully followed user.' });
-      })
-      .catch((serverError) => {
-        // This is where we create and emit the contextual error.
-        const error = new FirestorePermissionError(
-          isFollowing ? 'unfollow' : 'follow', // Operation type
-          `batch write on users/${currentUserId} and users/${targetUserId}`, // Path
-          { // Resource data
-            currentUserRef: currentUserRef.path,
-            targetUserRef: targetUserRef.path,
-            isFollowing,
-          },
-          serverError
-        );
-        errorEmitter.emit('permission-error', error);
-      })
-      .finally(() => {
-        setIsFollowLoading(false);
-      });
   };
   
   const handleShare = async (e: React.MouseEvent) => {
@@ -380,7 +283,7 @@ export default function ImagePage() {
                 </div>
                 {user && user.uid !== media.authorId && (
                   <Button
-                    onClick={handleFollowToggle}
+                    onClick={() => handleFollowToggle()}
                     disabled={isFollowLoading}
                     variant={isFollowing ? 'secondary' : 'default'}
                     size="sm"
@@ -449,5 +352,3 @@ export default function ImagePage() {
     </div>
   );
 }
-
-    

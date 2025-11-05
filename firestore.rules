@@ -25,29 +25,26 @@ service cloud.firestore {
       // Anyone can read public user profiles.
       allow get: if true;
       
-      // A user can create their own document.
-      allow create: if isOwner(userId);
-      
-      // Complex update rule for follow/unfollow and profile edits
-      allow update: if 
-        // Case 1: The user is updating their OWN document.
-        (isOwner(userId) && (
-            // They can update their username or image.
-            (request.resource.data.keys().hasAll(['username', 'profileImageUrl']) && request.resource.data.size() == 2) ||
-            // OR they can update their following count by +/- 1.
+      // This rule allows a user to create their own doc, update their own doc,
+      // and allows other users to update their follower count.
+      allow write: if
+        // Case 1: Creating own user document.
+        (isOwner(userId) && request.resource.data.diff(resource.data) == null) ||
+        // Case 2: Updating own user document for profile changes or following action.
+        (isOwner(userId) &&
+          (
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'profileImageUrl'])) ||
             (
               request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followingCount']) &&
-              (request.resource.data.followingCount == resource.data.followingCount + 1 ||
-               request.resource.data.followingCount == resource.data.followingCount - 1)
+              (request.resource.data.followingCount == resource.data.followingCount + 1 || request.resource.data.followingCount == resource.data.followingCount - 1)
             )
-        )) ||
-        // Case 2: A DIFFERENT user is updating this document.
-        (!isOwner(userId) && isSignedIn() && (
-            // They are ONLY allowed to update the follower count by +/- 1.
-            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
-            (request.resource.data.followerCount == resource.data.followerCount + 1 ||
-             request.resource.data.followerCount == resource.data.followerCount - 1)
-        ));
+          )
+        ) ||
+        // Case 3: A different user is updating this document's follower count.
+        (!isOwner(userId) && isSignedIn() &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
+          (request.resource.data.followerCount == resource.data.followerCount + 1 || request.resource.data.followerCount == resource.data.followerCount - 1)
+        );
 
       // No one can arbitrarily delete a user document. Deletions should be handled by a trusted server process.
       allow delete: if false;
@@ -59,7 +56,6 @@ service cloud.firestore {
         allow get, list: if true;
         
         // A user can add or remove themselves from another user's followers list.
-        // This means the person initiating the follow is creating a document with their own ID.
         allow write: if isCreatingOwnFollowerEntry(followerId);
       }
 
