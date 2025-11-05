@@ -29,8 +29,8 @@ service cloud.firestore {
     }
      
     match /settings/main {
-      // Any signed-in user can read the site settings.
-      allow get: if isSignedIn();
+      // Anyone can read the public site settings.
+      allow get: if true;
     }
   }
 }
