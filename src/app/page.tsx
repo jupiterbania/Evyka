@@ -27,7 +27,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 
 export default function Home() {
   const firestore = useFirestore();
-  const { user } = useUser();
+  const { user, isUserLoading } = useUser();
   const galleryRef = useRef<HTMLElement>(null);
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -161,6 +161,67 @@ export default function Home() {
     setCurrentPage(1);
   }, [filter]);
 
+  const renderContent = () => {
+    if (isLoading || isUserLoading) {
+      return (
+        <div className="flex flex-col items-center justify-center min-h-[50vh]">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="mt-4 text-muted-foreground">Loading Feed...</p>
+        </div>
+      );
+    }
+
+    return (
+       <>
+        {paginatedMedia.length === 0 ? (
+          <p className="col-span-full text-center text-muted-foreground min-h-[30vh] flex items-center justify-center">
+            No media in this category yet.
+          </p>
+        ) : (
+          <>
+            <div className="max-w-md mx-auto space-y-8">
+              {paginatedMedia.map((item, index) => (
+                <ImageCard key={item.id} media={item} index={index} layout="feed" />
+              ))}
+            </div>
+
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 mt-8 sm:mt-12">
+                <Button onClick={goToPreviousPage} disabled={currentPage === 1} variant="outline">
+                  Previous
+                </Button>
+                <nav className="flex items-center gap-1">
+                  {getPaginationGroup().map((item, index) =>
+                    typeof item === 'number' ? (
+                      <Button
+                        key={index}
+                        onClick={() => goToPage(item)}
+                        variant={currentPage === item ? 'default' : 'outline'}
+                        className={cn(
+                          'h-9 w-9 p-0',
+                          currentPage === item && 'pointer-events-none'
+                        )}
+                      >
+                        {item}
+                      </Button>
+                    ) : (
+                      <span key={index} className="px-2">
+                        {item}
+                      </span>
+                    )
+                  )}
+                </nav>
+                <Button onClick={goToNextPage} disabled={currentPage === totalPages} variant="outline">
+                  Next
+                </Button>
+              </div>
+            )}
+          </>
+        )}
+      </>
+    );
+  }
+
 
   return (
     <div className="flex flex-col min-h-screen">
@@ -174,56 +235,8 @@ export default function Home() {
               </h2>
             </div>
             
-            {isLoading ? (
-              <div className="flex flex-col items-center justify-center min-h-[30vh]">
-                <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="mt-4 text-muted-foreground">Loading Feed...</p>
-              </div>
-            ) : paginatedMedia.length === 0 ? (
-              <p className="col-span-full text-center text-muted-foreground min-h-[30vh] flex items-center justify-center">
-                No media in this category yet.
-              </p>
-            ) : (
-              <>
-                <div className="max-w-md mx-auto space-y-8">
-                  {paginatedMedia.map((item, index) => (
-                    <ImageCard key={item.id} media={item} index={index} layout="feed" />
-                  ))}
-                </div>
+            {renderContent()}
 
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-2 mt-8 sm:mt-12">
-                    <Button onClick={goToPreviousPage} disabled={currentPage === 1} variant="outline">
-                      Previous
-                    </Button>
-                    <nav className="flex items-center gap-1">
-                      {getPaginationGroup().map((item, index) =>
-                        typeof item === 'number' ? (
-                          <Button
-                            key={index}
-                            onClick={() => goToPage(item)}
-                            variant={currentPage === item ? 'default' : 'outline'}
-                            className={cn(
-                              'h-9 w-9 p-0',
-                              currentPage === item && 'pointer-events-none'
-                            )}
-                          >
-                            {item}
-                          </Button>
-                        ) : (
-                          <span key={index} className="px-2">
-                            {item}
-                          </span>
-                        )
-                      )}
-                    </nav>
-                    <Button onClick={goToNextPage} disabled={currentPage === totalPages} variant="outline">
-                      Next
-                    </Button>
-                  </div>
-                )}
-              </>
-            )}
           </div>
         </section>
       </main>
