@@ -15,14 +15,30 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Any user, signed-in or not, can read public user profiles.
+      // Anyone can read public user profiles.
       allow get: if true;
       // Only the user themselves can create, update, or delete their own profile.
       allow create, update, delete: if isOwner(userId);
+
+      // Rules for followers and following subcollections
+      match /followers/{followerId} {
+        // Anyone can see who follows a user
+        allow get, list: if true;
+        // Only the follower can add/remove themselves from the list
+        allow write: if isOwner(followerId);
+      }
+
+      match /following/{followedId} {
+        // Anyone can see who a user is following
+        allow get, list: if true;
+        // Only the user can modify their own following list
+        allow write: if isOwner(userId);
+      }
     }
 
     match /media/{mediaId} {
       allow get, list: if true;
+      // Allow signed-in users to create media. This also allows backend processes.
       allow create: if isSignedIn();
       // Only the user who created the media can update or delete it.
       allow update, delete: if isMediaOwner(mediaId);

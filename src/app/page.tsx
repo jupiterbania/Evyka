@@ -3,11 +3,13 @@
 import { Header } from '@/components/header';
 import { ImageCard } from '@/components/image-card';
 import Image from 'next/image';
-import type { Media as MediaType, SiteSettings } from '@/lib/types';
+import type { Media as MediaType, SiteSettings, User as AppUser, Follow } from '@/lib/types';
 import { useCollection, useFirestore, useMemoFirebase, useDoc, useUser } from '@/firebase';
-import { collection, doc } from 'firebase/firestore';
+import { collection, doc, query, where, getDocs, orderBy, limit, Query, collectionGroup } from 'firebase/firestore';
 import { useMemo, useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+
 
 import {
   AlertDialog,
@@ -34,18 +36,59 @@ export default function Home() {
   
   const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
   const { data: media, isLoading } = useCollection<MediaType>(mediaCollection);
+  
+  const [followingIds, setFollowingIds] = useState<string[] | null>(null);
+
+  const [activeTab, setActiveTab] = useState('for-you');
+
+  // New state for following media
+  const [followingMedia, setFollowingMedia] = useState<MediaType[] | null>(null);
+  const [isFollowingMediaLoading, setIsFollowingMediaLoading] = useState(false);
+
+  useEffect(() => {
+    if (user && firestore) {
+      const getFollowing = async () => {
+        const followingCol = collection(firestore, 'users', user.uid, 'following');
+        const snapshot = await getDocs(followingCol);
+        const ids = snapshot.docs.map(doc => doc.id);
+        setFollowingIds(ids);
+      };
+      getFollowing();
+    } else {
+      setFollowingIds([]); // Empty array for non-logged-in users
+    }
+  }, [user, firestore]);
+  
+  useEffect(() => {
+    if (activeTab === 'following' && firestore && followingIds && followingIds.length > 0) {
+      const fetchFollowingMedia = async () => {
+        setIsFollowingMediaLoading(true);
+        const followingQuery = query(
+          collection(firestore, 'media'),
+          where('authorId', 'in', followingIds),
+          orderBy('uploadDate', 'desc')
+        );
+        const snapshot = await getDocs(followingQuery);
+        const newMedia = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MediaType));
+        setFollowingMedia(newMedia);
+        setIsFollowingMediaLoading(false);
+      };
+      fetchFollowingMedia();
+    }
+  }, [activeTab, firestore, followingIds]);
 
   const initialFilter = searchParams.get('filter') === 'nude' ? 'nude' : 'all';
   const [filter, setFilter] = useState<'all' | 'nude'>(initialFilter);
 
   const sortedMedia = useMemo(() => {
-    if (!media) return [];
-    return [...media].sort((a, b) => {
+    const sourceMedia = activeTab === 'following' ? followingMedia : media;
+    if (!sourceMedia) return [];
+    return [...sourceMedia].sort((a, b) => {
       const timeA = a.uploadDate?.toMillis() || 0;
       const timeB = b.uploadDate?.toMillis() || 0;
       return timeB - timeA;
     });
-  }, [media]);
+  }, [media, followingMedia, activeTab]);
 
   const filteredMedia = useMemo(() => {
     if (filter === 'all') {
@@ -159,10 +202,10 @@ export default function Home() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [filter]);
+  }, [filter, activeTab]);
 
   const renderContent = () => {
-    if (isLoading || isUserLoading) {
+    if (isLoading || isUserLoading || (activeTab === 'following' && (isFollowingMediaLoading || followingIds === null))) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[50vh]">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -175,7 +218,7 @@ export default function Home() {
        <>
         {paginatedMedia.length === 0 ? (
           <p className="col-span-full text-center text-muted-foreground min-h-[30vh] flex items-center justify-center">
-            No media in this category yet.
+            {activeTab === 'following' ? "You're not following anyone yet, or they haven't posted." : "No media in this category yet."}
           </p>
         ) : (
           <>
@@ -229,10 +272,13 @@ export default function Home() {
       <main className="flex-grow">
         <section ref={galleryRef} id="gallery" className="py-8 sm:py-12 scroll-mt-20">
           <div className="container px-4 sm:px-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between mb-6 sm:mb-8 gap-4">
-              <h2 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline">
-                Explore Feed
-              </h2>
+            <div className="flex justify-center mb-6 sm:mb-8">
+                <Tabs value={activeTab} onValueChange={setActiveTab} className="w-auto">
+                    <TabsList>
+                        <TabsTrigger value="following" disabled={!user}>Following</TabsTrigger>
+                        <TabsTrigger value="for-you">For You</TabsTrigger>
+                    </TabsList>
+                </Tabs>
             </div>
             
             {renderContent()}

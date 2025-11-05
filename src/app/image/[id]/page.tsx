@@ -2,18 +2,20 @@
 'use client';
 
 import { useParams } from 'next/navigation';
-import { useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
-import { doc, Timestamp, collection } from 'firebase/firestore';
-import type { Media as MediaType } from '@/lib/types';
+import { useDoc, useFirestore, useMemoFirebase, useCollection, useUser } from '@/firebase';
+import { doc, Timestamp, collection, getDoc } from 'firebase/firestore';
+import type { Media as MediaType, User as AppUser } from '@/lib/types';
 import Image from 'next/image';
 import { Header } from '@/components/header';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Loader2, Heart, MessageCircle, Send, Share2 } from 'lucide-react';
+import { Loader2, Heart, MessageCircle, Send, Share2, UserPlus } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { ImageCard } from '@/components/image-card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { toggleFollow } from '@/ai/flows/toggle-follow-flow';
 
 
 // --- Time-based Like Calculation Logic ---
@@ -93,6 +95,7 @@ const calculateInitialComments = (likes: number): number => {
 export default function ImagePage() {
   const { id } = useParams();
   const { toast } = useToast();
+  const { user } = useUser();
   const mediaId = Array.isArray(id) ? id[0] : id;
 
   const firestore = useFirestore();
@@ -102,9 +105,29 @@ export default function ImagePage() {
     [firestore, mediaId]
   );
   const { data: media, isLoading: isMediaLoading } = useDoc<MediaType>(mediaDocRef);
+  
+  const authorDocRef = useMemoFirebase(
+    () => (firestore && media?.authorId ? doc(firestore, 'users', media.authorId) : null),
+    [firestore, media?.authorId]
+  );
+  const { data: author, isLoading: isAuthorLoading } = useDoc<AppUser>(authorDocRef);
 
   const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
   const { data: allMedia, isLoading: isAllMediaLoading } = useCollection<MediaType>(mediaCollection);
+  
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
+  useEffect(() => {
+    if (user && media?.authorId) {
+      setIsFollowLoading(true);
+      const followDocRef = doc(firestore, 'users', user.uid, 'following', media.authorId);
+      getDoc(followDocRef).then(doc => {
+        setIsFollowing(doc.exists());
+        setIsFollowLoading(false);
+      });
+    }
+  }, [user, media?.authorId, firestore]);
 
   const recommendedMedia = useMemo(() => {
     if (!allMedia || !media) return [];
@@ -169,6 +192,25 @@ export default function ImagePage() {
     return count.toLocaleString();
   };
   
+  const handleFollowToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || !media?.authorId || user.uid === media.authorId) {
+      toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to follow users.' });
+      return;
+    }
+    
+    setIsFollowLoading(true);
+    try {
+      const result = await toggleFollow({ currentUserId: user.uid, targetUserId: media.authorId });
+      setIsFollowing(result.newState === 'followed');
+      toast({ title: result.message });
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } finally {
+      setIsFollowLoading(false);
+    }
+  };
+  
   const handleShare = async (e: React.MouseEvent) => {
     if (!media) return;
     e.stopPropagation();
@@ -205,6 +247,14 @@ export default function ImagePage() {
     }
   };
 
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    if (names.length > 1 && names[0] && names[names.length - 1]) {
+      return names[0][0] + names[names.length - 1][0];
+    }
+    return name.substring(0, 2);
+  };
 
   const renderContent = () => {
     if (isMediaLoading) {
@@ -276,10 +326,34 @@ export default function ImagePage() {
       <>
         <div className="flex-grow flex flex-col items-center justify-start pt-8">
           {renderMediaContent()}
-          <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 md:p-8 text-center">
-              <h1 className="text-3xl md:text-5xl font-bold font-headline">{media.title}</h1>
-              <p className="text-lg md:text-xl text-muted-foreground mt-4 max-w-prose mx-auto">{media.description}</p>
-              <div className="flex justify-center items-center gap-4 mt-6">
+          <div className="w-full max-w-4xl mx-auto p-4 sm:p-6 md:p-8">
+              <div className="flex items-center gap-4">
+                {isAuthorLoading ? <Skeleton className="h-12 w-12 rounded-full" /> : (
+                  <Avatar className="h-12 w-12">
+                      <AvatarImage src={author?.profileImageUrl || undefined} />
+                      <AvatarFallback>{getInitials(author?.username)}</AvatarFallback>
+                  </Avatar>
+                )}
+                <div className="flex-grow">
+                  <h1 className="text-2xl md:text-3xl font-bold font-headline">{media.title}</h1>
+                   <p className="text-md text-muted-foreground">{isAuthorLoading ? <Skeleton className="h-4 w-24" /> : author?.username}</p>
+                </div>
+                {user && user.uid !== media.authorId && (
+                  <Button
+                    onClick={handleFollowToggle}
+                    disabled={isFollowLoading}
+                    variant={isFollowing ? 'secondary' : 'default'}
+                    size="sm"
+                  >
+                      {isFollowLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
+                      {isFollowing ? 'Unfollow' : 'Follow'}
+                  </Button>
+                )}
+              </div>
+              
+              <p className="text-lg text-muted-foreground mt-4 max-w-prose">{media.description}</p>
+              
+              <div className="flex justify-start items-center gap-4 mt-6">
                  <Button variant="ghost" className="h-auto px-2 py-1" asChild>
                       <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
                           <Heart className="h-5 w-5" />

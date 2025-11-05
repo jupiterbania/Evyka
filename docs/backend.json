@@ -27,6 +27,14 @@
         "isAdmin": {
           "type": "boolean",
           "description": "Indicates whether the user has administrative privileges."
+        },
+        "followerCount": {
+          "type": "number",
+          "description": "The number of followers this user has."
+        },
+        "followingCount": {
+          "type": "number",
+          "description": "The number of users this user is following."
         }
       },
       "required": [
@@ -100,6 +108,24 @@
         "authorId"
       ]
     },
+    "Follow": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Follow",
+      "type": "object",
+      "description": "Represents a follow relationship between two users.",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "The ID of the user being followed or the follower."
+        },
+        "followedAt": {
+          "type": "string",
+          "description": "Timestamp when the follow action occurred.",
+          "format": "date-time"
+        }
+      },
+      "required": ["userId", "followedAt"]
+    },
     "SiteSettings": {
       "title": "SiteSettings",
       "description": "A singleton document to store site-wide settings.",
@@ -138,7 +164,25 @@
               "description": "The unique identifier of the user."
             }
           ]
-        }
+        },
+        "subcollections": [
+          {
+            "path": "/following/{followedUserId}",
+            "definition": {
+              "entityName": "Follow",
+              "schema": { "$ref": "#/backend/entities/Follow" },
+              "description": "A list of users that this user is following."
+            }
+          },
+          {
+            "path": "/followers/{followerUserId}",
+            "definition": {
+              "entityName": "Follow",
+              "schema": { "$ref": "#/backend/entities/Follow" },
+              "description": "A list of users that are following this user."
+            }
+          }
+        ]
       },
       {
         "path": "/media/{mediaId}",

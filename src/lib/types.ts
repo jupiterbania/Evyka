@@ -11,7 +11,7 @@ export type Media = {
   isReel?: boolean; // To identify short-form vertical videos
   uploadDate: Timestamp;
   dominantColor?: string;
-  authorId?: string; // ID of the user who uploaded it
+  authorId: string; // ID of the user who uploaded it - non-optional
   authorName?: string;
   authorPhotoUrl?: string;
 };
@@ -29,4 +29,11 @@ export type User = {
   profileImageUrl?: string;
   isAdmin?: boolean;
   createdAt: Timestamp;
+  followerCount?: number;
+  followingCount?: number;
+}
+
+export type Follow = {
+  userId: string;
+  followedAt: Timestamp;
 }

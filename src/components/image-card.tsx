@@ -24,6 +24,7 @@ import {
   MessageCircle,
   Send,
   Loader2,
+  UserPlus,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -54,6 +55,7 @@ import {
 } from '@/firebase';
 import {
   doc,
+  getDoc,
   Timestamp,
 } from 'firebase/firestore';
 import {
@@ -75,6 +77,7 @@ import { Textarea } from './ui/textarea';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
+import { toggleFollow } from '@/ai/flows/toggle-follow-flow';
 import { cn } from '@/lib/utils';
 import { Checkbox } from './ui/checkbox';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
@@ -177,6 +180,10 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
   const [mediaToEdit, setMediaToEdit] = useState<Partial<MediaType> & { id: string } | null>(null);
   const [mediaToDelete, setMediaToDelete] = useState<MediaType | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+  
+  const [isFollowing, setIsFollowing] = useState(false);
+  const [isFollowLoading, setIsFollowLoading] = useState(false);
+
 
   // --- Fetch Author Data ---
   const authorDocRef = useMemoFirebase(
@@ -185,6 +192,20 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
   );
   const { data: author, isLoading: isAuthorLoading } = useDoc<UserType>(authorDocRef);
   // --- End Fetch Author Data ---
+  
+  useEffect(() => {
+    if (user && mediaItem.authorId) {
+        setIsFollowLoading(true);
+        const checkFollowing = async () => {
+            const followDocRef = doc(firestore, 'users', user.uid, 'following', mediaItem.authorId);
+            const followDoc = await getDoc(followDocRef);
+            setIsFollowing(followDoc.exists());
+            setIsFollowLoading(false);
+        };
+        checkFollowing();
+    }
+  }, [user, mediaItem.authorId, firestore]);
+
 
 
   // Memoize the initial likes and comments so they are stable per card
@@ -309,6 +330,20 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
       return (count / 1000).toFixed(1) + 'k';
     }
     return count.toLocaleString();
+  };
+  
+  const handleFollowToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user || !mediaItem.authorId || isOwner) return;
+    setIsFollowLoading(true);
+    try {
+      const result = await toggleFollow({ currentUserId: user.uid, targetUserId: mediaItem.authorId });
+      setIsFollowing(result.newState === 'followed');
+    } catch (error: any) {
+      toast({ variant: 'destructive', title: 'Error', description: error.message });
+    } finally {
+      setIsFollowLoading(false);
+    }
   };
 
 
@@ -497,6 +532,18 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
               <p className="font-semibold text-sm hover:underline">{author?.username}</p>
             </div>
             </>
+          )}
+          
+          {!isOwner && user && (
+             <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleFollowToggle}
+                disabled={isFollowLoading}
+                className={cn('ml-auto', isFollowing && 'text-muted-foreground')}
+              >
+                  {isFollowLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : (isFollowing ? 'Following' : 'Follow')}
+             </Button>
           )}
 
           {isOwner && (
