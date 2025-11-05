@@ -89,7 +89,7 @@ export function BottomNav() {
 
   return (
     <>
-      <div className="fixed bottom-0 left-0 z-50 w-full h-14 bg-background border-t border-border">
+      <div className="fixed bottom-0 left-0 z-50 w-full h-12 bg-background border-t border-border">
         <div className="grid h-full max-w-lg grid-cols-4 mx-auto font-medium">
           {navItems.map((item) => (
             <Link
@@ -97,13 +97,13 @@ export function BottomNav() {
               key={item.label}
               onClick={item.onClick}
               className={cn(
-                'inline-flex flex-col items-center justify-center px-5 hover:bg-muted group',
+                'inline-flex flex-col items-center justify-center px-4 hover:bg-muted group',
                 item.className,
                 item.isActive && (item.activeClassName || 'bg-muted text-primary'),
               )}
             >
-              <item.icon className={cn('w-6 h-6 mb-1 text-muted-foreground group-hover:text-primary', item.isActive && 'text-primary', item.activeClassName && item.isActive && '!text-accent-foreground' )} />
-              <span className={cn('text-sm text-muted-foreground group-hover:text-primary', item.isActive && 'text-primary', item.activeClassName && item.isActive && '!text-accent-foreground')}>{item.label}</span>
+              <item.icon className={cn('w-5 h-5 mb-0.5 text-muted-foreground group-hover:text-primary', item.isActive && 'text-primary', item.activeClassName && item.isActive && '!text-accent-foreground' )} />
+              <span className={cn('text-xs text-muted-foreground group-hover:text-primary', item.isActive && 'text-primary', item.activeClassName && item.isActive && '!text-accent-foreground')}>{item.label}</span>
             </Link>
           ))}
         </div>
