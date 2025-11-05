@@ -47,16 +47,17 @@ export const useFollow = (targetUserId?: string) => {
     const previousState = isFollowing;
     // Optimistic UI update for instant feedback
     setIsFollowing(!previousState);
+    // We don't set loading state here to make it feel instant
 
     try {
-      // Call the server flow in the background without setting a loading state
+      // Call the server flow in the background
       const result = await toggleFollow({
         currentUserId: user.uid,
         targetUserId: targetUserId,
       });
 
       // After the server responds, sync the UI with the true state.
-      // This will correct the UI if the server operation failed for any reason.
+      // This will correct the UI if the server operation failed or if state is out of sync.
       if (result.isFollowing !== !previousState) {
         setIsFollowing(result.isFollowing);
       }

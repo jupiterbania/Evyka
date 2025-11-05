@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -29,7 +30,7 @@ service cloud.firestore {
       allow create: if isOwner(userId);
       
       // A user can only update their own username and profileImageUrl.
-      // Follow counts are handled by the server.
+      // Follow counts are handled by a trusted server process (Genkit flow).
       allow update: if isOwner(userId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['username', 'profileImageUrl']);
 
       // No one can arbitrarily delete a user document. Deletions should be handled by a trusted server process.
