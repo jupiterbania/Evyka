@@ -15,6 +15,20 @@
       ]
     },
     {
+      "collectionGroup": "media",
+      "queryScope": "COLLECTION",
+      "fields": [
+        {
+          "fieldPath": "authorId",
+          "arrayConfig": "CONTAINS"
+        },
+        {
+          "fieldPath": "uploadDate",
+          "order": "DESCENDING"
+        }
+      ]
+    },
+    {
       "collectionGroup": "messages",
       "queryScope": "COLLECTION_GROUP",
       "fields": [
@@ -31,3 +45,5 @@
   ],
   "fieldOverrides": []
 }
+
+    

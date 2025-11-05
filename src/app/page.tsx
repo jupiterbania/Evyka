@@ -34,16 +34,26 @@ export default function Home() {
   const searchParams = useSearchParams();
   const router = useRouter();
   
-  const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
+  const mediaCollection = useMemoFirebase(() => firestore ? query(collection(firestore, 'media'), orderBy('uploadDate', 'desc')) : null, [firestore]);
   const { data: media, isLoading } = useCollection<MediaType>(mediaCollection);
   
   const [followingIds, setFollowingIds] = useState<string[] | null>(null);
 
   const [activeTab, setActiveTab] = useState('for-you');
 
-  // New state for following media
-  const [followingMedia, setFollowingMedia] = useState<MediaType[] | null>(null);
-  const [isFollowingMediaLoading, setIsFollowingMediaLoading] = useState(false);
+  const followingMediaQuery = useMemoFirebase(() => {
+    if (firestore && followingIds && followingIds.length > 0) {
+      return query(
+        collection(firestore, 'media'),
+        where('authorId', 'in', followingIds),
+        orderBy('uploadDate', 'desc')
+      );
+    }
+    return null;
+  }, [firestore, followingIds]);
+
+  const { data: followingMedia, isLoading: isFollowingMediaLoading } = useCollection<MediaType>(followingMediaQuery);
+
 
   useEffect(() => {
     if (user && firestore) {
@@ -59,40 +69,14 @@ export default function Home() {
     }
   }, [user, firestore]);
   
-  useEffect(() => {
-    if (activeTab === 'following' && firestore && followingIds) {
-      if (followingIds.length > 0) {
-        const fetchFollowingMedia = async () => {
-          setIsFollowingMediaLoading(true);
-          const followingQuery = query(
-            collection(firestore, 'media'),
-            where('authorId', 'in', followingIds),
-            orderBy('uploadDate', 'desc')
-          );
-          const snapshot = await getDocs(followingQuery);
-          const newMedia = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as MediaType));
-          setFollowingMedia(newMedia);
-          setIsFollowingMediaLoading(false);
-        };
-        fetchFollowingMedia();
-      } else {
-        setFollowingMedia([]);
-      }
-    }
-  }, [activeTab, firestore, followingIds]);
-
   const initialFilter = searchParams.get('filter') === 'nude' ? 'nude' : 'all';
   const [filter, setFilter] = useState<'all' | 'nude'>(initialFilter);
 
   const sortedMedia = useMemo(() => {
-    const sourceMedia = activeTab === 'following' ? followingMedia : media;
+    const sourceMedia = activeTab === 'following' ? (followingIds?.length === 0 ? [] : followingMedia) : media;
     if (!sourceMedia) return [];
-    return [...sourceMedia].sort((a, b) => {
-      const timeA = a.uploadDate?.toMillis() || 0;
-      const timeB = b.uploadDate?.toMillis() || 0;
-      return timeB - timeA;
-    });
-  }, [media, followingMedia, activeTab]);
+    return sourceMedia;
+  }, [media, followingMedia, activeTab, followingIds]);
 
   const filteredMedia = useMemo(() => {
     if (filter === 'all') {
@@ -209,7 +193,8 @@ export default function Home() {
   }, [filter, activeTab]);
 
   const renderContent = () => {
-    if (isLoading || isUserLoading || (activeTab === 'following' && (isFollowingMediaLoading || followingIds === null))) {
+    const isFeedLoading = isLoading || isUserLoading || (activeTab === 'following' && (isFollowingMediaLoading || followingIds === null));
+    if (isFeedLoading) {
       return (
         <div className="flex flex-col items-center justify-center min-h-[50vh]">
           <Loader2 className="h-12 w-12 animate-spin text-primary" />
@@ -310,3 +295,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
