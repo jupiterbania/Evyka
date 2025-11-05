@@ -39,10 +39,10 @@ export function Header() {
     if (user) {
       return (
         <Button variant="ghost" size="icon" asChild>
-          <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+          <Link href="/messages">
               <Send className="h-5 w-5" />
               <span className="sr-only">Message</span>
-          </a>
+          </Link>
         </Button>
       );
     }

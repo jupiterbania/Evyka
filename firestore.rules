@@ -21,6 +21,10 @@ service cloud.firestore {
     function isCreatingOwnFollowerEntry(followerId) {
       return request.auth.uid == followerId;
     }
+    
+    function isConversationParticipant(conversationId) {
+      return isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+    }
 
     match /users/{userId} {
       // Anyone can read public user profiles.
@@ -61,6 +65,24 @@ service cloud.firestore {
       // Anyone can read the public site settings.
       allow get: if true;
       allow write: if false; // Only allow admin/server to write
+    }
+    
+    match /conversations/{conversationId} {
+      // Only participants can read conversation metadata
+      allow get: if isConversationParticipant(conversationId);
+      // Anyone can create a conversation
+      allow create: if isSignedIn();
+      // Only participants can update a conversation (e.g., last message)
+      allow update: if isConversationParticipant(conversationId);
+
+      match /messages/{messageId} {
+        // Only participants can list or read messages.
+        allow list, get: if isConversationParticipant(conversationId);
+        // Only participants can create new messages.
+        allow create: if isConversationParticipant(conversationId);
+        // Only the sender can update their message (e.g., to mark as read). This could be more granular.
+        allow update: if isConversationParticipant(conversationId) && request.resource.data.senderId == request.auth.uid;
+      }
     }
   }
 }

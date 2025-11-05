@@ -141,6 +141,44 @@
           "description": "The AI hint for the hero image."
         }
       }
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "Represents a messaging conversation between two or more users.",
+      "type": "object",
+      "properties": {
+        "participants": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "An array of user IDs participating in the conversation."
+        },
+        "lastMessage": {
+          "type": "string",
+          "description": "The text of the last message sent in the conversation."
+        },
+        "lastMessageAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Timestamp of the last message."
+        },
+        "lastMessageSenderId": {
+          "type": "string",
+          "description": "The ID of the user who sent the last message."
+        }
+      },
+      "required": ["participants", "lastMessageAt"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Represents a single message within a conversation.",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "isRead": { "type": "boolean" }
+      },
+      "required": ["senderId", "text", "createdAt"]
     }
   },
   "auth": {
@@ -226,6 +264,24 @@
           "description": "A singleton document for global site settings like the hero image.",
           "params": []
         }
+      },
+      {
+        "path": "/conversations/{conversationId}",
+        "definition": {
+          "entityName": "Conversation",
+          "schema": { "$ref": "#/backend/entities/Conversation" },
+          "description": "Stores metadata for each message thread."
+        },
+        "subcollections": [
+          {
+            "path": "/messages/{messageId}",
+            "definition": {
+              "entityName": "Message",
+              "schema": { "$ref": "#/backend/entities/Message" },
+              "description": "Contains all messages within a conversation."
+            }
+          }
+        ]
       }
     ]
   }
