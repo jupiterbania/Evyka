@@ -10,8 +10,6 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 import * as admin from 'firebase-admin';
-import { getApps, initializeApp } from 'firebase-admin/app';
-import { getFirestore } from 'firebase-admin/firestore';
 
 const ToggleFollowInputSchema = z.object({
   currentUserId: z.string().describe('The ID of the user performing the action.'),
@@ -31,10 +29,10 @@ const toggleFollowFlow = ai.defineFlow(
   },
   async ({ currentUserId, targetUserId }) => {
     // Initialize Firebase Admin SDK if not already initialized
-    if (!getApps().length) {
-      initializeApp();
+    if (!admin.apps.length) {
+      admin.initializeApp();
     }
-    const db = getFirestore();
+    const db = admin.firestore();
 
     if (currentUserId === targetUserId) {
         throw new Error("Users cannot follow themselves.");
