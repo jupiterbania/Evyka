@@ -29,6 +29,7 @@ service cloud.firestore {
       allow create: if isOwner(userId);
       
       // A user can update their own profile data (username, profileImageUrl).
+      // Follower/Following counts are updated by the server.
       allow update: if isOwner(userId) && request.resource.data.keys().hasOnly(['username', 'profileImageUrl']);
       
       // No one can arbitrarily delete a user document. Deletions should be handled by a trusted server process.
