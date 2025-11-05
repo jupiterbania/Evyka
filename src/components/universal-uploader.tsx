@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -142,8 +143,6 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
                     isNude: isForNudes,
                     isReel: isReel || (isForNudes && result.isVideo), // Reels can be nude
                     authorId: user.uid,
-                    authorName: user.displayName,
-                    authorPhotoUrl: user.photoURL,
                 };
                 addDocumentNonBlocking(mediaCollection, docData);
             }
@@ -173,8 +172,6 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
                 isNude: isForNudes,
                 isReel: false, // Image URLs cannot be reels
                 authorId: user.uid,
-                authorName: user.displayName,
-                authorPhotoUrl: user.photoURL,
              };
              addDocumentNonBlocking(mediaCollection, docData);
              toast({ title: 'Image URL Uploaded!' });
@@ -191,8 +188,6 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
                 isNude: isForNudes,
                 isReel: isReel || (isForNudes && videoUrl.length > 0),
                 authorId: user.uid,
-                authorName: user.displayName,
-                authorPhotoUrl: user.photoURL,
             });
             toast({ title: 'Video URL Submitted' });
         }
@@ -311,3 +306,5 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
     </Dialog>
   );
 }
+
+    

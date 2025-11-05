@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { Media as MediaType } from '@/lib/types';
+import type { Media as MediaType, User as UserType } from '@/lib/types';
 import Image from 'next/image';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import {
@@ -48,6 +48,8 @@ import {
   useFirestore,
   useUser,
   useAuth,
+  useDoc,
+  useMemoFirebase,
 } from '@/firebase';
 import {
   doc,
@@ -75,6 +77,7 @@ import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { cn } from '@/lib/utils';
 import { Checkbox } from './ui/checkbox';
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
+import { Skeleton } from './ui/skeleton';
 
 type ImageCardProps = {
   media: MediaType;
@@ -173,6 +176,14 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
   const [mediaToEdit, setMediaToEdit] = useState<Partial<MediaType> & { id: string } | null>(null);
   const [mediaToDelete, setMediaToDelete] = useState<MediaType | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // --- Fetch Author Data ---
+  const authorDocRef = useMemoFirebase(
+    () => (firestore && mediaItem.authorId ? doc(firestore, 'users', mediaItem.authorId) : null),
+    [firestore, mediaItem.authorId]
+  );
+  const { data: author, isLoading: isAuthorLoading } = useDoc<UserType>(authorDocRef);
+  // --- End Fetch Author Data ---
 
 
   // Memoize the initial likes and comments so they are stable per card
@@ -470,17 +481,27 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
         style={{ animationDelay: `${index * 50}ms` }}
       >
         <CardHeader className="p-3 flex-row items-center gap-3">
-          <Avatar className="h-8 w-8" onClick={(e) => { e.stopPropagation(); router.push('/profile')}}>
-            <AvatarImage src={mediaItem.authorPhotoUrl || ''} alt={mediaItem.authorName} />
-            <AvatarFallback>{getInitials(mediaItem.authorName)}</AvatarFallback>
-          </Avatar>
-          <div className="flex-grow" onClick={handleCardClick}>
-            <p className="font-semibold text-sm hover:underline">{mediaItem.authorName}</p>
-          </div>
+          {isAuthorLoading ? (
+            <>
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <Skeleton className="h-4 w-24" />
+            </>
+          ) : (
+            <>
+            <Avatar className="h-8 w-8" onClick={(e) => { e.stopPropagation(); router.push('/profile')}}>
+              <AvatarImage src={author?.profileImageUrl || ''} alt={author?.username} />
+              <AvatarFallback>{getInitials(author?.username)}</AvatarFallback>
+            </Avatar>
+            <div className="flex-grow" onClick={handleCardClick}>
+              <p className="font-semibold text-sm hover:underline">{author?.username}</p>
+            </div>
+            </>
+          )}
+
           {showAdminControls && isOwner && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                <Button variant="ghost" size="icon" className="h-8 w-8 ml-auto" onClick={(e) => e.stopPropagation()}>
                   <MoreVertical className="h-4 w-4" />
                 </Button>
               </DropdownMenuTrigger>
@@ -523,8 +544,12 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
             </div>
             <p className="text-sm font-semibold mt-2">{formatCount(likeCount)} likes</p>
             <p className="text-sm mt-1">
-                <span className="font-semibold">{mediaItem.authorName}</span>
-                <span className="ml-2 text-muted-foreground">{mediaItem.title}</span>
+                {isAuthorLoading ? <Skeleton className="h-4 w-32" /> :
+                  <>
+                    <span className="font-semibold">{author?.username}</span>
+                    <span className="ml-2 text-muted-foreground">{mediaItem.title}</span>
+                  </>
+                }
             </p>
             {mediaItem.description && (
                  <p className="text-sm text-muted-foreground mt-1">{mediaItem.description}</p>
@@ -589,3 +614,5 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
     </>
   );
 }
+
+    
