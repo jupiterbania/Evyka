@@ -19,11 +19,16 @@ export const useFollow = (targetUserId?: string) => {
       return;
     }
     
+    // Check initial follow status when the component mounts or user/target changes.
+    // Set loading state only for this initial check.
+    setIsFollowLoading(true);
     const followDocRef = doc(firestore, 'users', user.uid, 'following', targetUserId);
     getDoc(followDocRef).then(doc => {
       setIsFollowing(doc.exists());
     }).catch(err => {
       console.error("Error checking initial follow status:", err);
+    }).finally(() => {
+        setIsFollowLoading(false);
     });
   }, [user, targetUserId, firestore]);
 
@@ -40,19 +45,22 @@ export const useFollow = (targetUserId?: string) => {
     const previousState = isFollowing;
     // Optimistic UI update for instant feedback
     setIsFollowing(!previousState);
-    setIsFollowLoading(true);
 
     try {
+      // Call the server flow in the background without setting a loading state
       const result = await toggleFollow({
         currentUserId: user.uid,
         targetUserId: targetUserId,
       });
 
-      // Sync with server's source of truth. Usually this will be the same as the optimistic update.
-      setIsFollowing(result.isFollowing);
+      // After the server responds, sync the UI with the true state.
+      // This will correct the UI if the server operation failed for any reason.
+      if (result.isFollowing !== !previousState) {
+        setIsFollowing(result.isFollowing);
+      }
       
     } catch (error: any) {
-      // If server fails, revert the optimistic update and show an error
+      // If the server call fails, revert the optimistic update and show an error.
       setIsFollowing(previousState);
       console.error('Failed to toggle follow:', error);
       toast({
@@ -60,8 +68,6 @@ export const useFollow = (targetUserId?: string) => {
         title: 'Error',
         description: 'Failed to update follow status. Please try again.',
       });
-    } finally {
-      setIsFollowLoading(false);
     }
   }, [user, targetUserId, firestore, isFollowing, toast]);
 
