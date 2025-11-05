@@ -39,14 +39,9 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
   const [uploadType, setUploadType] = useState<UploadType | null>(null);
 
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [uploadStatusMessage, setUploadStatusMessage] = useState('');
-  const [uploadCounts, setUploadCounts] = useState({ current: 0, total: 0 });
 
   const [newMedia, setNewMedia] = useState({ title: '', description: '' });
   const [mediaFiles, setMediaFiles] = useState<FileList | null>(null);
-  const [imageUrl, setImageUrl] = useState('');
-  const [videoUrl, setVideoUrl] = useState('');
 
   const firestore = useFirestore();
   const { user } = useUser();
@@ -58,12 +53,7 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
     setUploadType(null);
     setNewMedia({ title: '', description: '' });
     setMediaFiles(null);
-    setImageUrl('');
-    setVideoUrl('');
     setIsUploading(false);
-    setUploadProgress(null);
-    setUploadStatusMessage('');
-    setUploadCounts({ current: 0, total: 0 });
     setIsOpen(false);
   };
   
@@ -74,19 +64,16 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
 
   const handleUpload = async () => {
     if (!firestore || !mediaCollection || !user) return;
-    if (!mediaFiles?.length && !imageUrl && !videoUrl) {
+    if (!mediaFiles?.length) {
       toast({
         variant: 'destructive',
         title: 'Upload Error',
-        description: 'Please select a file or provide a URL.',
+        description: 'Please select one or more files to upload.',
       });
       return;
     }
 
     setIsUploading(true);
-    setUploadStatusMessage('Starting upload...');
-
-    // We can close the dialog immediately and show progress with toasts.
     setIsOpen(false); 
     toast({
         title: 'Upload Started',
@@ -97,100 +84,60 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
         const isForNudes = uploadType === 'nude';
         const isReel = uploadType === 'reel';
 
-        if (mediaFiles && mediaFiles.length > 0) {
-            const filesArray = Array.from(mediaFiles);
-            
-            const validFiles = filesArray.filter(file => {
-                if (file.size > 99 * 1024 * 1024) {
-                    toast({
-                        variant: 'destructive',
-                        title: 'File Too Large',
-                        description: `"${file.name}" is over 99MB and will be skipped.`,
-                    });
-                    return false;
-                }
-                return true;
-            });
-
-            if (validFiles.length === 0) throw new Error("No valid files to upload.");
-
-            const mediaItems = await Promise.all(validFiles.map(async (file) => {
-                const mediaDataUri = await new Promise<string>((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.readAsDataURL(file);
-                    reader.onload = () => resolve(reader.result as string);
-                    reader.onerror = error => reject(error);
+        const filesArray = Array.from(mediaFiles);
+        
+        const validFiles = filesArray.filter(file => {
+            if (file.size > 99 * 1024 * 1024) {
+                toast({
+                    variant: 'destructive',
+                    title: 'File Too Large',
+                    description: `"${file.name}" is over 99MB and will be skipped.`,
                 });
-                return {
-                    mediaDataUri,
-                    isVideo: file.type.startsWith('video/'),
-                    originalFilename: file.name
-                };
-            }));
-
-            const { results } = await uploadMultipleMedia({ mediaItems });
-
-            if (results.length === 0) throw new Error("All file uploads failed on the server.");
-
-            for (const result of results) {
-                const docData: any = {
-                    title: filesArray.length > 1 ? '' : newMedia.title,
-                    description: newMedia.description,
-                    mediaUrl: result.mediaUrl,
-                    thumbnailUrl: result.thumbnailUrl,
-                    mediaType: result.isVideo ? 'video' : 'image',
-                    uploadDate: serverTimestamp(),
-                    isNude: isForNudes,
-                    isReel: isReel || (isForNudes && result.isVideo), // Reels can be nude
-                    authorId: user.uid,
-                };
-                addDocumentNonBlocking(mediaCollection, docData);
+                return false;
             }
+            return true;
+        });
 
-            toast({
-                title: 'Upload Complete',
-                description: `${results.length} of ${validFiles.length} files uploaded successfully.`
+        if (validFiles.length === 0) throw new Error("No valid files to upload.");
+
+        const mediaItems = await Promise.all(validFiles.map(async (file) => {
+            const mediaDataUri = await new Promise<string>((resolve, reject) => {
+                const reader = new FileReader();
+                reader.readAsDataURL(file);
+                reader.onload = () => resolve(reader.result as string);
+                reader.onerror = error => reject(error);
             });
+            return {
+                mediaDataUri,
+                isVideo: file.type.startsWith('video/'),
+                originalFilename: file.name
+            };
+        }));
 
-        } else if (imageUrl) {
-             const { results } = await uploadMultipleMedia({
-                mediaItems: [{
-                    mediaDataUri: imageUrl,
-                    isVideo: false,
-                    originalFilename: 'url-upload.jpg'
-                }]
-             });
-             if (results.length === 0) throw new Error("URL upload failed.");
+        const { results } = await uploadMultipleMedia({ mediaItems });
 
-             const docData: any = {
-                title: newMedia.title,
+        if (results.length === 0) throw new Error("All file uploads failed on the server.");
+
+        for (const result of results) {
+            const docData: any = {
+                title: filesArray.length > 1 ? '' : newMedia.title,
                 description: newMedia.description,
-                mediaUrl: results[0].mediaUrl,
-                thumbnailUrl: results[0].thumbnailUrl,
-                mediaType: 'image',
+                mediaUrl: result.mediaUrl,
+                thumbnailUrl: result.thumbnailUrl,
+                mediaType: result.isVideo ? 'video' : 'image',
                 uploadDate: serverTimestamp(),
                 isNude: isForNudes,
-                isReel: false, // Image URLs cannot be reels
+                isReel: isReel || (isForNudes && result.isVideo),
                 authorId: user.uid,
-             };
-             addDocumentNonBlocking(mediaCollection, docData);
-             toast({ title: 'Image URL Uploaded!' });
-
-        } else if (videoUrl) {
-            // Video URLs are not processed via Cloudinary, just saved directly
-            addDocumentNonBlocking(mediaCollection, {
-                title: newMedia.title,
-                description: newMedia.description,
-                mediaUrl: videoUrl,
-                thumbnailUrl: '', // No automatic thumbnail for URLs
-                mediaType: 'video',
-                uploadDate: serverTimestamp(),
-                isNude: isForNudes,
-                isReel: isReel || (isForNudes && videoUrl.length > 0),
-                authorId: user.uid,
-            });
-            toast({ title: 'Video URL Submitted' });
+            };
+            addDocumentNonBlocking(mediaCollection, docData);
         }
+
+        toast({
+            title: 'Upload Complete',
+            description: `${results.length} of ${validFiles.length} files uploaded successfully.`
+        });
+
     } catch (error: any) {
         console.error('Universal upload failed:', error);
         toast({
@@ -203,7 +150,20 @@ export function UniversalUploader({ children }: UniversalUploaderProps) {
     }
 };
 
-const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
+  const getAcceptValue = () => {
+    switch(uploadType) {
+        case 'image':
+            return 'image/*';
+        case 'reel':
+            return 'video/mp4,video/quicktime,video/x-m4v,video/*';
+        case 'nude':
+            return 'image/*,video/mp4,video/quicktime,video/x-m4v,video/*';
+        default:
+            return '';
+    }
+  }
+
+  const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
 
   const renderStepOne = () => (
     <>
@@ -235,42 +195,14 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
       <DialogHeader>
         <DialogTitle>Upload: <span className="capitalize">{uploadType}</span></DialogTitle>
         <DialogDescription>
-            Select files or provide a URL. Max size 99MB.
+            Select files to upload. Max size 99MB per file.
         </DialogDescription>
       </DialogHeader>
       <div className="grid gap-4 py-4 max-h-[60vh] overflow-y-auto pr-4">
         <div className="grid w-full items-center gap-1.5">
             <Label htmlFor="mediaFile-universal">Media File(s)</Label>
-            <Input id="mediaFile-universal" type="file" accept="image/*,video/mp4,video/quicktime,video/x-m4v,video/*" multiple
-                onChange={(e) => {
-                    setMediaFiles(e.target.files);
-                    if (e.target.files?.length) { setImageUrl(''); setVideoUrl(''); }
-                }}
-                disabled={!!imageUrl || !!videoUrl}
-            />
-        </div>
-        <div className="relative my-2">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
-            <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground">OR</span></div>
-        </div>
-        <div className="grid w-full items-center gap-1.5">
-            <Label htmlFor="imageUrl-universal">Image URL</Label>
-            <Input id="imageUrl-universal" type="text" placeholder="https://example.com/image.png" value={imageUrl}
-                onChange={(e) => {
-                    setImageUrl(e.target.value);
-                    if (e.target.value) { setMediaFiles(null); setVideoUrl(''); }
-                }}
-                disabled={!!mediaFiles?.length || !!videoUrl || uploadType === 'reel'}
-            />
-        </div>
-        <div className="grid w-full items-center gap-1.5">
-            <Label htmlFor="videoUrl-universal">Video URL (e.g. Google Drive)</Label>
-            <Input id="videoUrl-universal" type="text" placeholder="https://drive.google.com/..." value={videoUrl}
-                onChange={(e) => {
-                    setVideoUrl(e.target.value);
-                    if (e.target.value) { setMediaFiles(null); setImageUrl(''); }
-                }}
-                disabled={!!mediaFiles?.length || !!imageUrl || uploadType === 'image'}
+            <Input id="mediaFile-universal" type="file" accept={getAcceptValue()} multiple
+                onChange={(e) => setMediaFiles(e.target.files)}
             />
         </div>
         
@@ -281,7 +213,8 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
             </div>
         )}
         <div className="grid w-full items-center gap-1.5">
-            <Label htmlFor="description-universal">Description</Label>            <Textarea id="description-universal" placeholder="A detailed description of the media." value={newMedia.description} onChange={(e) => setNewMedia({...newMedia, description: e.target.value})}/>
+            <Label htmlFor="description-universal">Description</Label>
+            <Textarea id="description-universal" placeholder="A detailed description of the media." value={newMedia.description} onChange={(e) => setNewMedia({...newMedia, description: e.target.value})}/>
         </div>
       </div>
        <DialogFooter className="flex-col-reverse sm:flex-row pt-4 border-t">
@@ -306,5 +239,3 @@ const showTitleInput = !mediaFiles || mediaFiles.length <= 1;
     </Dialog>
   );
 }
-
-    
