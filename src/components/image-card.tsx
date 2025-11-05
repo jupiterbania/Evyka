@@ -462,28 +462,30 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
         style={{ animationDelay: `${index * 50}ms` }}
       >
         <CardHeader className="p-3 flex-row items-center gap-3">
-          {isAuthorLoading ? (
-            <>
-              <Skeleton className="h-8 w-8 rounded-full" />
-              <Skeleton className="h-4 w-24" />
-            </>
-          ) : (
-            <>
-            <Avatar className="h-8 w-8" onClick={(e) => { e.stopPropagation(); router.push('/profile')}}>
-              <AvatarImage src={author?.profileImageUrl || ''} alt={author?.username} />
-              <AvatarFallback>{getInitials(author?.username)}</AvatarFallback>
-            </Avatar>
-            <div className="flex-grow" onClick={handleCardClick}>
-              <p className="font-semibold text-sm hover:underline">{author?.username}</p>
-            </div>
-            </>
-          )}
+            <Link href={isOwner ? `/profile` : `/profile/${mediaItem.authorId}`} className="flex items-center gap-3 flex-grow" onClick={(e) => e.stopPropagation()}>
+                {isAuthorLoading ? (
+                    <>
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <Skeleton className="h-4 w-24" />
+                    </>
+                ) : (
+                    <>
+                    <Avatar className="h-8 w-8">
+                        <AvatarImage src={author?.profileImageUrl || ''} alt={author?.username} />
+                        <AvatarFallback>{getInitials(author?.username)}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-grow">
+                        <p className="font-semibold text-sm hover:underline">{author?.username}</p>
+                    </div>
+                    </>
+                )}
+            </Link>
           
           {!isOwner && user && (
              <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleFollowToggle()}
+                onClick={(e) => { e.stopPropagation(); handleFollowToggle(); }}
                 disabled={isFollowLoading}
                 className={cn('ml-auto', isFollowing && 'text-muted-foreground')}
               >
