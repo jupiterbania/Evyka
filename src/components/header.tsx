@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Logo } from './logo';
 import { Button } from './ui/button';
-import { LogIn, Plus } from 'lucide-react';
+import { LogIn, Plus, Send } from 'lucide-react';
 import { useUser, useAuth } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { UniversalUploader } from './universal-uploader';
@@ -38,6 +38,30 @@ export function Header() {
 
     if (user) {
       return (
+        <Button variant="ghost" size="icon" asChild>
+          <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer">
+              <Send className="h-5 w-5" />
+              <span className="sr-only">Message</span>
+          </a>
+        </Button>
+      );
+    }
+
+    return (
+      <Button onClick={handleGoogleSignIn}>
+        <LogIn className="mr-2 h-4 w-4" />
+        Sign In
+      </Button>
+    );
+  }
+  
+  const renderUploadSection = () => {
+    if (isUserLoading) {
+      return <div className="w-24 h-9 bg-muted rounded-md animate-pulse" />;
+    }
+
+    if (user) {
+       return (
         <UniversalUploader>
           <Button variant="ghost" size="icon">
             <Plus className="h-5 w-5" />
@@ -46,26 +70,20 @@ export function Header() {
         </UniversalUploader>
       );
     }
-
+    
     return (
-      <>
-        {/* This is the UniversalUploader trigger for logged-out users */}
-        <Button variant="ghost" size="icon" onClick={handleGoogleSignIn}>
-            <Plus className="h-5 w-5" />
-            <span className="sr-only">Upload Media</span>
-        </Button>
-        <Button onClick={handleGoogleSignIn}>
-          <LogIn className="mr-2 h-4 w-4" />
-          Sign In
-        </Button>
-      </>
-    );
+      <Button variant="ghost" size="icon" onClick={handleGoogleSignIn}>
+          <Plus className="h-5 w-5" />
+          <span className="sr-only">Upload Media</span>
+      </Button>
+    )
   }
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
-        <div className="flex-1 flex items-center">
+        <div className="flex-1 flex items-center space-x-2">
+            {renderUploadSection()}
         </div>
         
         <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2">
