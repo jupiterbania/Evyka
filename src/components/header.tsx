@@ -2,7 +2,6 @@
 import Link from 'next/link';
 import { Logo } from './logo';
 import { Button } from './ui/button';
-import { Sheet, SheetContent, SheetTrigger, SheetTitle } from './ui/sheet';
 import { Menu, LogIn, LogOut, Plus, User as UserIcon } from 'lucide-react';
 import { useUser, useAuth, useFirestore, useMemoFirebase } from '@/firebase';
 import { GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
@@ -65,24 +64,6 @@ export function Header() {
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center">
         <div className="flex-1 flex items-center">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="sm:hidden">
-                <Menu className="h-6 w-6" />
-                <span className="sr-only">Toggle navigation menu</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left">
-              <SheetTitle className="sr-only">Menu</SheetTitle>
-              <div className="py-4">
-                <Logo />
-              </div>
-              <nav className="grid gap-4 py-4">
-                <Link href="/" className="text-lg font-semibold hover:text-primary">Home</Link>
-                <Link href="/#gallery" className="text-lg font-semibold hover:text-primary">Gallery</Link>
-              </nav>
-            </SheetContent>
-          </Sheet>
           <nav className="hidden sm:flex items-center gap-6 text-sm font-medium">
              <Link href="/" className="text-foreground/60 transition-colors hover:text-foreground/80">Home</Link>
              <Link href="/#gallery" className="text-foreground/60 transition-colors hover:text-foreground/80">Gallery</Link>
