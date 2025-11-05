@@ -15,12 +15,10 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      // Users can read and update their own profile.
-      allow get, update: if isOwner(userId);
-      // Users can create their own profile.
-      allow create: if isOwner(userId);
-      // Users can delete their own profile.
-      allow delete: if isOwner(userId);
+      // Any signed-in user can read public user profiles.
+      allow get: if isSignedIn();
+      // Only the user themselves can create, update, or delete their own profile.
+      allow create, update, delete: if isOwner(userId);
     }
 
     match /media/{mediaId} {
