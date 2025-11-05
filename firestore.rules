@@ -10,39 +10,53 @@ service cloud.firestore {
       return isSignedIn() && request.auth.uid == userId;
     }
 
+    // A user is the owner of a media document if their UID matches the authorId field.
     function isMediaOwner(mediaId) {
-      return isSignedIn() && get(/databases/$(database)/documents/media/$(mediaId)).data.authorId == request.auth.uid;
+      return isOwner(get(/databases/$(database)/documents/media/$(mediaId)).data.authorId);
+    }
+    
+    // Checks if the user trying to write to a "followers" subcollection
+    // is the one being added as a follower.
+    function isCreatingOwnFollowerEntry(followerId) {
+      return request.auth.uid == followerId;
     }
 
     match /users/{userId} {
       // Anyone can read public user profiles.
       allow get: if true;
       
-      // The user can create, update, or delete their own document.
-      // The backend flow can also update any user document (e.g., for follower counts).
-      // Because this is a less restrictive rule, it's critical that
-      // server-side logic (flows) is the only thing performing sensitive cross-user updates.
-      allow create, update, delete: if isSignedIn();
+      // A user can create their own document.
+      allow create: if isOwner(userId);
+      
+      // A user can update their own profile data (username, profileImageUrl).
+      allow update: if isOwner(userId) && request.resource.data.keys().hasOnly(['username', 'profileImageUrl']);
+      
+      // No one can arbitrarily delete a user document. Deletions should be handled by a trusted server process.
+      allow delete: if false;
+
 
       // Rules for followers and following subcollections
       match /followers/{followerId} {
         // Anyone can see who follows a user
         allow get, list: if true;
-        // The follower can add/remove themselves from the list
-        allow write: if isOwner(followerId);
+        
+        // A user can add or remove themselves from another user's followers list.
+        // This means the person initiating the follow is creating a document with their own ID.
+        allow write: if isCreatingOwnFollowerEntry(followerId);
       }
 
       match /following/{followedId} {
         // Anyone can see who a user is following
         allow get, list: if true;
-        // The user can modify their own following list
+        // The user can modify their own following list (add/remove who they follow).
         allow write: if isOwner(userId);
       }
     }
 
     match /media/{mediaId} {
+      // Anyone can view media.
       allow get, list: if true;
-      // Allow signed-in users to create media. This also allows backend processes.
+      // Any authenticated user can upload media. The authorId is set on the server.
       allow create: if isSignedIn();
       // Only the user who created the media can update or delete it.
       allow update, delete: if isMediaOwner(mediaId);
