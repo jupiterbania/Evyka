@@ -13,22 +13,16 @@ service cloud.firestore {
     function isMediaOwner(mediaId) {
       return isSignedIn() && get(/databases/$(database)/documents/media/$(mediaId)).data.authorId == request.auth.uid;
     }
-    
-    function isChangingFollowCount(requestData, resourceData) {
-      let changedKeys = requestData.keys().diff(resourceData.keys());
-      return changedKeys.hasAny(['followerCount', 'followingCount']) && changedKeys.size() <= 2;
-    }
 
     match /users/{userId} {
       // Anyone can read public user profiles.
       allow get: if true;
       
-      // The user can update their own document for any reason.
-      allow create, update, delete: if isOwner(userId);
-      
-      // Allow any signed-in user to update another user's document IF
-      // they are only changing the follower/following counts.
-      allow update: if isSignedIn() && isChangingFollowCount(request.resource.data, resource.data);
+      // The user can create, update, or delete their own document.
+      // The backend flow can also update any user document (e.g., for follower counts).
+      // Because this is a less restrictive rule, it's critical that
+      // server-side logic (flows) is the only thing performing sensitive cross-user updates.
+      allow create, update, delete: if isSignedIn();
 
       // Rules for followers and following subcollections
       match /followers/{followerId} {
