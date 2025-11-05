@@ -35,8 +35,8 @@ export default function Home() {
   const mediaCollection = useMemoFirebase(() => firestore ? collection(firestore, 'media') : null, [firestore]);
   const { data: media, isLoading } = useCollection<MediaType>(mediaCollection);
 
-  const initialFilter = searchParams.get('filter') === 'nude' ? 'nude' : 'image';
-  const [filter, setFilter] = useState<'image' | 'nude'>(initialFilter);
+  const initialFilter = searchParams.get('filter') === 'nude' ? 'nude' : 'all';
+  const [filter, setFilter] = useState<'all' | 'nude'>(initialFilter);
 
   const sortedMedia = useMemo(() => {
     if (!media) return [];
@@ -48,11 +48,9 @@ export default function Home() {
   }, [media]);
 
   const filteredMedia = useMemo(() => {
-    // Show only non-reel images
-    if (filter === 'image') {
-      return sortedMedia.filter(item => item.mediaType === 'image' && !item.isNude);
+    if (filter === 'all') {
+      return sortedMedia.filter(item => !item.isNude);
     }
-    // Nudes can be images or videos/reels
     if (filter === 'nude') {
       return sortedMedia.filter(item => item.isNude);
     }
@@ -72,7 +70,7 @@ export default function Home() {
   
   // State for pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const imagesPerPage = 16;
+  const imagesPerPage = 10;
   const totalPages = Math.ceil((filteredMedia?.length || 0) / imagesPerPage);
   const maxPageNumbersToShow = 4;
 
@@ -155,7 +153,7 @@ export default function Home() {
         setAgeGateOpen(true);
       }
     } else {
-      setFilter('image');
+      setFilter('all');
     }
   }, [searchParams, isAgeConfirmed]);
 
@@ -172,14 +170,14 @@ export default function Home() {
           <div className="container px-4 sm:px-6">
             <div className="flex flex-col sm:flex-row items-center justify-between mb-6 sm:mb-8 gap-4">
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline">
-                Explore Gallery
+                Explore Feed
               </h2>
             </div>
             
             {isLoading ? (
               <div className="flex flex-col items-center justify-center min-h-[30vh]">
                 <Loader2 className="h-12 w-12 animate-spin text-primary" />
-                <p className="mt-4 text-muted-foreground">Loading Gallery...</p>
+                <p className="mt-4 text-muted-foreground">Loading Feed...</p>
               </div>
             ) : paginatedMedia.length === 0 ? (
               <p className="col-span-full text-center text-muted-foreground min-h-[30vh] flex items-center justify-center">
@@ -187,9 +185,9 @@ export default function Home() {
               </p>
             ) : (
               <>
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6">
+                <div className="max-w-md mx-auto space-y-8">
                   {paginatedMedia.map((item, index) => (
-                    <ImageCard key={item.id} media={item} index={index} />
+                    <ImageCard key={item.id} media={item} index={index} layout="feed" />
                   ))}
                 </div>
 

@@ -74,11 +74,13 @@ import { useRouter } from 'next/navigation';
 import { uploadMedia } from '@/ai/flows/upload-media-flow';
 import { cn } from '@/lib/utils';
 import { Checkbox } from './ui/checkbox';
+import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar';
 
 type ImageCardProps = {
   media: MediaType;
   index?: number;
   showAdminControls?: boolean;
+  layout?: 'grid' | 'feed';
 };
 
 // --- Time-based Like Calculation Logic ---
@@ -155,7 +157,7 @@ const calculateInitialComments = (likes: number): number => {
   return Math.floor(likes * percentage);
 };
 
-export function ImageCard({ media: mediaItem, index = 0, showAdminControls = false }: ImageCardProps) {
+export function ImageCard({ media: mediaItem, index = 0, showAdminControls = false, layout = 'grid' }: ImageCardProps) {
   const { user } = useUser();
   const firestore = useFirestore();
   const auth = useAuth();
@@ -344,14 +346,24 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
   const isVideo = mediaItem.mediaType === 'video';
   const isGoogleDrive = isVideo && mediaItem.mediaUrl.includes('drive.google.com');
 
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'U';
+    const names = name.split(' ');
+    if (names.length > 1 && names[0] && names[names.length - 1]) {
+      return names[0][0] + names[names.length - 1][0];
+    }
+    return name.substring(0, 2);
+  };
+
 
   const renderMedia = () => {
+    const mediaAspectRatio = layout === 'feed' ? 'aspect-square' : 'aspect-[3/4]';
     if (isVideo) {
       const showVideoElement = !isGoogleDrive || (isGoogleDrive && !!mediaItem.thumbnailUrl);
       const posterUrl = isGoogleDrive ? mediaItem.thumbnailUrl : mediaItem.thumbnailUrl || undefined;
 
       return (
-        <>
+        <div className={cn("relative w-full overflow-hidden bg-card", mediaAspectRatio)}>
           {showVideoElement ? (
             <video
               ref={videoRef}
@@ -370,77 +382,154 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity">
             <PlayCircle className="h-16 w-16 text-white/90" />
           </div>
-        </>
+        </div>
       );
     }
 
     return (
-        <Image
-          src={mediaItem.mediaUrl}
-          alt={mediaItem.title}
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          className="object-cover transition-all duration-300 ease-in-out group-hover:scale-105"
-          data-ai-hint="photo"
-        />
+        <div className={cn("relative w-full overflow-hidden bg-card", mediaAspectRatio)}>
+            <Image
+            src={mediaItem.mediaUrl}
+            alt={mediaItem.title}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="object-cover transition-all duration-300 ease-in-out group-hover:scale-105"
+            data-ai-hint="photo"
+            />
+        </div>
     );
   };
+  
+  if (layout === 'grid') {
+    return (
+      <>
+        <Card 
+          className={cn(
+            "group overflow-hidden flex flex-col cursor-pointer rounded-lg",
+            "opacity-0 animate-fade-in-up"
+          )}
+          style={{ animationDelay: `${index * 50}ms` }}
+          onClick={handleCardClick}
+        >
+          <CardHeader className="p-0 relative">
+            {renderMedia()}
+            {showAdminControls && isOwner && (
+              <div className="absolute top-2 right-2 z-10">
+                  <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                      <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full" onClick={(e) => e.stopPropagation()}>
+                          <MoreVertical className="h-4 w-4" />
+                      </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                          <DropdownMenuItem onClick={handleEditClick}>
+                              <Edit className="mr-2 h-4 w-4" /> Edit
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={handleDeleteClick} className="text-destructive focus:text-destructive">
+                              <Trash2 className="mr-2 h-4 w-4" /> Delete
+                          </DropdownMenuItem>
+                      </DropdownMenuContent>
+                  </DropdownMenu>
+              </div>
+            )}
+          </CardHeader>
+          <CardContent className="p-3 flex-grow flex flex-col">
+              <div className="flex-grow">
+                <CardTitle className="text-sm leading-tight mb-1 truncate hover:underline">
+                {mediaItem.title}
+                </CardTitle>
+              </div>
+          </CardContent>
+          <CardFooter className="p-3 pt-0 flex justify-between items-center mt-auto">
+              <Button variant="ghost" size="sm" className="h-auto p-1 flex items-center -ml-1" asChild>
+                  <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                      <Heart className="h-4 w-4" />
+                      <span className="ml-1 text-xs font-semibold">{formatCount(likeCount)}</span>
+                  </a>
+              </Button>
+              <div className="flex items-center">
+                  <Button variant="ghost" size="icon" className="shrink-0 h-7 w-7" onClick={handleShare}>
+                      <Share2 className="h-4 w-4" />
+                      <span className="sr-only">Share</span>
+                  </Button>
+              </div>
+          </CardFooter>
+        </Card>
+      </>
+    );
+  }
+
 
   return (
     <>
       <Card 
         className={cn(
-          "group overflow-hidden flex flex-col cursor-pointer",
+          "group w-full flex flex-col cursor-pointer",
           "opacity-0 animate-fade-in-up"
         )}
         style={{ animationDelay: `${index * 50}ms` }}
-        onClick={handleCardClick}
       >
-        <CardHeader className="p-0 relative">
-          <div className="relative aspect-[3/4] w-full overflow-hidden bg-card rounded-t-lg">
-              {renderMedia()}
+        <CardHeader className="p-3 flex-row items-center gap-3">
+          <Avatar className="h-8 w-8" onClick={(e) => { e.stopPropagation(); router.push('/profile')}}>
+            <AvatarImage src={mediaItem.authorPhotoUrl || ''} alt={mediaItem.authorName} />
+            <AvatarFallback>{getInitials(mediaItem.authorName)}</AvatarFallback>
+          </Avatar>
+          <div className="flex-grow" onClick={handleCardClick}>
+            <p className="font-semibold text-sm hover:underline">{mediaItem.authorName}</p>
           </div>
           {showAdminControls && isOwner && (
-            <div className="absolute top-2 right-2">
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                    <Button variant="secondary" size="icon" className="h-8 w-8 rounded-full" onClick={(e) => e.stopPropagation()}>
-                        <MoreVertical className="h-4 w-4" />
-                    </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
-                        <DropdownMenuItem onClick={handleEditClick}>
-                            <Edit className="mr-2 h-4 w-4" /> Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleDeleteClick} className="text-destructive focus:text-destructive">
-                            <Trash2 className="mr-2 h-4 w-4" /> Delete
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => e.stopPropagation()}>
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                <DropdownMenuItem onClick={handleEditClick}><Edit className="mr-2 h-4 w-4" /> Edit</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleDeleteClick} className="text-destructive focus:text-destructive"><Trash2 className="mr-2 h-4 w-4" /> Delete</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
         </CardHeader>
-        <CardContent className="p-4 flex-grow flex flex-col">
-            <div className="flex-grow">
-              <CardTitle className="text-base leading-tight mb-1 truncate hover:underline">
-              {mediaItem.title}
-              </CardTitle>
+        
+        <div onClick={handleCardClick}>
+            {renderMedia()}
+        </div>
+        
+        <CardContent className="p-3">
+            <div className="flex items-center gap-2">
+                 <Button variant="ghost" className="h-auto p-2 -ml-2" asChild>
+                      <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                          <Heart className="h-6 w-6" />
+                          <span className="sr-only">Like</span>
+                      </a>
+                  </Button>
+                  <Button variant="ghost" className="h-auto p-2" asChild>
+                       <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                          <MessageCircle className="h-6 w-6" />
+                          <span className="sr-only">Comment</span>
+                      </a>
+                  </Button>
+                   <Button variant="ghost" size="icon" className="h-auto p-2" asChild>
+                      <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                          <Send className="h-6 w-6" />
+                          <span className="sr-only">Message</span>
+                      </a>
+                  </Button>
+                   <Button variant="ghost" size="icon" className="h-auto p-2 ml-auto" onClick={handleShare}>
+                      <Share2 className="h-6 w-6" />
+                      <span className="sr-only">Share</span>
+                  </Button>
             </div>
+            <p className="text-sm font-semibold mt-2">{formatCount(likeCount)} likes</p>
+            <p className="text-sm mt-1">
+                <span className="font-semibold">{mediaItem.authorName}</span>
+                <span className="ml-2 text-muted-foreground">{mediaItem.title}</span>
+            </p>
+            {mediaItem.description && (
+                 <p className="text-sm text-muted-foreground mt-1">{mediaItem.description}</p>
+            )}
         </CardContent>
-        <CardFooter className="p-4 pt-0 flex justify-between items-center mt-auto">
-            <Button variant="ghost" size="sm" className="h-auto p-2 flex items-center" asChild>
-                <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                    <Heart className="h-4 w-4" />
-                    <span className="ml-1 text-sm font-semibold">{formatCount(likeCount)}</span>
-                </a>
-            </Button>
-            <div className="flex items-center">
-                <Button variant="ghost" size="icon" className="shrink-0 h-8 w-8" onClick={handleShare}>
-                    <Share2 className="h-4 w-4" />
-                    <span className="sr-only">Share</span>
-                </Button>
-            </div>
-        </CardFooter>
       </Card>
       
       <AlertDialog open={!!mediaToDelete} onOpenChange={(open) => !open && setMediaToDelete(null)}>

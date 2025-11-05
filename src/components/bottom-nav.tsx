@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import Link from 'next/link';
@@ -29,7 +30,7 @@ export function BottomNav() {
   
   const filter = searchParams.get('filter');
   const isNudeActive = pathname === '/' && filter === 'nude';
-  const isImageActive = pathname === '/' && !isNudeActive;
+  const isFeedActive = pathname === '/' && !isNudeActive;
 
   const handleNudesClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -57,9 +58,9 @@ export function BottomNav() {
   const navItems = [
     {
       href: '/',
-      label: 'Images',
+      label: 'Feed',
       icon: Home,
-      isActive: isImageActive,
+      isActive: isFeedActive,
     },
     {
       href: '/reels',
