@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { Media as MediaType, User as UserType } from '@/lib/types';
@@ -518,39 +519,41 @@ export function ImageCard({ media: mediaItem, index = 0, showAdminControls = fal
         </div>
         
         <CardContent className="p-3">
-            <div className="flex items-center gap-2">
-                 <Button variant="ghost" className="h-auto p-2 -ml-2" asChild>
-                      <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                          <Heart className="h-6 w-6" />
-                          <span className="sr-only">Like</span>
-                      </a>
-                  </Button>
-                  <Button variant="ghost" className="h-auto p-2" asChild>
-                       <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                          <MessageCircle className="h-6 w-6" />
-                          <span className="sr-only">Comment</span>
-                      </a>
-                  </Button>
-                   <Button variant="ghost" size="icon" className="h-auto p-2" asChild>
-                      <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
-                          <Send className="h-6 w-6" />
-                          <span className="sr-only">Message</span>
-                      </a>
-                  </Button>
-                   <Button variant="ghost" size="icon" className="h-auto p-2 ml-auto" onClick={handleShare}>
-                      <Share2 className="h-6 w-6" />
-                      <span className="sr-only">Share</span>
-                  </Button>
+             <div className="flex items-start gap-4">
+                <div className="flex flex-col items-center gap-1">
+                    <Button variant="ghost" className="h-auto p-2" asChild>
+                        <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                            <Heart className="h-6 w-6" />
+                            <span className="sr-only">Like</span>
+                        </a>
+                    </Button>
+                    <p className="text-xs font-semibold">{formatCount(likeCount)}</p>
+                </div>
+                <div className="flex flex-col items-center gap-1">
+                    <Button variant="ghost" className="h-auto p-2" asChild>
+                        <a href="https://www.effectivegatecpm.com/zfpu3dtsu?key=f16f8220857452f455eed8c64dfabf18" target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                            <MessageCircle className="h-6 w-6" />
+                            <span className="sr-only">Comment</span>
+                        </a>
+                    </Button>
+                    <p className="text-xs font-semibold">{formatCount(commentCount)}</p>
+                </div>
+                <div className="flex-grow" />
+                <Button variant="ghost" size="icon" className="h-auto p-2 self-center" onClick={handleShare}>
+                    <Share2 className="h-6 w-6" />
+                    <span className="sr-only">Share</span>
+                </Button>
             </div>
-            <p className="text-sm font-semibold mt-2">{formatCount(likeCount)} likes</p>
-            <div className="text-sm mt-1">
+            
+            <div className="text-sm mt-2">
                 {isAuthorLoading ? <Skeleton className="h-4 w-32" /> :
                   <p>
                     <span className="font-semibold">{author?.username}</span>
-                    <span className="ml-2 text-muted-foreground">{mediaItem.title}</span>
+                    <span className="ml-2 ">{mediaItem.title}</span>
                   </p>
                 }
             </div>
+
             {mediaItem.description && (
                  <p className="text-sm text-muted-foreground mt-1">{mediaItem.description}</p>
             )}
