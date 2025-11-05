@@ -312,12 +312,12 @@ export default function ImagePage() {
               <h2 className="text-2xl sm:text-3xl font-bold tracking-tight font-headline text-center mb-6 sm:mb-8">
                 You Might Also Like
               </h2>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+              <div className="max-w-md mx-auto space-y-8">
                 {isAllMediaLoading
                   ? Array.from({ length: 4 }).map((_, i) => (
-                      <div key={i} className="aspect-[3/4] bg-muted-foreground/10 animate-pulse rounded-lg" />
+                      <Skeleton key={i} className="w-full h-96 rounded-lg" />
                     ))
-                  : recommendedMedia.map(item => <ImageCard key={item.id} media={item} />)}
+                  : recommendedMedia.map((item, index) => <ImageCard key={item.id} media={item} layout="feed" index={index} />)}
               </div>
             </div>
           </section>
