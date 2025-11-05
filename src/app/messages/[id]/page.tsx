@@ -47,7 +47,10 @@ export default function ConversationPage() {
   );
   const { data: messages, isLoading: areMessagesLoading } = useCollection<Message>(messagesQuery);
   
-  const otherParticipant = conversation?.participantInfo?.find(p => p.userId !== currentUser?.uid);
+  const otherParticipant = useMemo(() => {
+    if (!conversation || !currentUser) return null;
+    return conversation.participantInfo?.find(p => p.userId !== currentUser.uid);
+  }, [conversation, currentUser]);
   
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
