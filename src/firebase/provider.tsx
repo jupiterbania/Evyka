@@ -8,7 +8,7 @@ import { Auth, User, onAuthStateChanged } from 'firebase/auth';
 import { FirebaseErrorListener } from '@/components/FirebaseErrorListener';
 import type { User as AppUser } from '@/lib/types';
 import { errorEmitter } from './error-emitter';
-
+import { FirestorePermissionError } from './errors';
 
 interface FirebaseProviderProps {
   children: ReactNode;
@@ -56,6 +56,10 @@ export interface UserHookResult { // Renamed from UserAuthHookResult for consist
 // React Context
 export const FirebaseContext = createContext<FirebaseContextState | undefined>(undefined);
 
+function isPermissionError(error: any): error is { code: string } {
+    return error.code === 'permission-denied';
+}
+
 /**
  * Gets or creates a user document in Firestore.
  * @param firestore - The Firestore instance.
@@ -76,12 +80,16 @@ const getOrCreateUser = async (firestore: Firestore, user: User): Promise<AppUse
       profileImageUrl: user.photoURL || undefined,
       createdAt: serverTimestamp() as any, // Let server set the timestamp
     };
+    
     // No await here, chain a .catch block to handle errors non-blockingly
     setDoc(userRef, newUser)
       .catch(error => {
-        console.error("Error creating user document:", error);
-        // This is a critical error but we won't use the permission-error emitter
-        // as it's a fundamental part of login. A console error is sufficient.
+        if (isPermissionError(error)) {
+            const permissionError = new FirestorePermissionError('create', userRef.path, newUser, error as Error);
+            errorEmitter.emit('permission-error', permissionError);
+        } else {
+            console.error("Error creating user document:", error);
+        }
       });
     return { ...newUser, createdAt: new Date() as any }; // Return with a client-side timestamp for immediate use
   }
