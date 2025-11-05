@@ -5,7 +5,6 @@ import { useMemo } from 'react';
 import { collection, query, where } from 'firebase/firestore';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import type { Media as MediaType } from '@/lib/types';
-import { Header } from '@/components/header';
 import { Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
